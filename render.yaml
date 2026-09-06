@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: 13f-tracker-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PURRTFOLIO_DB
+        sync: false
+        # In Render dashboard, set this to the path of the DB file on a persistent disk
+        # or use a DATABASE_URL for Turso/Postgres
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://<your-github-username>.github.io"
+    # Render free tier: 750 hrs/mo, spins down after 15min idle, cold-start ~30s

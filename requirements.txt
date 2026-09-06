@@ -1,0 +1,5 @@
+# 13F Tracker — web dashboard
+# FastAPI: fastapi + uvicorn
+# SQLite comes with Python stdlib (no install needed)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
