@@ -1,13 +1,18 @@
-"""
-SQLite query layer for the 13F web dashboard.
+"""SQLite query layer for the 13F web dashboard.
 
 Reads from the unified purrtfolio.db (canonical store for both 13F + Short Interest).
 All functions are read-only. SQLite is opened in URI mode for read-only + immutable
 so concurrent reads are safe and won't block the write cron jobs.
+
+On startup (in production on Render), if DB is not found locally, download
+from GitHub Release asset (db-vYYYY-MM-DD).
 """
 from __future__ import annotations
 
+import logging
+import os
 import sqlite3
+import urllib.request
 from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
@@ -15,6 +20,22 @@ from typing import Any, Iterator
 
 # Default to the user's home purrtfolio.db. Override with PURRTFOLIO_DB env var.
 _DEFAULT_DB = Path.home() / "purrtfolio.db"
+
+# GitHub Release asset URL for production DB
+_RELEASE_ASSET = "https://github.com/mcdawgzy/13f-tracker/releases/download/db-v2026-09-05/purrtfolio.db"
+
+logger = logging.getLogger(__name__)
+
+
+def _download_db_if_needed(db_path: Path) -> Path:
+    """Download DB from GitHub Release if it doesn't exist locally."""
+    if db_path.exists():
+        return db_path
+    logger.info(f"DB not found at {db_path}, downloading from {_RELEASE_ASSET}...")
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    urllib.request.urlretrieve(_RELEASE_ASSET, db_path)
+    logger.info(f"Downloaded DB ({db_path.stat().st_size / 1e6:.1f}MB)")
+    return db_path
 
 
 def get_db_path() -> Path:
@@ -26,7 +47,7 @@ def get_db_path() -> Path:
 @contextmanager
 def db_conn() -> Iterator[sqlite3.Connection]:
     """Read-only connection. Use as: with db_conn() as c: c.execute(...)"""
-    path = get_db_path()
+    path = _download_db_if_needed(get_db_path())
     if not path.exists():
         raise FileNotFoundError(f"Database not found: {path}")
     # Open read-only + immutable (no locking, no write contention with cron jobs)
