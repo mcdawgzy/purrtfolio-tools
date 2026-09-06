@@ -4,12 +4,16 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
+    preDeployCommand: |
+      # Download DB from GitHub Release (free tier has no persistent disk)
+      mkdir -p /opt/render/project/src
+      curl -L -o /opt/render/project/src/purrtfolio.db \
+        https://github.com/mcdawgzy/13f-tracker/releases/download/db-v2026-09-05/purrtfolio.db
+      echo "DB downloaded: $(ls -lh /opt/render/project/src/purrtfolio.db)"
     startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PURRTFOLIO_DB
-        sync: false
-        # In Render dashboard, set this to the path of the DB file on a persistent disk
-        # or use a DATABASE_URL for Turso/Postgres
+        value: /opt/render/project/src/purrtfolio.db
       - key: CORS_ALLOWED_ORIGINS
-        value: "https://<your-github-username>.github.io"
+        value: "https://mcdawgzy.github.io"
     # Render free tier: 750 hrs/mo, spins down after 15min idle, cold-start ~30s
