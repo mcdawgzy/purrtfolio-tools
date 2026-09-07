@@ -114,22 +114,51 @@ function parseHash() {
   return { view: 'funds' };
 }
 
-// Chart instances stored to allow destruction on re-render
-const charts = {};
+// Chart color palette - using actual hex values (CSS variables don't work in Chart.js)
+const CHART_COLORS = {
+  brass: '#C9A24E',
+  green: '#2E9E6B',
+  red: '#C7564A',
+  blue: '#3B82F6',
+  pink: '#EC4899',
+  orange: '#F97316',
+  teal: '#14B8A6',
+  purple: '#A855F7',
+  amber: '#EAB308',
+  cyan: '#22D3EE',
+  indigo: '#6366F1',
+  emerald: '#10B981',
+  rose: '#F43F5E',
+};
 
-function destroyChart(key) {
-  if (charts[key]) {
-    charts[key].destroy();
-    delete charts[key];
-  }
-}
+const CHART_COLOR_ARRAY = [
+  CHART_COLORS.brass,
+  CHART_COLORS.green,
+  CHART_COLORS.red,
+  CHART_COLORS.blue,
+  CHART_COLORS.pink,
+  CHART_COLORS.orange,
+  CHART_COLORS.teal,
+  CHART_COLORS.purple,
+  CHART_COLORS.amber,
+  CHART_COLORS.cyan,
+  CHART_COLORS.indigo,
+  CHART_COLORS.emerald,
+  CHART_COLORS.rose,
+];
 
-function destroyAllCharts() {
-  Object.keys(charts).forEach(k => {
-    if (charts[k]) {
-      charts[k].destroy();
-      delete charts[k];
-    }
+function generateColorShades(baseColor, count) {
+  const hex = baseColor.replace('#', '');
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  
+  return Array.from({ length: count }, (_, i) => {
+    const factor = 1 - (i / Math.max(1, count - 1)) * 0.4;
+    const nr = Math.round(r * factor + 255 * (1 - factor) * 0.1);
+    const ng = Math.round(g * factor + 255 * (1 - factor) * 0.1);
+    const nb = Math.round(b * factor + 255 * (1 - factor) * 0.1);
+    return `#${nr.toString(16).padStart(2, '0')}${ng.toString(16).padStart(2, '0')}${nb.toString(16).padStart(2, '0')}`;
   });
 }
 
@@ -191,16 +220,11 @@ function createFundHoldingsChart(holdings) {
   const data = top10.map(h => h.market_value_usd);
   if (othersValue > 0) data.push(othersValue);
   
-  const colors = [
-    'var(--brass)', 'var(--green)', 'var(--red)', '#6366f1', '#ec4899',
-    '#f97316', '#14b8a6', '#a855f7', '#eab308', '#22d3ee',
-  ];
-  
   createPieChart('fund-holdings-chart', {
     labels: labels,
     datasets: [{
       data: data,
-      backgroundColor: colors.slice(0, labels.length),
+      backgroundColor: CHART_COLOR_ARRAY.slice(0, labels.length),
       borderWidth: 1,
       borderColor: 'var(--bg)',
     }],
@@ -219,16 +243,11 @@ function createTickerHoldersChart(holders) {
   const data = top10.map(h => h.market_value_usd);
   if (othersValue > 0) data.push(othersValue);
   
-  const colors = [
-    'var(--brass)', 'var(--green)', 'var(--red)', '#6366f1', '#ec4899',
-    '#f97316', '#14b8a6', '#a855f7', '#eab308', '#22d3ee',
-  ];
-  
   createPieChart('ticker-holders-chart', {
     labels: labels,
     datasets: [{
       data: data,
-      backgroundColor: colors.slice(0, labels.length),
+      backgroundColor: CHART_COLOR_ARRAY.slice(0, labels.length),
       borderWidth: 1,
       borderColor: 'var(--bg)',
     }],
@@ -244,9 +263,7 @@ function createConsensusCharts(buys, sells) {
     labels: buyLabels,
     datasets: [{
       data: buyData,
-      backgroundColor: Array(buyLabels.length).fill('var(--green)').map((c, i) => 
-        c + Math.floor(255 * (1 - i / Math.max(1, buyLabels.length))).toString(16).padStart(2, '0')
-      ),
+      backgroundColor: generateColorShades(CHART_COLORS.green, buyLabels.length),
       borderWidth: 1,
       borderColor: 'var(--bg)',
     }],
@@ -260,21 +277,10 @@ function createConsensusCharts(buys, sells) {
     labels: sellLabels,
     datasets: [{
       data: sellData,
-      backgroundColor: Array(sellLabels.length).fill('var(--red)').map((c, i) => 
-        c + Math.floor(255 * (1 - i / Math.max(1, sellLabels.length))).toString(16).padStart(2, '0')
-      ),
+      backgroundColor: generateColorShades(CHART_COLORS.red, sellLabels.length),
       borderWidth: 1,
       borderColor: 'var(--bg)',
     }],
-  });
-}
-
-function destroyAllCharts() {
-  Object.keys(charts).forEach(k => {
-    if (charts[k]) {
-      charts[k].destroy();
-      delete charts[k];
-    }
   });
 }
 
