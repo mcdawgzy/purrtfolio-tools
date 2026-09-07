@@ -41,6 +41,20 @@ async function api(path, params = {}) {
   return r.json();
 }
 
+function formatStrategy(s) {
+  if (!s) return '—';
+  const map = {
+    'activist': 'Activist',
+    'index_passive': 'Index Passive',
+    'macro_all_weather': 'Macro All-Weather',
+    'quant_multi_strat': 'Quant Multi-Strat',
+    'sovereign': 'Sovereign',
+    'tech_growth': 'Tech Growth',
+    'value_concentrated': 'Value Concentrated',
+  };
+  return map[s] || s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function fmtUSD(n, { compact = true, sign = false } = {}) {
   if (n === null || n === undefined || Number.isNaN(n)) return '—';
   const abs = Math.abs(n);
