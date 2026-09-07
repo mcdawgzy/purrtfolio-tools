@@ -104,6 +104,7 @@ function parseHash() {
   const h = location.hash.replace(/^#\/?/, '') || '';
   if (!h) return { view: 'funds' };
   if (h === 'consensus') return { view: 'consensus' };
+  if (h === 'sectors') return { view: 'sectors' };
   if (h.startsWith('fund/')) {
     const rest = h.slice(5);
     const [cik, qs] = rest.split('?');
@@ -293,6 +294,7 @@ async function handleRoute() {
   else if (r.view === 'fund')    await loadFund(r.cik, r.tab);
   else if (r.view === 'ticker')  await loadTicker(r.ticker);
   else if (r.view === 'consensus') await loadConsensus();
+  else if (r.view === 'sectors') await loadSectors();
   render();
 }
 
@@ -374,6 +376,18 @@ async function loadConsensus() {
   }
 }
 
+async function loadSectors() {
+  state.error = null;
+  state.loading = true;
+  try {
+    state.sectors = await api('/api/sectors');
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+  }
+}
+
 async function reloadFundTab(cik, tab) {
   state.fundTab = tab;
   state.error = null;
@@ -432,6 +446,7 @@ function renderNav() {
   const links = [
     { view: 'funds',     label: 'Funds' },
     { view: 'consensus', label: 'Consensus' },
+    { view: 'sectors',   label: 'Sectors' },
   ];
   for (const l of links) {
     const a = el('a', {
@@ -1028,13 +1043,83 @@ function renderConsensusColumn(title, rows, isBuy) {
     tr.appendChild(el('td', { class: 'num mut' }, r.funds_new || 0));
     tr.appendChild(el('td', { class: 'num mut' }, r.funds_increased || 0));
     tr.appendChild(el('td', { class: 'num mut' }, r.funds_decreased || 0));
-    tr.appendChild(el('td', { class: 'num mut' }, r.funds_closed || 0));
+      tr.appendChild(el('td', { class: 'num mut' }, r.funds_closed || 0));
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    col.appendChild(tableWrap);
+    return col;
+    }
+
+    function renderSectors() {
+  const s = state.sectors;
+  if (!s || !s.length) {
+    return el('div', { class: 'section' },
+      el('div', { class: 'section-header' },
+        el('h2', {}, 'Sector Rotation'),
+        el('div', { class: 'hint' }, 'Sector data is limited (only ~49 of 11,837 tickers have sector data). Consider this a preview.'),
+      ),
+      el('div', { class: 'empty' }, 'Insufficient sector data for meaningful analysis. Only ~0.4% of tracked tickers have sector classifications.')
+    );
+  }
+
+  const wrap = el('div', { class: 'section' });
+  wrap.appendChild(el('div', { class: 'section-header' },
+    el('h2', {}, 'Sector Rotation'),
+    el('div', { class: 'hint' }, `Sector data covers ${s.length} sectors (limited coverage)`),
+  ));
+
+  // Chart + Table container
+  const chartTableWrap = el('div', { style: { display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' } });
+
+  // Chart canvas
+  const chartWrap = el('div', { style: { flex: '1 1 350px', minWidth: '300px', maxHeight: '400px' } });
+  chartWrap.appendChild(el('canvas', { id: 'sectors-chart' }));
+  chartTableWrap.appendChild(chartWrap);
+
+  // Table
+  const tableWrap = el('div', { class: 'table-wrap', style: { flex: '1 1 400px', minWidth: '400px' } });
+  const table = el('table');
+  const thead = el('thead');
+  const trh = el('tr');
+  ['Sector', 'Holders', 'Total Value', 'Positions'].forEach((h, i) => {
+    const cls = i >= 1 ? 'num' : '';
+    trh.appendChild(el('th', { class: cls }, h));
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = el('tbody');
+  for (const r of s) {
+    const tr = el('tr');
+    tr.appendChild(el('td', {}, r.sector));
+    tr.appendChild(el('td', { class: 'num' }, r.holders.toLocaleString()));
+    tr.appendChild(el('td', { class: 'num' }, fmtUSD(r.total_value_usd)));
+    tr.appendChild(el('td', { class: 'num' }, r.positions.toLocaleString()));
     tbody.appendChild(tr);
   }
   table.appendChild(tbody);
   tableWrap.appendChild(table);
-  col.appendChild(tableWrap);
-  return col;
+  chartTableWrap.appendChild(tableWrap);
+  wrap.appendChild(chartTableWrap);
+
+  // Create chart after DOM is ready
+  setTimeout(() => {
+    const labels = s.map(r => r.sector);
+    const data = s.map(r => r.total_value_usd);
+    createPieChart('sectors-chart', {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: CHART_COLOR_ARRAY.slice(0, labels.length),
+        borderWidth: 1,
+        borderColor: 'var(--bg)',
+      }],
+    });
+  }, 0);
+
+  return wrap;
 }
 
 // ---------------- boot ----------------
