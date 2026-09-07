@@ -1,0 +1,28 @@
+name: Keep-Alive & Health Check
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # Every 10 minutes
+  workflow_dispatch:
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check GitHub Pages
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}" https://mcdawgzy.github.io/purrtfolio-tools/ | grep -q 200
+      
+      - name: Check Render API Health
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}" --max-time 10 https://one3f-tracker-wpj6.onrender.com/api/health | grep -q 200
+      
+      - name: Warm Up Render API (cold start prevention)
+        run: |
+          curl -sf -o /dev/null --max-time 60 https://one3f-tracker-wpj6.onrender.com/api/meta
+          curl -sf -o /dev/null --max-time 30 https://one3f-tracker-wpj6.onrender.com/api/funds
+      
+      - name: Log Status
+        if: always()
+        run: echo "Keep-alive check completed at $(date)"
