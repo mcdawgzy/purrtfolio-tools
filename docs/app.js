@@ -148,6 +148,18 @@ const CHART_COLOR_ARRAY = [
   CHART_COLORS.rose,
 ];
 
+// Chart instances stored to allow destruction on re-render
+const charts = {};
+
+function destroyAllCharts() {
+  Object.keys(charts).forEach(key => {
+    if (charts[key]) {
+      charts[key].destroy();
+      delete charts[key];
+    }
+  });
+}
+
 function generateColorShades(baseColor, count) {
   // Use the base color directly with slight variations for better visibility
   // Chart.js works better with explicit color arrays
