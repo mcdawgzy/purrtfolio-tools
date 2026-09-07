@@ -114,6 +114,170 @@ function parseHash() {
   return { view: 'funds' };
 }
 
+// Chart instances stored to allow destruction on re-render
+const charts = {};
+
+function destroyChart(key) {
+  if (charts[key]) {
+    charts[key].destroy();
+    delete charts[key];
+  }
+}
+
+function destroyAllCharts() {
+  Object.keys(charts).forEach(k => {
+    if (charts[k]) {
+      charts[k].destroy();
+      delete charts[k];
+    }
+  });
+}
+
+function createPieChart(canvasId, data, options = {}) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return null;
+  if (charts[canvasId]) {
+    charts[canvasId].destroy();
+  }
+  charts[canvasId] = new Chart(ctx, {
+    type: 'pie',
+    data: data,
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            font: { family: 'var(--mono)', size: 10 },
+            color: 'var(--text)',
+            padding: 8,
+            usePointStyle: true,
+          },
+        },
+        tooltip: {
+          backgroundColor: 'var(--panel)',
+          titleColor: 'var(--text)',
+          bodyColor: 'var(--text-dim)',
+          borderColor: 'var(--line)',
+          borderWidth: 1,
+          padding: 12,
+          callbacks: {
+            label: (ctx) => {
+              const label = ctx.label || '';
+              const value = ctx.parsed;
+              const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+              const pct = ((value / total) * 100).toFixed(1);
+              return `${label}: ${pct}% (${fmtUSD(value)})`;
+            },
+          },
+        },
+      },
+      ...options,
+    },
+  });
+  return charts[canvasId];
+}
+
+function createFundHoldingsChart(holdings) {
+  const sorted = [...holdings].sort((a, b) => b.market_value_usd - a.market_value_usd);
+  const top10 = sorted.slice(0, 10);
+  const others = sorted.slice(10);
+  const othersValue = others.reduce((sum, h) => sum + h.market_value_usd, 0);
+  
+  const labels = top10.map(h => h.ticker || h.cusip.slice(-6));
+  if (othersValue > 0) labels.push('Others');
+  
+  const data = top10.map(h => h.market_value_usd);
+  if (othersValue > 0) data.push(othersValue);
+  
+  const colors = [
+    'var(--brass)', 'var(--green)', 'var(--red)', '#6366f1', '#ec4899',
+    '#f97316', '#14b8a6', '#a855f7', '#eab308', '#22d3ee',
+  ];
+  
+  createPieChart('fund-holdings-chart', {
+    labels: labels,
+    datasets: [{
+      data: data,
+      backgroundColor: colors.slice(0, labels.length),
+      borderWidth: 1,
+      borderColor: 'var(--bg)',
+    }],
+  });
+}
+
+function createTickerHoldersChart(holders) {
+  const sorted = [...holders].sort((a, b) => b.market_value_usd - a.market_value_usd);
+  const top10 = sorted.slice(0, 10);
+  const others = sorted.slice(10);
+  const othersValue = others.reduce((sum, h) => sum + h.market_value_usd, 0);
+  
+  const labels = top10.map(h => h.name.slice(0, 20));
+  if (othersValue > 0) labels.push('Others');
+  
+  const data = top10.map(h => h.market_value_usd);
+  if (othersValue > 0) data.push(othersValue);
+  
+  const colors = [
+    'var(--brass)', 'var(--green)', 'var(--red)', '#6366f1', '#ec4899',
+    '#f97316', '#14b8a6', '#a855f7', '#eab308', '#22d3ee',
+  ];
+  
+  createPieChart('ticker-holders-chart', {
+    labels: labels,
+    datasets: [{
+      data: data,
+      backgroundColor: colors.slice(0, labels.length),
+      borderWidth: 1,
+      borderColor: 'var(--bg)',
+    }],
+  });
+}
+
+function createConsensusCharts(buys, sells) {
+  const topBuys = buys.slice(0, 8);
+  const buyLabels = topBuys.map(r => r.ticker);
+  const buyData = topBuys.map(r => r.net_change_usd);
+  
+  createPieChart('consensus-buys-chart', {
+    labels: buyLabels,
+    datasets: [{
+      data: buyData,
+      backgroundColor: Array(buyLabels.length).fill('var(--green)').map((c, i) => 
+        c + Math.floor(255 * (1 - i / Math.max(1, buyLabels.length))).toString(16).padStart(2, '0')
+      ),
+      borderWidth: 1,
+      borderColor: 'var(--bg)',
+    }],
+  });
+  
+  const topSells = sells.slice(0, 8);
+  const sellLabels = topSells.map(r => r.ticker);
+  const sellData = topSells.map(r => Math.abs(r.net_change_usd));
+  
+  createPieChart('consensus-sells-chart', {
+    labels: sellLabels,
+    datasets: [{
+      data: sellData,
+      backgroundColor: Array(sellLabels.length).fill('var(--red)').map((c, i) => 
+        c + Math.floor(255 * (1 - i / Math.max(1, sellLabels.length))).toString(16).padStart(2, '0')
+      ),
+      borderWidth: 1,
+      borderColor: 'var(--bg)',
+    }],
+  });
+}
+
+function destroyAllCharts() {
+  Object.keys(charts).forEach(k => {
+    if (charts[k]) {
+      charts[k].destroy();
+      delete charts[k];
+    }
+  });
+}
+
 function setHash(h) {
   if (location.hash === h) {
     // force re-render
@@ -467,8 +631,16 @@ function renderHoldingsTab(cik) {
     })));
   wrap.appendChild(filters);
 
+  // Chart + Table container
+  const chartTableWrap = el('div', { style: { display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' } });
+  
+  // Chart canvas
+  const chartWrap = el('div', { style: { flex: '1 1 350px', minWidth: '300px', maxHeight: '400px' } });
+  chartWrap.appendChild(el('canvas', { id: 'fund-holdings-chart' }));
+  chartTableWrap.appendChild(chartWrap);
+
   // Holdings table
-  const tableWrap = el('div', { class: 'table-wrap' });
+  const tableWrap = el('div', { class: 'table-wrap', style: { flex: '1 1 400px', minWidth: '400px' } });
   if (!state.holdings.holdings || state.holdings.holdings.length === 0) {
     tableWrap.appendChild(el('div', { class: 'empty' }, 'No holdings match these filters.'));
     wrap.appendChild(tableWrap);
@@ -612,7 +784,53 @@ function renderChangesTab(cik) {
   return wrap;
 }
 
-// ---- Ticker view ----
+// ---- Pie Chart helper ----
+  function renderPieChart(container, data, labels, options = {}) {
+    const canvas = el('canvas', { width: 300, height: 300 });
+    container.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: [
+            '#C9A24E', '#2E9E6B', '#C7564A', '#3B82F6', '#8B5CF6',
+            '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1',
+          ],
+          borderWidth: 0,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: {
+              color: '#E8EBEF',
+              font: { size: 11, family: 'var(--font)' },
+              padding: 12,
+              usePointStyle: true,
+              pointStyle: 'circle',
+            },
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const pct = ((context.raw / total) * 100).toFixed(1);
+                return `${context.label}: ${pct}% (${fmtUSD(context.raw, {compact: true})})`;
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  // ---- Ticker view ----
 function renderTicker() {
   const t = state.ticker;
   if (!t) return el('div', { class: 'empty' }, 'Loading…');
@@ -640,14 +858,22 @@ function renderTicker() {
 
   // Cross-fund holders table
   const section = el('div', { class: 'section' });
-  section.appendChild(el('div', { class: 'section-header' },
-    el('h2', {}, `Current holders · ${t.current_holders}`),
-    el('div', { class: 'hint' }, t.history?.[0]?.report_period || ''),
-  ));
-  const tableWrap = el('div', { class: 'table-wrap' });
-  const table = el('table');
-  const thead = el('thead');
-  const trh = el('tr');
+    section.appendChild(el('div', { class: 'section-header' },
+      el('h2', {}, `Current holders · ${t.current_holders}`),
+      el('div', { class: 'hint' }, t.history?.[0]?.report_period || ''),
+    ));
+
+    // Chart + Table container
+    const chartTableWrap = el('div', { style: { display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' } });
+
+    // Chart canvas
+    const chartWrap = el('div', { style: { flex: '1 1 350px', minWidth: '300px', maxHeight: '400px' } });
+    chartWrap.appendChild(el('canvas', { id: 'ticker-holders-chart' }));
+    chartTableWrap.appendChild(chartWrap);
+
+    // Table
+    const tableWrap = el('div', { class: 'table-wrap', style: { flex: '1 1 400px', minWidth: '400px' } });
+    const table = el('table');
   ['Strategy', 'Fund', 'Shares', 'Value', 'Status', 'Δ Sh'].forEach((h, i) => {
     const cls = (i >= 2 && i <= 5) ? 'num' : '';
     trh.appendChild(el('th', { class: cls }, h));
