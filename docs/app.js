@@ -8,7 +8,7 @@
 */
 'use strict';
 
-const API = '';   // same origin
+const API = 'https://one3f-tracker-wpj6.onrender.com';
 
 const state = {
   view:   'funds',
