@@ -399,6 +399,10 @@ async function reloadFundTab(cik, tab) {
 // ---------------- render ----------------
 function render() {
   const root = document.getElementById('app');
+  
+  // Destroy any existing charts before re-rendering
+  destroyAllCharts();
+  
   root.innerHTML = '';
   root.appendChild(renderMasthead());
   root.appendChild(renderNav());
@@ -704,6 +708,9 @@ function renderHoldingsTab(cik) {
     wrap.appendChild(pager);
   }
 
+  // Create chart after DOM is ready
+  setTimeout(() => createFundHoldingsChart(state.holdings.holdings), 0);
+
   return wrap;
 }
 
@@ -937,6 +944,9 @@ function renderTicker() {
     wrap.appendChild(histSec);
   }
 
+  // Create chart after DOM is ready
+  setTimeout(() => createTickerHoldersChart(t.holders), 0);
+
   return wrap;
 }
 
@@ -964,10 +974,27 @@ function renderConsensusView() {
     el('div', { class: 'hint' }, `${(c.buys.length + c.sells.length)} tickers with cross-fund moves`),
   ));
 
+  // Chart + Table container for buys
+  const buysChartWrap = el('div', { style: { flex: '1 1 350px', minWidth: '300px', maxHeight: '400px' } });
+  buysChartWrap.appendChild(el('canvas', { id: 'consensus-buys-chart' }));
+
+  // Chart + Table container for sells
+  const sellsChartWrap = el('div', { style: { flex: '1 1 350px', minWidth: '300px', maxHeight: '400px' } });
+  sellsChartWrap.appendChild(el('canvas', { id: 'consensus-sells-chart' }));
+
+  const chartsWrap = el('div', { style: { display: 'flex', gap: '24px', flexWrap: 'wrap', marginBottom: '24px' } });
+  chartsWrap.appendChild(buysChartWrap);
+  chartsWrap.appendChild(sellsChartWrap);
+  wrap.appendChild(chartsWrap);
+
   const grid = el('div', { class: 'consensus-grid' });
   grid.appendChild(renderConsensusColumn('Buys (net adds)', c.buys, true));
   grid.appendChild(renderConsensusColumn('Sells (net drops)', c.sells, false));
   wrap.appendChild(grid);
+
+  // Create charts after DOM is ready
+  setTimeout(() => createConsensusCharts(c.buys, c.sells), 0);
+
   return wrap;
 }
 
