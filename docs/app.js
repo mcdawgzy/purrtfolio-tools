@@ -148,18 +148,9 @@ const CHART_COLOR_ARRAY = [
 ];
 
 function generateColorShades(baseColor, count) {
-  const hex = baseColor.replace('#', '');
-  const r = parseInt(hex.slice(0, 2), 16);
-  const g = parseInt(hex.slice(2, 4), 16);
-  const b = parseInt(hex.slice(4, 6), 16);
-  
-  return Array.from({ length: count }, (_, i) => {
-    const factor = 1 - (i / Math.max(1, count - 1)) * 0.4;
-    const nr = Math.round(r * factor + 255 * (1 - factor) * 0.1);
-    const ng = Math.round(g * factor + 255 * (1 - factor) * 0.1);
-    const nb = Math.round(b * factor + 255 * (1 - factor) * 0.1);
-    return `#${nr.toString(16).padStart(2, '0')}${ng.toString(16).padStart(2, '0')}${nb.toString(16).padStart(2, '0')}`;
-  });
+  // Use the base color directly with slight variations for better visibility
+  // Chart.js works better with explicit color arrays
+  return CHART_COLOR_ARRAY.slice(0, count);
 }
 
 function createPieChart(canvasId, data, options = {}) {
