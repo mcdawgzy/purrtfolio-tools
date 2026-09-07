@@ -172,6 +172,11 @@ function createPieChart(canvasId, data, options = {}) {
   if (charts[canvasId]) {
     charts[canvasId].destroy();
   }
+  // Explicit colors for Chart.js (CSS variables don't work reliably in canvas)
+  const TEXT_COLOR = '#E8EBEF';
+  const TEXT_DIM = '#7E8A9A';
+  const PANEL = '#11161D';
+  const LINE = '#1E2A38';
   charts[canvasId] = new Chart(ctx, {
     type: 'pie',
     data: data,
@@ -182,17 +187,17 @@ function createPieChart(canvasId, data, options = {}) {
         legend: {
           position: 'right',
           labels: {
-            font: { family: 'var(--mono)', size: 10 },
-            color: 'var(--text)',
+            font: { family: 'ui-monospace, SFMono-Regular, monospace', size: 10 },
+            color: TEXT_COLOR,
             padding: 8,
             usePointStyle: true,
           },
         },
         tooltip: {
-          backgroundColor: 'var(--panel)',
-          titleColor: 'var(--text)',
-          bodyColor: 'var(--text-dim)',
-          borderColor: 'var(--line)',
+          backgroundColor: PANEL,
+          titleColor: TEXT_COLOR,
+          bodyColor: TEXT_DIM,
+          borderColor: LINE,
           borderWidth: 1,
           padding: 12,
           callbacks: {
