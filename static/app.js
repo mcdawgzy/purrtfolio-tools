@@ -429,9 +429,6 @@ async function reloadFundTab(cik, tab) {
 function render() {
   const root = document.getElementById('app');
   
-  // Destroy any existing charts before re-rendering
-  destroyAllCharts();
-  
   root.innerHTML = '';
   root.appendChild(renderMasthead());
   root.appendChild(renderNav());

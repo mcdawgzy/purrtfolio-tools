@@ -429,9 +429,6 @@ async function reloadFundTab(cik, tab) {
 function render() {
   const root = document.getElementById('app');
   
-  // Destroy any existing charts before re-rendering
-  destroyAllCharts();
-  
   root.innerHTML = '';
   root.appendChild(renderMasthead());
   root.appendChild(renderNav());
@@ -445,6 +442,7 @@ function render() {
   else if (state.view === 'fund')     root.appendChild(renderFund());
   else if (state.view === 'ticker')   root.appendChild(renderTicker());
   else if (state.view === 'consensus') root.appendChild(renderConsensusView());
+  else if (state.view === 'sectors')  root.appendChild(renderSectors());
 }
 
 function renderMasthead() {
