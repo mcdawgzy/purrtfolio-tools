@@ -397,7 +397,8 @@ async function loadSectors() {
   state.error = null;
   state.loading = true;
   try {
-    state.sectors = await api('/api/sectors');
+    const r = await api('/api/sectors');
+    state.sectors = r.sectors || [];
   } catch (e) {
     state.error = e.message;
   } finally {
