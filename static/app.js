@@ -445,6 +445,7 @@ function render() {
   else if (state.view === 'fund')     root.appendChild(renderFund());
   else if (state.view === 'ticker')   root.appendChild(renderTicker());
   else if (state.view === 'consensus') root.appendChild(renderConsensusView());
+  else if (state.view === 'sectors')  root.appendChild(renderSectors());
 }
 
 function renderMasthead() {
