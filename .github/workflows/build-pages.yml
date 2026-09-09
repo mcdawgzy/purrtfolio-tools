@@ -6,34 +6,35 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  contents: write
 
 jobs:
   deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          path: 'master'
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+      - name: Setup deploy branch
+        run: |
+          git checkout --orphan gh-pages
+          git rm -rf .
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: '13f-scanner-web/static'
+      - name: Copy static files
+        run: |
+          cp -r master/13f-scanner-web/static/* .
+          cp -r master/13f-scanner-web/docs ./ 2>/dev/null || true
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit and push
+        run: |
+          git add -A
+          git commit -m "Deploy static site to GitHub Pages [skip ci]" || echo "No changes to commit"
+          git push --force origin gh-pages
