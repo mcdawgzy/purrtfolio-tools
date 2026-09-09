@@ -25,6 +25,11 @@ const state = {
   consensus: { buys: [], sells: [], quarter: null, min_funds: 2 },
   loading: false,
   error:  null,
+  siMeta: null,
+  siLatest: { rows: [], total: 0, limit: 100, min_short: 1_000_000 },
+  siSignals: null,
+  siTicker: null,
+  siActiveTab: 'latest',   // 'latest' | 'signals' | 'history'
 };
 
 // ---------------- helpers ----------------
@@ -105,6 +110,12 @@ function parseHash() {
   if (!h) return { view: 'funds' };
   if (h === 'consensus') return { view: 'consensus' };
   if (h === 'sectors') return { view: 'sectors' };
+  if (h === 'short-interest' || h === 'short-interest/') return { view: 'shortinterest' };
+  if (h.startsWith('short-interest/')) {
+    const rest = h.slice('short-interest/'.length);
+    if (rest === 'signals') return { view: 'shortinterest', siTab: 'signals' };
+    return { view: 'shortinterest', siTab: 'ticker', siTicker: rest.toUpperCase() };
+  }
   if (h.startsWith('fund/')) {
     const rest = h.slice(5);
     const [cik, qs] = rest.split('?');
@@ -217,6 +228,48 @@ function createPieChart(canvasId, data, options = {}) {
   return charts[canvasId];
 }
 
+function createBarChart(canvasId, data, options = {}) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return null;
+  if (charts[canvasId]) {
+    charts[canvasId].destroy();
+  }
+  const TEXT_COLOR = '#E8EBEF';
+  const TEXT_DIM = '#7E8A9A';
+  const LINE = '#1E2A38';
+  charts[canvasId] = new Chart(ctx, {
+    type: 'bar',
+    data: data,
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#11161D',
+          titleColor: TEXT_COLOR,
+          bodyColor: TEXT_DIM,
+          borderColor: LINE,
+          borderWidth: 1,
+          padding: 12,
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: TEXT_COLOR, font: { size: 11 } },
+          grid: { color: LINE },
+        },
+        y: {
+          ticks: { color: TEXT_DIM, font: { size: 10 } },
+          grid: { color: LINE },
+        },
+      },
+      ...options,
+    },
+  });
+  return charts[canvasId];
+}
+
 function createFundHoldingsChart(holdings) {
   const sorted = [...holdings].sort((a, b) => b.market_value_usd - a.market_value_usd);
   const top10 = sorted.slice(0, 10);
@@ -303,15 +356,26 @@ function setHash(h) {
 }
 
 window.addEventListener('hashchange', handleRoute);
+window.addEventListener('error', (e) => {
+  console.error('Global error:', e.error);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  console.error('Unhandled promise rejection:', e.reason);
+});
 
 async function handleRoute() {
   const r = parseHash();
   state.view = r.view;
-  if (r.view === 'funds')        await loadFunds();
-  else if (r.view === 'fund')    await loadFund(r.cik, r.tab);
-  else if (r.view === 'ticker')  await loadTicker(r.ticker);
-  else if (r.view === 'consensus') await loadConsensus();
-  else if (r.view === 'sectors') await loadSectors();
+  try {
+    if (r.view === 'funds')        await loadFunds();
+    else if (r.view === 'fund')    await loadFund(r.cik, r.tab);
+    else if (r.view === 'ticker')  await loadTicker(r.ticker);
+    else if (r.view === 'consensus') await loadConsensus();
+    else if (r.view === 'sectors') await loadSectors();
+    else if (r.view === 'shortinterest') await loadShortInterest(r);
+  } catch (e) {
+    state.error = 'Navigation error: ' + e.message;
+  }
   render();
 }
 
@@ -399,6 +463,7 @@ async function loadSectors() {
   try {
     const r = await api('/api/sectors');
     state.sectors = r.sectors || [];
+    state.sectorPeriods = r.periods || { prev_q: null, curr_q: null };
   } catch (e) {
     state.error = e.message;
   } finally {
@@ -443,6 +508,7 @@ function render() {
   else if (state.view === 'ticker')   root.appendChild(renderTicker());
   else if (state.view === 'consensus') root.appendChild(renderConsensusView());
   else if (state.view === 'sectors')  root.appendChild(renderSectors());
+  else if (state.view === 'shortinterest') root.appendChild(renderShortInterest());
 }
 
 function renderMasthead() {
@@ -909,6 +975,8 @@ function renderTicker() {
     // Table
     const tableWrap = el('div', { class: 'table-wrap', style: { flex: '1 1 400px', minWidth: '400px' } });
     const table = el('table');
+    const thead = el('thead');
+    const trh = el('tr');
   ['Strategy', 'Fund', 'Shares', 'Value', 'Status', 'Δ Sh'].forEach((h, i) => {
     const cls = (i >= 2 && i <= 5) ? 'num' : '';
     trh.appendChild(el('th', { class: cls }, h));
@@ -1069,74 +1137,117 @@ function renderConsensusColumn(title, rows, isBuy) {
     }
 
     function renderSectors() {
-  const s = state.sectors;
-  if (!s || !s.length) {
-    return el('div', { class: 'section' },
-      el('div', { class: 'section-header' },
+      const s = state.sectors;
+      const periods = state.sectorPeriods || {};
+      const periodLabel = periods.prev_q && periods.curr_q
+        ? `${periods.prev_q} → ${periods.curr_q}`
+        : (periods.curr_q ? periods.curr_q : 'sectors');
+
+      if (!s || !s.length) {
+        return el('div', { class: 'section' },
+          el('div', { class: 'section-header' },
+            el('h2', {}, 'Sector Rotation'),
+            el('div', { class: 'hint' }, `Period: ${periodLabel}`),
+          ),
+          el('div', { class: 'empty' }, 'No sector data available for these periods. Sector classifications are still being populated across the full ticker universe.'),
+        );
+      }
+
+      const wrap = el('div', { class: 'section' });
+      wrap.appendChild(el('div', { class: 'section-header' },
         el('h2', {}, 'Sector Rotation'),
-        el('div', { class: 'hint' }, 'Sector data is limited (only ~49 of 11,837 tickers have sector data). Consider this a preview.'),
-      ),
-      el('div', { class: 'empty' }, 'Insufficient sector data for meaningful analysis. Only ~0.4% of tracked tickers have sector classifications.')
-    );
-  }
+        el('div', { class: 'hint' }, `Period: ${periodLabel} · ${s.length} sectors with holdings in either quarter`),
+      ));
 
-  const wrap = el('div', { class: 'section' });
-  wrap.appendChild(el('div', { class: 'section-header' },
-    el('h2', {}, 'Sector Rotation'),
-    el('div', { class: 'hint' }, `Sector data covers ${s.length} sectors (limited coverage)`),
-  ));
+      // Chart + Table container
+      const chartTableWrap = el('div', { style: { display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' } });
 
-  // Chart + Table container
-  const chartTableWrap = el('div', { style: { display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' } });
+      // Bar chart canvas
+      const chartWrap = el('div', { style: { flex: '1 1 350px', minWidth: '300px', maxHeight: '400px' } });
+      chartWrap.appendChild(el('canvas', { id: 'sectors-chart' }));
+      chartTableWrap.appendChild(chartWrap);
 
-  // Chart canvas
-  const chartWrap = el('div', { style: { flex: '1 1 350px', minWidth: '300px', maxHeight: '400px' } });
-  chartWrap.appendChild(el('canvas', { id: 'sectors-chart' }));
-  chartTableWrap.appendChild(chartWrap);
+      // Table
+      const tableWrap = el('div', { class: 'table-wrap', style: { flex: '1 1 400px', minWidth: '400px' } });
+      const table = el('table');
+      const thead = el('thead');
+      const trh = el('tr');
+      ['Sector', 'Prev', 'Current', 'Δ$', 'Δ%', 'Holder Δ', 'Pos Δ'].forEach((h, i) => {
+        const cls = i >= 1 ? 'num' : '';
+        trh.appendChild(el('th', { class: cls }, h));
+      });
+      thead.appendChild(trh);
+      table.appendChild(thead);
 
-  // Table
-  const tableWrap = el('div', { class: 'table-wrap', style: { flex: '1 1 400px', minWidth: '400px' } });
-  const table = el('table');
-  const thead = el('thead');
-  const trh = el('tr');
-  ['Sector', 'Holders', 'Total Value', 'Positions'].forEach((h, i) => {
-    const cls = i >= 1 ? 'num' : '';
-    trh.appendChild(el('th', { class: cls }, h));
-  });
-  thead.appendChild(trh);
-  table.appendChild(thead);
+      const tbody = el('tbody');
+      for (const r of s) {
+        const tr = el('tr');
+        tr.appendChild(el('td', {}, r.sector));
+        tr.appendChild(el('td', { class: 'num' }, fmtUSD(r.prev_value_usd)));
+        tr.appendChild(el('td', { class: 'num' }, fmtUSD(r.curr_value_usd)));
+        const delta = r.value_change_usd;
+        const deltaCls = delta > 0 ? 'num green' : (delta < 0 ? 'num red' : 'num');
+        tr.appendChild(el('td', { class: deltaCls }, fmtUSD(delta, { sign: true })));
+        const pct = r.prev_value_usd && r.prev_value_usd > 0
+          ? ((delta / r.prev_value_usd) * 100)
+          : (r.curr_value_usd > 0 ? Infinity : 0);
+        tr.appendChild(el('td', { class: pct > 0 ? 'num green' : (pct < 0 ? 'num red' : 'num') },
+          pct === Infinity ? 'new' : `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%`));
+        const hDelta = r.holder_change;
+        tr.appendChild(el('td', { class: hDelta > 0 ? 'num green' : (hDelta < 0 ? 'num red' : 'num') },
+          hDelta > 0 ? `+${hDelta}` : (hDelta < 0 ? `${hDelta}` : '—')));
+        const pDelta = r.position_change;
+        tr.appendChild(el('td', { class: pDelta > 0 ? 'num green' : (pDelta < 0 ? 'num red' : 'num') },
+          pDelta > 0 ? `+${pDelta}` : (pDelta < 0 ? `${pDelta}` : '—')));
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      tableWrap.appendChild(table);
+      chartTableWrap.appendChild(tableWrap);
+      wrap.appendChild(chartTableWrap);
 
-  const tbody = el('tbody');
-  for (const r of s) {
-    const tr = el('tr');
-    tr.appendChild(el('td', {}, r.sector));
-    tr.appendChild(el('td', { class: 'num' }, r.holders.toLocaleString()));
-    tr.appendChild(el('td', { class: 'num' }, fmtUSD(r.total_value_usd)));
-    tr.appendChild(el('td', { class: 'num' }, r.positions.toLocaleString()));
-    tbody.appendChild(tr);
-  }
-  table.appendChild(tbody);
-  tableWrap.appendChild(table);
-  chartTableWrap.appendChild(tableWrap);
-  wrap.appendChild(chartTableWrap);
+      // Bar chart of net value change per sector
+      setTimeout(() => {
+        const labels = s.map(r => r.sector);
+        const data = s.map(r => r.value_change_usd);
+        const colors = data.map(d => d > 0 ? CHART_COLORS.green : (d < 0 ? CHART_COLORS.red : CHART_COLORS.brass));
+        createBarChart('sectors-chart', {
+          labels: labels,
+          datasets: [{
+            label: 'Net value change ($)',
+            data: data,
+            backgroundColor: colors,
+            borderColor: colors.map(c => c),
+            borderWidth: 1,
+          }],
+        }, {
+          indexAxis: 'y',
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  const v = ctx.parsed.x;
+                  return `Δ: ${fmtUSD(v, { sign: true })}`;
+                },
+              },
+            },
+          },
+          scales: {
+            x: {
+              ticks: { color: '#E8EBEF', font: { size: 10 } },
+              grid: { color: '#1E2A38' },
+            },
+            y: {
+              ticks: { color: '#E8EBEF', font: { size: 10 } },
+              grid: { display: false },
+            },
+          },
+        });
+      }, 0);
 
-  // Create chart after DOM is ready
-  setTimeout(() => {
-    const labels = s.map(r => r.sector);
-    const data = s.map(r => r.total_value_usd);
-    createPieChart('sectors-chart', {
-      labels: labels,
-      datasets: [{
-        data: data,
-        backgroundColor: CHART_COLOR_ARRAY.slice(0, labels.length),
-        borderWidth: 1,
-        borderColor: 'var(--bg)',
-      }],
-    });
-  }, 0);
-
-  return wrap;
-}
+      return wrap;
+    }
 
 // ---------------- boot ----------------
 async function boot() {

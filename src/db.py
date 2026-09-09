@@ -408,32 +408,235 @@ def get_consensus(
 # Sectors
 # ---------------------------------------------------------------------------
 def list_sectors() -> list[dict]:
-    """Sector aggregation for the latest quarter (if sector data is populated).
+    """Sector rotation between the two most recent report periods.
 
-    Note: our tickers.sector column is currently NULL — we'd need to enrich it
-    via GICS mapping before this becomes meaningful. Endpoint kept for forward
-    compatibility."""
+    Returns one row per sector with prev/curr totals, value delta, and
+    holder/position changes. Replaces the old single-quarter allocation view
+    that didn't show rotation."""
     with db_conn() as c:
-        n = c.execute(
-            "SELECT COUNT(*) FROM tickers WHERE sector IS NOT NULL AND sector != ''"
-        ).fetchone()[0]
-        if n == 0:
-            return []
-        rows = c.execute("""
-            SELECT t.sector,
-                   COUNT(DISTINCT h.fund_cik) as holders,
-                   SUM(h.market_value_usd) as total_value_usd,
-                   COUNT(*) as positions
-            FROM holdings_13f h
-            JOIN filings_13f fl ON h.filing_accession = fl.accession_number
-            JOIN tickers t ON h.ticker = t.ticker
-            WHERE fl.report_period = (
-                SELECT MAX(report_period) FROM filings_13f WHERE has_infotable=1
+        rows = _row_dicts(c.execute("""
+            WITH two_periods AS (
+                SELECT report_period FROM filings_13f
+                WHERE has_infotable=1
+                GROUP BY report_period ORDER BY report_period DESC LIMIT 2
+            ),
+            periods AS (
+                SELECT (SELECT report_period FROM two_periods ORDER BY report_period DESC LIMIT 1) AS curr_q,
+                       (SELECT report_period FROM two_periods ORDER BY report_period ASC  LIMIT 1) AS prev_q
+            ),
+            prev_agg AS (
+                SELECT t.sector,
+                       COUNT(DISTINCT h.fund_cik) AS holders,
+                       COUNT(*) AS positions,
+                       SUM(h.market_value_usd) AS total_value_usd
+                FROM holdings_13f h
+                JOIN tickers t ON h.ticker = t.ticker
+                CROSS JOIN periods p
+                WHERE h.report_period = p.prev_q
+                  AND t.sector IS NOT NULL AND t.sector != ''
+                  AND h.put_call = ''
+                GROUP BY t.sector
+            ),
+            curr_agg AS (
+                SELECT t.sector,
+                       COUNT(DISTINCT h.fund_cik) AS holders,
+                       COUNT(*) AS positions,
+                       SUM(h.market_value_usd) AS total_value_usd
+                FROM holdings_13f h
+                JOIN tickers t ON h.ticker = t.ticker
+                CROSS JOIN periods p
+                WHERE h.report_period = p.curr_q
+                  AND t.sector IS NOT NULL AND t.sector != ''
+                  AND h.put_call = ''
+                GROUP BY t.sector
             )
-              AND t.sector IS NOT NULL AND t.sector != ''
-            GROUP BY t.sector ORDER BY total_value_usd DESC
-        """).fetchall()
+            SELECT
+                COALESCE(c.sector, pr.sector) AS sector,
+                pr.total_value_usd AS prev_value_usd,
+                c.total_value_usd AS curr_value_usd,
+                COALESCE(c.total_value_usd, 0) - COALESCE(pr.total_value_usd, 0) AS value_change_usd,
+                pr.holders AS prev_holders,
+                c.holders AS curr_holders,
+                COALESCE(c.holders, 0) - COALESCE(pr.holders, 0) AS holder_change,
+                pr.positions AS prev_positions,
+                c.positions AS curr_positions,
+                COALESCE(c.positions, 0) - COALESCE(pr.positions, 0) AS position_change
+            FROM prev_agg pr
+            FULL OUTER JOIN curr_agg c ON pr.sector = c.sector
+            ORDER BY ABS(value_change_usd) DESC NULLS LAST
+        """))
+        return rows
+
+
+def get_sector_periods() -> dict:
+    """Return the two report periods backing the sector rotation view
+    so the frontend can label the comparison (e.g. '2026-03-31 -> 2026-06-30')."""
+    with db_conn() as c:
+        period_rows = _row_dicts(c.execute(
+            "SELECT report_period FROM filings_13f "
+            "WHERE has_infotable=1 "
+            "GROUP BY report_period ORDER BY report_period DESC LIMIT 2"
+        ))
+        if len(period_rows) >= 2:
+            return {"prev_q": period_rows[1]["report_period"], "curr_q": period_rows[0]["report_period"]}
+        if len(period_rows) == 1:
+            return {"prev_q": None, "curr_q": period_rows[0]["report_period"]}
+        return {"prev_q": None, "curr_q": None}
+
+
+# ---------------------------------------------------------------------------
+# Short Interest
+# ---------------------------------------------------------------------------
+def get_si_meta() -> dict:
+    """Top-level short interest info: latest settlement date, coverage stats, categories."""
+    with db_conn() as c:
+        latest = c.execute(
+            "SELECT MAX(settlement_date) FROM short_interest"
+        ).fetchone()[0]
+        total = c.execute(
+            "SELECT SUM(current_short) AS total_short, COUNT(*) AS count "
+            "FROM short_interest WHERE settlement_date = ?",
+            (latest,) if latest else ()
+        ).fetchone()
+        categories = [r[0] for r in c.execute(
+            "SELECT DISTINCT category FROM tickers WHERE category IS NOT NULL ORDER BY category"
+        ).fetchall()]
+        periods = _row_dicts(c.execute(
+            "SELECT DISTINCT settlement_date FROM short_interest "
+            "ORDER BY settlement_date DESC LIMIT 12"
+        ))
+        return {
+            "latest_settlement": latest,
+            "total_short_interest": total[0] if total and total[0] else 0,
+            "ticker_count": total[1] if total and total[1] else 0,
+            "categories": categories,
+            "periods": [p["settlement_date"] for p in periods],
+        }
+
+
+def search_si_tickers(query: str, limit: int = 30) -> list[dict]:
+    """Search tickers by symbol or name within the short interest watchlist."""
+    with db_conn() as c:
+        rows = c.execute("""
+            SELECT t.ticker, t.name, t.category, t.exchange,
+                   m.latest_short, m.latest_dtc, m.latest_change_pct
+            FROM tickers t
+            LEFT JOIN ticker_short_meta m ON m.symbol = t.ticker
+            WHERE (t.ticker LIKE ? OR t.name LIKE ?)
+              AND t.category IS NOT NULL
+            ORDER BY CASE WHEN t.ticker LIKE ? THEN 0 ELSE 1 END,
+                     m.latest_short DESC NULLS LAST
+            LIMIT ?
+        """, (f"%{query.upper()}%", f"%{query}%", f"{query.upper()}%", limit)).fetchall()
         return _row_dicts(rows)
+
+
+def get_si_latest(min_short: int = 1_000_000, limit: int = 100) -> list[dict]:
+    """Latest short interest snapshot for all tracked tickers, sorted by short size."""
+    with db_conn() as c:
+        rows = c.execute("""
+            SELECT si.symbol, t.name, t.category, t.exchange,
+                   si.current_short, si.previous_short, si.avg_daily_volume,
+                   si.days_to_cover, si.change_pct, si.change_abs, si.settlement_date
+            FROM short_interest si
+            JOIN tickers t ON si.symbol = t.ticker
+            WHERE si.settlement_date = (SELECT MAX(settlement_date) FROM short_interest)
+              AND si.current_short >= ?
+            ORDER BY si.current_short DESC
+            LIMIT ?
+        """, (min_short, limit)).fetchall()
+        return _row_dicts(rows)
+
+
+def get_si_ticker(symbol: str) -> dict | None:
+    """All short interest history for a single ticker."""
+    symbol = symbol.upper().strip()
+    with db_conn() as c:
+        rows = c.execute("""
+            SELECT si.symbol, t.name, t.category, t.exchange, t.industry,
+                   si.settlement_date, si.current_short, si.previous_short,
+                   si.avg_daily_volume, si.days_to_cover, si.change_pct,
+                   si.change_abs, si.revision_flag, si.stock_split_flag
+            FROM short_interest si
+            JOIN tickers t ON si.symbol = t.ticker
+            WHERE si.symbol = ?
+            ORDER BY si.settlement_date DESC
+        """, (symbol,)).fetchall()
+        if not rows:
+            return None
+        rows = _row_dicts(rows)
+        return {
+            "symbol": symbol,
+            "name": rows[0]["name"],
+            "category": rows[0]["category"],
+            "exchange": rows[0]["exchange"],
+            "industry": rows[0]["industry"],
+            "history": rows,
+        }
+
+
+def get_si_signals() -> dict:
+    """Short interest signal sets for the latest settlement date."""
+    with db_conn() as c:
+        latest = c.execute(
+            "SELECT MAX(settlement_date) FROM short_interest"
+        ).fetchone()[0]
+        if not latest:
+            return {"latest_settlement": None, "spikes": [], "high_dtc": [],
+                    "largest": [], "covering": [], "new_shorts": []}
+
+        def q(sql, params, limit=50):
+            return _row_dicts(c.execute(sql + " LIMIT ?", (*params, limit)))
+
+        spikes = q("""
+            SELECT si.symbol, t.name, si.current_short, si.previous_short,
+                   si.change_pct, si.change_abs, si.days_to_cover, si.avg_daily_volume
+            FROM short_interest si JOIN tickers t ON si.symbol = t.ticker
+            WHERE si.settlement_date = ? AND si.change_pct >= 50 AND si.current_short >= 1000000
+            ORDER BY si.change_pct DESC
+        """, (latest,))
+
+        high_dtc = q("""
+            SELECT si.symbol, t.name, si.current_short, si.days_to_cover,
+                   si.avg_daily_volume, si.change_pct
+            FROM short_interest si JOIN tickers t ON si.symbol = t.ticker
+            WHERE si.settlement_date = ? AND si.days_to_cover >= 10 AND si.current_short >= 1000000
+            ORDER BY si.days_to_cover DESC
+        """, (latest,))
+
+        largest = q("""
+            SELECT si.symbol, t.name, si.current_short, si.days_to_cover,
+                   si.change_pct
+            FROM short_interest si JOIN tickers t ON si.symbol = t.ticker
+            WHERE si.settlement_date = ? AND si.current_short >= 1000000
+            ORDER BY si.current_short DESC
+        """, (latest,))
+
+        covering = q("""
+            SELECT si.symbol, t.name, si.current_short, si.previous_short,
+                   si.change_pct, si.change_abs, si.days_to_cover
+            FROM short_interest si JOIN tickers t ON si.symbol = t.ticker
+            WHERE si.settlement_date = ? AND si.change_pct <= -30 AND si.current_short >= 1000000
+            ORDER BY si.change_pct ASC
+        """, (latest,))
+
+        new_shorts = q("""
+            SELECT si.symbol, t.name, si.current_short, si.previous_short,
+                   si.change_pct, si.change_abs, si.days_to_cover
+            FROM short_interest si JOIN tickers t ON si.symbol = t.ticker
+            WHERE si.settlement_date = ? AND si.previous_short > 0
+              AND si.current_short >= si.previous_short * 5 AND si.current_short >= 1000000
+            ORDER BY (si.current_short * 1.0 / si.previous_short) DESC
+        """, (latest,))
+
+        return {
+            "latest_settlement": latest,
+            "spikes": spikes,
+            "high_dtc": high_dtc,
+            "largest": largest,
+            "covering": covering,
+            "new_shorts": new_shorts,
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -442,4 +645,7 @@ def list_sectors() -> list[dict]:
 def health() -> dict:
     with db_conn() as c:
         ok = c.execute("SELECT 1").fetchone() is not None
-    return {"ok": ok, "db_path": str(get_db_path())}
+        si_latest = c.execute(
+            "SELECT MAX(settlement_date) FROM short_interest"
+        ).fetchone()[0]
+    return {"ok": ok, "db_path": str(get_db_path()), "si_latest_settlement": si_latest}
