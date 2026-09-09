@@ -17,30 +17,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Copy static files before branch switch
-        run: |
-          # Copy static files to a temp location before switching branches
-          cp -r static/* .
-          if [ -d "docs" ]; then
-            cp -r docs ./
-          fi
-
-      - name: Delete existing gh-pages branch
-        run: |
-          git branch -D gh-pages 2>/dev/null || true
-          git push origin --delete gh-pages 2>/dev/null || true
-
-      - name: Create gh-pages branch
-        run: |
-          git checkout --orphan gh-pages
-
-      - name: Configure Git
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Commit and push
-        run: |
-          git add -A
-          git commit -m "Deploy static site to GitHub Pages [skip ci]" || echo "No changes to commit"
-          git push --force origin gh-pages
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./static
+          force_orphan: true
