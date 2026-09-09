@@ -22,7 +22,7 @@ from typing import Any, Iterator
 _DEFAULT_DB = Path.home() / "purrtfolio.db"
 
 # GitHub Release asset URL for production DB
-_RELEASE_ASSET = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-05/purrtfolio.db"
+_RELEASE_ASSET = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-11/purrtfolio.db"
 
 logger = logging.getLogger(__name__)
 
