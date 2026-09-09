@@ -1,0 +1,39 @@
+name: Build & Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout master branch
+        uses: actions/checkout@v4
+
+      - name: Create gh-pages branch
+        run: |
+          git checkout --orphan gh-pages
+
+      - name: Copy site files to gh-pages
+        run: |
+          # Copy all static site files to root
+          cp 13f-scanner-web/static/* .
+          # Keep any docs if they exist
+          if [ -d "13f-scanner-web/docs" ]; then
+            cp -r 13f-scanner-web/docs ./
+          fi
+
+      - name: Commit and push gh-pages
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Deploy static site to GitHub Pages [skip ci]" || echo "No changes to commit"
+          git push --force origin gh-pages
