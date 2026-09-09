@@ -29,8 +29,11 @@ jobs:
 
       - name: Copy static files
         run: |
-          cp -r 13f-scanner-web/static/* .
-          cp -r 13f-scanner-web/docs ./ 2>/dev/null || true
+          # Static files are at repo root
+          cp static/* .
+          if [ -d "docs" ]; then
+            cp -r docs ./
+          fi
 
       - name: Configure Git
         run: |
