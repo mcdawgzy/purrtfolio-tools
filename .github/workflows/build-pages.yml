@@ -17,6 +17,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Copy static files before branch switch
+        run: |
+          # Copy static files to a temp location before switching branches
+          cp -r static/* .
+          if [ -d "docs" ]; then
+            cp -r docs ./
+          fi
+
       - name: Delete existing gh-pages branch
         run: |
           git branch -D gh-pages 2>/dev/null || true
@@ -25,15 +33,6 @@ jobs:
       - name: Create gh-pages branch
         run: |
           git checkout --orphan gh-pages
-          git rm -rf .
-
-      - name: Copy static files
-        run: |
-          # Static files are at repo root in the static/ directory
-          cp static/* .
-          if [ -d "docs" ]; then
-            cp -r docs ./
-          fi
 
       - name: Configure Git
         run: |
