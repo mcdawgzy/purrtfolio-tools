@@ -108,7 +108,7 @@ function el(tag, attrs = {}, ...children) {
 // ---------------- routing ----------------
 function parseHash() {
   const h = location.hash.replace(/^#\/?/, '') || '';
-  if (!h) return { view: 'funds' };
+  if (!h) return { view: 'snapshot' };
   if (h === 'snapshot') return { view: 'snapshot' };
   if (h === 'consensus') return { view: 'consensus' };
   if (h === 'sectors') return { view: 'sectors' };
@@ -530,8 +530,9 @@ function render() {
 
 function renderMasthead() {
   const q = state.meta?.quarters?.[0]?.report_period || '';
+  const title = state.view === 'snapshot' ? 'Market Snapshot' : '13F Tracker';
   return el('div', { class: 'masthead' },
-    el('h1', {}, '13F Tracker'),
+    el('h1', {}, title),
     el('div', { class: 'sub' },
       q ? `Latest quarter: ${q} · ` : '',
       `${state.meta?.counts.filings || 0} filings · `,
@@ -543,15 +544,15 @@ function renderMasthead() {
 function renderNav() {
   const nav = el('div', { class: 'nav' });
   const links = [
-    { view: 'funds',     label: 'Funds' },
     { view: 'snapshot',  label: 'Market Snapshot' },
+    { view: 'funds',     label: 'Funds' },
     { view: 'consensus', label: 'Consensus' },
     { view: 'sectors',   label: 'Sectors' },
   ];
   for (const l of links) {
     const a = el('a', {
       class: 'nav-link' + (state.view === l.view ? ' active' : ''),
-      href: '#/' + (l.view === 'funds' ? '' : l.view),
+      href: '#/' + (l.view === 'snapshot' ? 'snapshot' : (l.view === 'funds' ? '' : l.view)),
     }, l.label);
     nav.appendChild(a);
   }
