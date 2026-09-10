@@ -171,23 +171,27 @@ def ingest_settlement_date(conn: sqlite3.Connection, settlement_date: date, df: 
             new_rows += 1
     
     # Update tickers table (unified schema)
+    # Only set columns that exist in the tickers table: ticker, name, exchange,
+    # market_class, category. Preserve existing float data (don't overwrite).
+    # Uses ON CONFLICT(ticker) DO UPDATE with COALESCE so NULLs from FINRA
+    # don't overwrite existing enrichment data.
     for _, row in watchlist_df.iterrows():
         symbol = row['symbolCode']
         cursor.execute("""
-            INSERT OR REPLACE INTO tickers (
-                ticker, name, exchange, market_class, category,
-                latest_settlement, latest_short, latest_dtc, latest_change_pct, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            INSERT INTO tickers (ticker, name, exchange, market_class, category, updated_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(ticker) DO UPDATE SET
+                name = COALESCE(excluded.name, tickers.name),
+                exchange = COALESCE(excluded.exchange, tickers.exchange),
+                market_class = COALESCE(excluded.market_class, tickers.market_class),
+                category = COALESCE(excluded.category, tickers.category),
+                updated_at = CURRENT_TIMESTAMP
         """, (
             symbol,
             row.get('issueName'),
             row.get('issuerServicesGroupExchangeCode'),
             row.get('marketClassCode'),
             get_category(symbol),
-            settlement_date,
-            int(row['currentShortPositionQuantity']) if pd.notna(row['currentShortPositionQuantity']) else None,
-            float(row['daysToCoverQuantity']) if pd.notna(row['daysToCoverQuantity']) else None,
-            float(row['changePercent']) if pd.notna(row['changePercent']) else None
         ))
     
     conn.commit()
@@ -249,15 +253,23 @@ async def ingest_latest() -> Dict[str, Any]:
     return {'error': 'No recent data found'}
 
 def sync_watchlist():
-    """Sync watchlist JSON to database (unified schema: tickers table)"""
+    """Sync watchlist JSON to database (unified schema: tickers table)
+
+    Uses INSERT OR IGNORE + UPDATE so that existing ticker metadata (name,
+    exchange, float data, etc.) is preserved instead of being wiped to NULLs.
+    """
     with get_db() as conn:
         cursor = conn.cursor()
         for cat, tickers in CATEGORIES.items():
             for symbol in tickers:
                 cursor.execute("""
-                    INSERT OR REPLACE INTO tickers (ticker, category, is_active)
+                    INSERT OR IGNORE INTO tickers (ticker, category, is_active)
                     VALUES (?, ?, 1)
                 """, (symbol, cat))
+                cursor.execute("""
+                    UPDATE tickers SET category = ?, is_active = 1
+                    WHERE ticker = ?
+                """, (cat, symbol))
         conn.commit()
     print(f"Synced {len(ALL_TICKERS)} tickers to watchlist (tickers table)")
 

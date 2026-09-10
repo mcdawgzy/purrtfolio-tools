@@ -243,9 +243,13 @@ def index():
     return FileResponse(idx)
 
 
-# Serve static assets (CSS, JS) — must be last so it doesn't shadow API routes
+# Serve static assets (CSS, JS) — mounted at /static/ for API compatibility
+# and at / for GitHub Pages-style relative URLs (./app.js, ./styles.css)
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    # Root-level static mount for relative paths (./app.js etc.)
+    # Placed after /static to avoid shadowing any API routes
+    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static_root")
 
 # Serve macro market snapshot PNGs
 SNAPSHOT_OUT = db.get_snapshot_dir()

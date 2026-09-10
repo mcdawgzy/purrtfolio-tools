@@ -551,8 +551,9 @@ def search_si_tickers(query: str, limit: int = 30) -> list[dict]:
     """Search tickers by symbol or name within the short interest watchlist."""
     with db_conn() as c:
         rows = c.execute("""
-            SELECT t.ticker, t.name, t.category, t.exchange,
-                   m.latest_short, m.latest_dtc, m.latest_change_pct
+            SELECT t.ticker, COALESCE(t.name, t.ticker) AS name, t.category, t.exchange,
+                   m.latest_short, m.latest_dtc, m.latest_change_pct,
+                   t.free_float_shares
             FROM tickers t
             LEFT JOIN ticker_short_meta m ON m.symbol = t.ticker
             WHERE (t.ticker LIKE ? OR t.name LIKE ?)
@@ -565,12 +566,20 @@ def search_si_tickers(query: str, limit: int = 30) -> list[dict]:
 
 
 def get_si_latest(min_short: int = 1_000_000, limit: int = 100) -> list[dict]:
-    """Latest short interest snapshot for all tracked tickers, sorted by short size."""
+    """Latest short interest snapshot for all tracked tickers, sorted by short size.
+
+    Returns company name from the tickers table (enriched from FINRA issue_name).
+    Also includes free_float_shares so the frontend can compute % of free float
+    (current_short / free_float_shares * 100).
+    """
     with db_conn() as c:
         rows = c.execute("""
-            SELECT si.symbol, t.name, t.category, t.exchange,
+            SELECT si.symbol,
+                   COALESCE(t.name, si.issue_name) AS name,
+                   t.category, t.exchange,
                    si.current_short, si.previous_short, si.avg_daily_volume,
-                   si.days_to_cover, si.change_pct, si.change_abs, si.settlement_date
+                   si.days_to_cover, si.change_pct, si.change_abs, si.settlement_date,
+                   t.free_float_shares
             FROM short_interest si
             JOIN tickers t ON si.symbol = t.ticker
             WHERE si.settlement_date = (SELECT MAX(settlement_date) FROM short_interest)
@@ -582,14 +591,22 @@ def get_si_latest(min_short: int = 1_000_000, limit: int = 100) -> list[dict]:
 
 
 def get_si_ticker(symbol: str) -> dict | None:
-    """All short interest history for a single ticker."""
+    """All short interest history for a single ticker.
+
+    Returns the company name from the tickers table (enriched from FINRA
+    issue_name). Includes free_float_shares and shares_outstanding for
+    computing % of free float.
+    """
     symbol = symbol.upper().strip()
     with db_conn() as c:
         rows = c.execute("""
-            SELECT si.symbol, t.name, t.category, t.exchange, t.industry,
+            SELECT si.symbol,
+                   COALESCE(t.name, si.issue_name) AS name,
+                   t.category, t.exchange, t.industry,
                    si.settlement_date, si.current_short, si.previous_short,
                    si.avg_daily_volume, si.days_to_cover, si.change_pct,
-                   si.change_abs, si.revision_flag, si.stock_split_flag
+                   si.change_abs, si.revision_flag, si.stock_split_flag,
+                   t.free_float_shares, t.shares_outstanding
             FROM short_interest si
             JOIN tickers t ON si.symbol = t.ticker
             WHERE si.symbol = ?
@@ -598,12 +615,20 @@ def get_si_ticker(symbol: str) -> dict | None:
         if not rows:
             return None
         rows = _row_dicts(rows)
+        # Compute % of free float for the latest period
+        float_shares = rows[0].get("free_float_shares")
+        pct_free_float = None
+        if float_shares and float_shares > 0 and rows[0].get("current_short"):
+            pct_free_float = round(rows[0]["current_short"] * 100.0 / float_shares, 2)
         return {
             "symbol": symbol,
             "name": rows[0]["name"],
             "category": rows[0]["category"],
             "exchange": rows[0]["exchange"],
             "industry": rows[0]["industry"],
+            "free_float_shares": float_shares,
+            "shares_outstanding": rows[0].get("shares_outstanding"),
+            "pct_free_float": pct_free_float,
             "history": rows,
         }
 
@@ -622,40 +647,42 @@ def get_si_signals() -> dict:
             return _row_dicts(c.execute(sql + " LIMIT ?", (*params, limit)))
 
         spikes = q("""
-            SELECT si.symbol, t.name, si.current_short, si.previous_short,
-                   si.change_pct, si.change_abs, si.days_to_cover, si.avg_daily_volume
+            SELECT si.symbol, COALESCE(t.name, si.issue_name) AS name,
+                   si.current_short, si.previous_short,
+                   si.change_pct, si.change_abs, si.days_to_cover, si.avg_daily_volume,
+                   t.free_float_shares AS free_float_shares
             FROM short_interest si JOIN tickers t ON si.symbol = t.ticker
             WHERE si.settlement_date = ? AND si.change_pct >= 50 AND si.current_short >= 1000000
             ORDER BY si.change_pct DESC
         """, (latest,))
 
         high_dtc = q("""
-            SELECT si.symbol, t.name, si.current_short, si.days_to_cover,
-                   si.avg_daily_volume, si.change_pct
+            SELECT si.symbol, COALESCE(t.name, si.issue_name) AS name, si.current_short, si.days_to_cover,
+                   si.avg_daily_volume, si.change_pct, t.free_float_shares AS free_float_shares
             FROM short_interest si JOIN tickers t ON si.symbol = t.ticker
             WHERE si.settlement_date = ? AND si.days_to_cover >= 10 AND si.current_short >= 1000000
             ORDER BY si.days_to_cover DESC
         """, (latest,))
 
         largest = q("""
-            SELECT si.symbol, t.name, si.current_short, si.days_to_cover,
-                   si.change_pct
+            SELECT si.symbol, COALESCE(t.name, si.issue_name) AS name, si.current_short, si.days_to_cover,
+                   si.change_pct, t.free_float_shares AS free_float_shares
             FROM short_interest si JOIN tickers t ON si.symbol = t.ticker
             WHERE si.settlement_date = ? AND si.current_short >= 1000000
             ORDER BY si.current_short DESC
         """, (latest,))
 
         covering = q("""
-            SELECT si.symbol, t.name, si.current_short, si.previous_short,
-                   si.change_pct, si.change_abs, si.days_to_cover
+            SELECT si.symbol, COALESCE(t.name, si.issue_name) AS name, si.current_short, si.previous_short,
+                   si.change_pct, si.change_abs, si.days_to_cover, t.free_float_shares AS free_float_shares
             FROM short_interest si JOIN tickers t ON si.symbol = t.ticker
             WHERE si.settlement_date = ? AND si.change_pct <= -30 AND si.current_short >= 1000000
             ORDER BY si.change_pct ASC
         """, (latest,))
 
         new_shorts = q("""
-            SELECT si.symbol, t.name, si.current_short, si.previous_short,
-                   si.change_pct, si.change_abs, si.days_to_cover
+            SELECT si.symbol, COALESCE(t.name, si.issue_name) AS name, si.current_short, si.previous_short,
+                   si.change_pct, si.change_abs, si.days_to_cover, t.free_float_shares AS free_float_shares
             FROM short_interest si JOIN tickers t ON si.symbol = t.ticker
             WHERE si.settlement_date = ? AND si.previous_short > 0
               AND si.current_short >= si.previous_short * 5 AND si.current_short >= 1000000
