@@ -1,0 +1,17 @@
+
+SELECT 
+    hc.cusip, hc.ticker, hc.issuer_name,
+    COUNT(DISTINCT hc.fund_cik) as num_funds,
+    GROUP_CONCAT(DISTINCT f.name || ':' || hc.status) as fund_actions,
+    SUM(hc.curr_value_usd) as total_curr_value,
+    SUM(hc.prev_value_usd) as total_prev_value,
+    SUM(hc.curr_value_usd - hc.prev_value_usd) as net_value_change
+FROM holding_changes hc
+JOIN funds f ON hc.fund_cik = f.cik
+WHERE hc.curr_report_period = ?
+  AND hc.prev_report_period = ?
+  AND hc.status IN ('INCREASED', 'NEW')
+  AND f.name IN (?,?,?,?,?,?,?,?,?,?)
+GROUP BY hc.cusip, hc.ticker, hc.issuer_name
+HAVING COUNT(DISTINCT hc.fund_cik) >= ?
+ORDER BY net_value_change DESC

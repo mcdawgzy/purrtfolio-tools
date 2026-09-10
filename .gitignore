@@ -26,3 +26,16 @@ Thumbs.db
 
 # Render
 *.log
+
+# Scanner artifacts (generated charts, exports, PNGs)
+scanners/13f/charts_*.html
+scanners/13f/charts_*.json
+scanners/13f/exports/
+scanners/13f/exports.zip
+scanners/short-interest/exports/
+scanners/short-interest/data/
+snapshots/market/output/
+snapshots/macro/output/
+
+# Scraped data
+scanners/short-interest/data/

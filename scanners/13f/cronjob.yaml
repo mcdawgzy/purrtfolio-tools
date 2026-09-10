@@ -1,0 +1,37 @@
+# 13F Scanner - Quarterly Automation Cronjob
+# Schedule: Runs 45 days after each quarter-end (when 13F filings are due)
+# Q4 (Dec 31) -> ~Feb 14 | Q1 (Mar 31) -> ~May 15 | Q2 (Jun 30) -> ~Aug 14 | Q3 (Sep 30) -> ~Nov 14
+
+schedule: "0 9 15 2,5,8,11 *"  # 9 AM on 15th of Feb, May, Aug, Nov (covers 45-day window)
+
+prompt: |
+  Run the quarterly 13F ingestion and analysis pipeline:
+
+  1. Detect the target quarter (previous quarter end)
+  2. Ingest all 13F-HR filings for tracked funds for that quarter
+  3. Compute QoQ changes vs prior quarter
+  4. Generate Excel analysis package (consensus, per-fund changes, master tracker)
+  5. Post summary to Discord with ZIP attachment
+
+  Database: purrtfolio.db (unified 13F + short interest store)
+  Output channel: Use origin chat (this thread)
+
+  Steps:
+  - python main.py --db C:/Users/cho_i/purrtfolio.db ingest --quarter <target_quarter> --max-filings 2
+  - python main.py --db C:/Users/cho_i/purrtfolio.db compare --quarter <target_quarter>
+  - python main.py --db C:/Users/cho_i/purrtfolio.db export --quarter <target_quarter> --package --output-dir exports
+  - Send Discord message with summary embed and ZIP file
+
+deliver: "origin"
+
+skills:
+  - "data-analysis/sec-13f-analysis"
+
+enabled_toolsets:
+  - "terminal"
+  - "discord"
+  - "discord_admin"
+
+workdir: "C:\\Users\\cho_i\\13f-scanner-web\\scanners\\13f"
+
+notify: true

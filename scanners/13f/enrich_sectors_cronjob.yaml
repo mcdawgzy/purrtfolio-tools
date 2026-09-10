@@ -1,0 +1,25 @@
+# Sector Enrichment Cronjob
+# Runs weekly (Monday 3 AM UTC+10) to enrich tickers with GICS sector data
+# from yfinance. Prioritizes by AUM so the biggest holdings get sector data first.
+# Runs against the unified purrtfolio.db.
+
+schedule: "0 3 * * 1"
+
+prompt: |
+  Run the sector enrichment pipeline for the 13F scanner:
+
+  1. Run: python enrich_sectors.py --db "C:\Users\cho_i\purrtfolio.db" --limit 500
+  2. Report how many tickers were enriched and the new AUM coverage percentage
+  3. If AUM coverage improved, mention the top new sectors added
+
+deliver: "origin"
+
+skills:
+  - "sec-13f-analysis"
+
+enabled_toolsets:
+  - "terminal"
+
+workdir: "C:\\Users\\cho_i\\13f-scanner-web\\scanners\\13f"
+
+notify: true
