@@ -98,6 +98,9 @@ function computePctFreeFloat(r) {
 }
 
 function fmtFreeFloat(r) {
+  if (r.pct_of_free_float !== null && r.pct_of_free_float !== undefined) {
+    return r.pct_of_free_float.toFixed(2) + '%';
+  }
   const pct = computePctFreeFloat(r);
   return pct !== null ? pct + '%' : '—';
 }
