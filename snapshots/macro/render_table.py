@@ -137,7 +137,7 @@ def render_market_update(report: dict, output_path: str = None, output_dir: str 
 
     # Date on right side
     ax.text(LEFT_MARGIN + usable_width, title_y + 0.15, date_fmt,
-            fontsize=15, fontweight='medium', color=BLUE, va='center', ha='right')
+            fontsize=15, fontweight='normal', color=BLUE, va='center', ha='right')
 
     # Rule under title
     rule_y = fig_height - MARGIN_TOP_IN - TITLE_HEIGHT_IN
@@ -211,7 +211,7 @@ def render_market_update(report: dict, output_path: str = None, output_dir: str 
             # Level/Move - centered in column
             pct_color = get_pct_color(pct)
             ax.text(col_level_x, y_center, level_move,
-                    fontsize=10, fontweight='medium', color=pct_color, va='center', ha='center')
+                    fontsize=10, fontweight='normal', color=pct_color, va='center', ha='center')
 
             # Driver - centered in column
             wrapped = wrap_text(driver, 110)
@@ -228,7 +228,7 @@ def render_market_update(report: dict, output_path: str = None, output_dir: str 
     ax.text(LEFT_MARGIN, footer_center, "Data: Yahoo Finance, CME, ICE  |  Not investment advice",
             fontsize=9, color=TEXT_MUTED, va='center', ha='left')
     ax.text(LEFT_MARGIN + usable_width, footer_center, "@Purrtfolio",
-            fontsize=9, fontweight='medium', color=BLUE, va='center', ha='right')
+            fontsize=9, fontweight='normal', color=BLUE, va='center', ha='right')
 
     # Save
     plt.savefig(output_path, dpi=220, facecolor=BG, bbox_inches=None, pad_inches=0)

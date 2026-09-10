@@ -37,6 +37,11 @@ const state = {
   siTicker: null,
   siActiveTab: 'latest',   // 'latest' | 'signals' | 'history'
   snapshot: null,           // latest market snapshot metadata
+  econMeta: null,           // economic calendar metadata
+  econEvents: [],           // economic calendar events
+  econDaysAhead: 30,        // lookahead window
+  econImpact: '',           // '' | 'high' | 'medium' | 'low'
+  econCategory: '',         // filter by category
 };
 
 // ---------------- helpers ----------------
@@ -138,7 +143,8 @@ function parseHash() {
   if (h === 'snapshot') return { view: 'snapshot' };
   if (h === 'consensus') return { view: 'consensus' };
   if (h === 'sectors') return { view: 'sectors' };
-  if (h === 'short-interest' || h === 'short-interest/') return { view: 'shortinterest' };
+  if (h === 'economic-calendar' || h === 'economic-calendar/') return { view: 'economic' };
+  if (h.startsWith('short-interest') || h === 'short-interest/') return { view: 'shortinterest' };
   if (h.startsWith('short-interest/')) {
     const rest = h.slice('short-interest/'.length);
     if (rest === 'signals') return { view: 'shortinterest', siTab: 'signals' };
@@ -401,6 +407,7 @@ async function handleRoute() {
     else if (r.view === 'consensus') await loadConsensus();
     else if (r.view === 'sectors') await loadSectors();
     else if (r.view === 'shortinterest') await loadShortInterest(r);
+    else if (r.view === 'economic') await loadEconomicCalendar();
     else if (r.view === 'snapshot') await loadSnapshot();
   } catch (e) {
     state.error = 'Navigation error: ' + e.message;
@@ -513,6 +520,28 @@ async function loadSnapshot() {
   }
 }
 
+async function loadEconomicCalendar() {
+  state.error = null;
+  state.loading = true;
+  try {
+    await loadMeta();
+    const [meta, events] = await Promise.all([
+      api('/api/econ/meta'),
+      api('/api/econ/events', {
+        days_ahead: state.econDaysAhead,
+        impact: state.econImpact,
+        category: state.econCategory,
+      }),
+    ]);
+    state.econMeta = meta;
+    state.econEvents = events.events || events;
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+  }
+}
+
 async function loadShortInterest(r) {
   state.error = null;
   state.loading = true;
@@ -579,6 +608,7 @@ function render() {
   else if (state.view === 'consensus') root.appendChild(renderConsensusView());
   else if (state.view === 'sectors')  root.appendChild(renderSectors());
   else if (state.view === 'shortinterest') root.appendChild(renderShortInterest());
+  else if (state.view === 'economic')   root.appendChild(renderEconomicCalendar());
   else if (state.view === 'snapshot')  root.appendChild(renderSnapshot());
 }
 
@@ -586,6 +616,7 @@ function renderMasthead() {
   const q = state.meta?.quarters?.[0]?.report_period || '';
   const title = state.view === 'snapshot' ? 'Market Snapshot'
     : state.view === 'shortinterest' ? 'Short Interest'
+    : state.view === 'economic' ? 'Economic Calendar'
     : 'Trading Tools';
   return el('div', { class: 'masthead' },
     el('h1', {}, title),
@@ -605,11 +636,13 @@ function renderNav() {
     { view: 'consensus', label: 'Consensus' },
     { view: 'sectors',   label: 'Sectors' },
     { view: 'shortinterest', label: 'Short Interest' },
+    { view: 'economic',  label: 'Economic Calendar' },
   ];
   for (const l of links) {
     const href = l.view === 'snapshot' ? '#/snapshot'
       : l.view === 'funds' ? '#/funds'
       : l.view === 'shortinterest' ? '#/short-interest'
+      : l.view === 'economic' ? '#/economic-calendar'
       : '#/' + l.view;
     const a = el('a', {
       class: 'nav-link' + (state.view === l.view ? ' active' : ''),
@@ -1447,6 +1480,117 @@ function renderSnapshot() {
   };
   hero.appendChild(img);
   wrap.appendChild(hero);
+
+  return wrap;
+}
+
+// ---------------- Economic Calendar view ----------------
+function renderEconomicCalendar() {
+  const wrap = el('div', { class: 'section' });
+
+  // Stats row
+  const m = state.econMeta;
+  const stats = el('div', { class: 'stats' });
+  stats.appendChild(stat('Upcoming', m ? m.upcoming_count : '—'));
+  stats.appendChild(stat('Categories', m && m.categories ? m.categories.length : '—'));
+  const lastUpd = m && m.last_update
+    ? `${String(m.last_update).slice(5, 7)}/${String(m.last_update).slice(8, 10)}/${String(m.last_update).slice(0, 4)}`
+    : '—';
+  stats.appendChild(stat('Last Updated', lastUpd, 'brass'));
+  wrap.appendChild(stats);
+
+  // Filters
+  const filters = el('div', { class: 'filters' });
+  // Impact filter
+  filters.appendChild(el('div', { class: 'filter-group' },
+    el('span', {}, 'Impact:'),
+    ...['', 'high', 'medium', 'low'].map(imp =>
+      el('button', {
+        class: state.econImpact === imp ? 'active' : '',
+        onclick: async () => {
+          state.econImpact = imp;
+          state.loading = true; render();
+          const resp = await api('/api/econ/events', {
+            days_ahead: state.econDaysAhead,
+            impact: state.econImpact || undefined,
+            category: state.econCategory || undefined,
+          });
+          state.econEvents = resp.events || resp;
+          state.loading = false; render();
+        },
+      }, imp ? imp.charAt(0).toUpperCase() + imp.slice(1) : 'ALL')
+    )
+  ));
+  // Days ahead filter
+  filters.appendChild(el('div', { class: 'filter-group' },
+    el('span', {}, 'Days:'),
+    ...[14, 30, 60, 90].map(d =>
+      el('button', {
+        class: state.econDaysAhead === d ? 'active' : '',
+        onclick: async () => {
+          state.econDaysAhead = d;
+          state.loading = true; render();
+          const resp = await api('/api/econ/events', {
+            days_ahead: d,
+            impact: state.econImpact || undefined,
+            category: state.econCategory || undefined,
+          });
+          state.econEvents = resp.events || resp;
+          state.loading = false; render();
+        },
+      }, String(d))
+    )
+  ));
+  wrap.appendChild(filters);
+
+  // Table
+  const tableWrap = el('div', { class: 'table-wrap' });
+  const events = state.econEvents || [];
+  if (!events.length) {
+    tableWrap.appendChild(el('div', { class: 'empty' }, 'No economic events match your filters.'));
+    wrap.appendChild(tableWrap);
+    return wrap;
+  }
+
+  // Group by date
+  const byDate = {};
+  for (const e of events) {
+    const d = e.event_date;
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(e);
+  }
+
+  const table = el('table');
+  const thead = el('thead');
+  const trh = el('tr');
+  ['Date', 'Time', 'Event', 'Category', 'Impact', 'Forecast', 'Prior'].forEach((h, i) => {
+    let cls = '';
+    if (h === 'Date' || h === 'Time') cls = 'mono';
+    if (['Impact', 'Forecast', 'Prior'].includes(h)) cls = 'num';
+    trh.appendChild(el('th', { class: cls }, h));
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = el('tbody');
+  for (const [dateStr, dayEvents] of Object.entries(byDate)) {
+    for (const e of dayEvents) {
+      const tr = el('tr');
+      tr.appendChild(el('td', { class: 'mono' }, fmtDateISO(e.event_date)));
+      tr.appendChild(el('td', { class: 'num mut' }, e.event_time || '—'));
+      tr.appendChild(el('td', {}, e.event_name));
+      tr.appendChild(el('td', { class: 'mono mut' }, e.category || '—'));
+      const impactCls = e.impact === 'high' ? 'num red'
+        : e.impact === 'medium' ? 'num amber' : 'num mut';
+      tr.appendChild(el('td', { class: impactCls }, e.impact || '—'));
+      tr.appendChild(el('td', { class: 'num' }, e.forecast || '—'));
+      tr.appendChild(el('td', { class: 'num mut' }, e.prior || '—'));
+      tbody.appendChild(tr);
+    }
+  }
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  wrap.appendChild(tableWrap);
 
   return wrap;
 }

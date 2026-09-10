@@ -24,6 +24,9 @@ import requests
 # ─── Model config ───────────────────────────────────────────────────────────
 
 MODEL_ID = "poolside/laguna-s-2.1:free"
+# Alternate models to try when the primary model is rate-limited (429).
+# Returned by the Nous API in the "alternates" field of 429 responses.
+FALLBACK_MODELS = []  # Nous API has only one free model; alternates require credits
 NOUS_INFERENCE_URL = "https://inference-api.nousresearch.com/v1/chat/completions"
 
 
@@ -62,7 +65,8 @@ def _read_auth() -> dict:
 def _llm_call(messages: list[dict], temperature: float = 0.7, max_tokens: int = 500) -> str:
     """Make a single conversational call to the LLM via the Nous inference API.
 
-    Retries with exponential backoff on 429 (rate limit) errors.
+    Retries with exponential backoff on 429 (rate limit) errors, and falls
+    back to alternate models when the primary model is rate-limited.
     """
     import time
 
@@ -75,37 +79,78 @@ def _llm_call(messages: list[dict], temperature: float = 0.7, max_tokens: int = 
         "HTTP-Referer": "https://hermes-agent.nousresearch.com/",
         "X-Title": "Hermes Macro Market Update",
     }
-    payload = {
-        "model": MODEL_ID,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-    }
 
+    # Try primary model first, then alternates
+    models_to_try = [MODEL_ID] + FALLBACK_MODELS
     last_err = None
-    for attempt in range(4):
-        try:
-            resp = requests.post(base_url, headers=headers, json=payload, timeout=90)
-            if resp.status_code == 429 and attempt < 3:
-                wait = 5 * (attempt + 1)  # 5s, 10s, 15s
-                print(f"[LLM] ⚠️ Rate-limited (429), retrying in {wait}s...")
-                time.sleep(wait)
-                continue
-            resp.raise_for_status()
-            data = resp.json()
-            content = data["choices"][0]["message"]["content"]
-            if content is None:
-                content = ""
-            return content.strip()
-        except Exception as e:
-            last_err = e
-            if attempt < 3 and ("429" in str(e) or "Too Many" in str(e)):
-                wait = 5 * (attempt + 1)
-                print(f"[LLM] ⚠️ Rate-limited, retrying in {wait}s...")
-                time.sleep(wait)
-                continue
-            raise
-    raise last_err
+
+    for model_idx, current_model in enumerate(models_to_try):
+        payload = {
+            "model": current_model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+
+        for attempt in range(4):
+            try:
+                resp = requests.post(base_url, headers=headers, json=payload, timeout=90)
+                if resp.status_code == 429 and attempt < 3:
+                    # Parse retry_after from response body
+                    wait = 5 * (attempt + 1)  # default backoff
+                    try:
+                        body = resp.json()
+                        retry_after = body.get("retry_after")
+                        if retry_after and isinstance(retry_after, (int, float)):
+                            wait = min(retry_after, 30)  # cap at 30s
+                    except Exception:
+                        pass
+                    print(f"[LLM] ⚠️ Rate-limited (429) on {current_model}, retrying in {wait}s...")
+                    time.sleep(wait)
+                    continue
+                elif resp.status_code == 429 and attempt >= 3:
+                    # Exhausted retries on this model — try next alternate
+                    print(f"[LLM] ⚠️ {current_model} exhausted retries, trying next model...")
+                    last_err = RuntimeError(f"HTTP 429 on {current_model}")
+                    break
+                resp.raise_for_status()
+                data = resp.json()
+                content = data["choices"][0]["message"]["content"]
+                if content is None:
+                    content = ""
+                if model_idx > 0:
+                    print(f"[LLM] ✅ Succeeded with alternate model: {current_model}")
+                return content.strip()
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 429 and attempt < 3:
+                    wait = 5 * (attempt + 1)
+                    try:
+                        body = e.response.json()
+                        retry_after = body.get("retry_after")
+                        if retry_after and isinstance(retry_after, (int, float)):
+                            wait = min(retry_after, 30)
+                    except Exception:
+                        pass
+                    print(f"[LLM] ⚠️ Rate-limited (429) on {current_model}, retrying in {wait}s...")
+                    time.sleep(wait)
+                    continue
+                elif e.response.status_code == 429 and attempt >= 3:
+                    print(f"[LLM] ⚠️ {current_model} exhausted retries, trying next model...")
+                    last_err = e
+                    break
+                raise
+            except Exception as e:
+                last_err = e
+                if attempt < 3 and ("429" in str(e) or "Too Many" in str(e)):
+                    wait = 5 * (attempt + 1)
+                    print(f"[LLM] ⚠️ Rate-limited, retrying in {wait}s...")
+                    time.sleep(wait)
+                    continue
+                raise
+        # If we exhausted retries on this model, continue to next model in outer loop
+    if last_err:
+        raise last_err
+    raise RuntimeError("All models exhausted")
 
 
 # ─── Cross-asset context ─────────────────────────────────────────────────────

@@ -54,6 +54,8 @@ The DB path defaults to `C:/Users/cho_i/purrtfolio.db`. Override with
 | `GET /api/consensus` | Tickers with cross-fund momentum |
 | `GET /api/sectors` | Sector aggregation (limited — see note) |
 | `GET /api/snapshot/latest` | Latest macro market snapshot (PNG + top movers) |
+| `GET /api/econ/events` | Upcoming economic calendar events |
+| `GET /api/econ/meta` | Economic calendar metadata |
 
 All endpoints return JSON. Errors come back as `{"error": "...", "status": NNN}`
 with appropriate HTTP status (404 for missing funds, 422 for bad input, 503 if DB
@@ -89,6 +91,24 @@ python main.py export     # export CSV/JSON signals
 ```
 
 Cron: daily ingestion (`job id 3563943d0bcb`, runs `0 6 * * *`).
+
+### Economic Calendar Scanner (`scanners/economic-calendar/`)
+
+Daily ingestion of upcoming high-impact economic events affecting the
+trading markets. Uses free data sources only — no paid API keys required:
+- FOMC meetings: scraped from the Federal Reserve website
+- US economic releases (CPI, PPI, NFP, GDP, etc.): Finnhub free API
+  (optional key) with a curated fallback list
+- ECB, BOE, BOJ rate decisions: curated schedule
+
+```bash
+cd scanners/economic-calendar
+python main.py ingest        # fetch upcoming events (next 30 days) and upsert into DB
+python main.py backfill      # ingest historical events (last 90 days)
+python main.py clean         # remove past events from DB
+```
+
+Cron: daily ingestion (`job id 9e82fa1a9f04`, runs `0 5 * * *`).
 
 ## Market Snapshots
 

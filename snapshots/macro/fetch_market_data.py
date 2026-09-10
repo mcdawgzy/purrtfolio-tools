@@ -164,8 +164,9 @@ def format_level_move(name: str, price: float, change: float, pct: float) -> str
 
 # ─── NARRATIVE GENERATION (LLM-powered) ─────────────────────────────────────
 # All driver narratives and the daily caption are now generated fresh by an
-# LLM (poolside/laguna-s-2.1:free via OpenRouter) so they are never recycled
-# from a static template.  See llm_utils.py for the implementation.
+# LLM (poolside/laguna-s-2.1:free via Nous inference API, with automatic
+# fallback to alternate free models on 429) so they are never recycled from
+# a static template.  See llm_utils.py for the implementation.
 
 from llm_utils import generate_all_drivers
 

@@ -18,6 +18,8 @@
   --red:        #C7564A;
   --green-bg:   rgba(46, 158, 107, 0.10);
   --red-bg:     rgba(199, 86, 74, 0.10);
+  --amber:      #EAB308;
+  --amber-bg:   rgba(234, 179, 8, 0.10);
 
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
@@ -215,6 +217,7 @@ tbody tr:hover td { background: var(--panel-2); }
 tbody td.brass { color: var(--brass); }
 tbody td.green, .pos { color: var(--green); }
 tbody td.red, .neg { color: var(--red); }
+tbody td.amber { color: var(--amber); }
 tbody td.dim { color: var(--text-dim); }
 tbody td.mut { color: var(--text-mut); font-size: 11px; }
 
