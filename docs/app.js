@@ -88,6 +88,11 @@ function fmtPct(n) {
   return `${s}${n.toFixed(1)}%`;
 }
 
+function fmtDateISO(s) {
+  if (!s) return '—';
+  return `${String(s).slice(5, 7)}/${String(s).slice(8, 10)}/${String(s).slice(0, 4)}`;
+}
+
 function el(tag, attrs = {}, ...children) {
   const e = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs)) {
@@ -1015,6 +1020,49 @@ function renderTicker() {
   hero.appendChild(meta);
   wrap.appendChild(hero);
 
+  // Short Interest summary section (if available — embedded in API response)
+  if (t.latest_si) {
+    const si = t.latest_si;
+    const siMeta = t.si_meta;
+    const changeCls = si.change_pct > 0 ? 'green' : si.change_pct < 0 ? 'red' : '';
+    const siSection = el('div', { class: 'section' });
+    siSection.appendChild(el('div', { class: 'section-header' },
+      el('h2', {}, 'Short Interest'),
+      el('a', {
+        href: '#/short-interest/' + t.ticker,
+        onclick: (e) => { e.preventDefault(); setHash('#/short-interest/' + t.ticker); },
+        class: 'hint',
+      }, 'Latest settlement: ' + fmtDateISO(si.settlement_date) + ' · View full history →'),
+    ));
+    const siTableWrap = el('div', { class: 'table-wrap' });
+    const siTable = el('table');
+    const siThead = el('thead');
+    const siTrh = el('tr');
+    ['Metric', 'Value'].forEach((h) => {
+      siTrh.appendChild(el('th', { class: h === 'Value' ? 'num' : '' }, h));
+    });
+    siThead.appendChild(siTrh);
+    siTable.appendChild(siThead);
+    const siTbody = el('tbody');
+    const siRows = [
+      ['Short $', fmtUSD(si.current_short), ''],
+      ['% Change', fmtPct(si.change_pct), changeCls],
+      ['Days to Cover', si.days_to_cover?.toFixed(1) || '—', ''],
+      ['Avg Daily Vol', fmtNum(si.avg_daily_volume), ''],
+      ['Peak Short $', siMeta && siMeta.peak_short ? fmtUSD(siMeta.peak_short) : '—', ''],
+    ];
+    for (const [label, val, cls] of siRows) {
+      const tr = el('tr');
+      tr.appendChild(el('td', {}, label));
+      tr.appendChild(el('td', { class: 'num ' + cls }, val));
+      siTbody.appendChild(tr);
+    }
+    siTable.appendChild(siTbody);
+    siTableWrap.appendChild(siTable);
+    siSection.appendChild(siTableWrap);
+    wrap.appendChild(siSection);
+  }
+
   // Cross-fund holders table
   const section = el('div', { class: 'section' });
     section.appendChild(el('div', { class: 'section-header' },
@@ -1566,7 +1614,7 @@ function renderSISignals() {
       tr.appendChild(el('td', {}, r.name || '—'));
       tr.appendChild(el('td', { class: 'num' }, fmtUSD(r.current_short)));
       // Put %Δ or DTC depending on column order
-      ss.cols.slice(2).forEach((col, ci) => {
+      ss.cols.slice(3).forEach((col, ci) => {
         if (col === '%Δ') {
           const cls = r.change_pct > 0 ? 'num green' : r.change_pct < 0 ? 'num red' : 'num';
           tr.appendChild(el('td', { class: cls }, fmtPct(r.change_pct)));
