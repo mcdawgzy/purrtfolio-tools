@@ -18,6 +18,26 @@ def create_unified_schema():
     conn = sqlite3.connect(PURRTFOLIO)
     c = conn.cursor()
 
+    # tickers: unified metadata table for all tracked tickers
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS tickers (
+            ticker TEXT PRIMARY KEY,
+            name TEXT,
+            cik TEXT,
+            exchange TEXT,
+            market_class TEXT,
+            sector TEXT,
+            industry TEXT,
+            category TEXT,
+            is_etf BOOLEAN DEFAULT 0,
+            is_active BOOLEAN DEFAULT 1,
+            free_float_shares BIGINT,
+            shares_outstanding BIGINT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     # short_interest
     c.execute("""
         CREATE TABLE IF NOT EXISTS short_interest (
