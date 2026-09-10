@@ -91,6 +91,17 @@ function fmtPct(n) {
   return `${s}${n.toFixed(1)}%`;
 }
 
+// Compute % of free float: (short_interest_shares / free_float_shares * 100)
+function computePctFreeFloat(r) {
+  if (!r.free_float_shares || r.free_float_shares <= 0 || !r.current_short) return null;
+  return (r.current_short * 100.0 / r.free_float_shares).toFixed(2);
+}
+
+function fmtFreeFloat(r) {
+  const pct = computePctFreeFloat(r);
+  return pct !== null ? pct + '%' : '—';
+}
+
 function fmtDateISO(s) {
   if (!s) return '—';
   return `${String(s).slice(5, 7)}/${String(s).slice(8, 10)}/${String(s).slice(0, 4)}`;
@@ -1538,7 +1549,7 @@ function renderSILatestTable() {
   const table = el('table');
   const thead = el('thead');
   const trh = el('tr');
-  ['Ticker', 'Name', 'Short $', '%Δ', 'DTC', 'Avg Vol'].forEach((h, i) => {
+  ['Ticker', 'Name', 'Short $', '% Free Float', '%Δ', 'DTC', 'Avg Vol'].forEach((h, i) => {
     const cls = i >= 2 ? 'num' : '';
     trh.appendChild(el('th', { class: cls }, h));
   });
@@ -1553,8 +1564,9 @@ function renderSILatestTable() {
     });
     tr.appendChild(el('td', { class: 'mono brass' }, r.symbol));
     tr.appendChild(el('td', {}, r.name || '—'));
-    const shortCls = r.change_pct > 0 ? 'num green' : r.change_pct < 0 ? 'num red' : 'num';
     tr.appendChild(el('td', { class: 'num' }, fmtUSD(r.current_short)));
+    tr.appendChild(el('td', { class: 'num mut' }, fmtFreeFloat(r)));
+    const shortCls = r.change_pct > 0 ? 'num green' : r.change_pct < 0 ? 'num red' : 'num';
     tr.appendChild(el('td', { class: shortCls }, fmtPct(r.change_pct)));
     tr.appendChild(el('td', { class: 'num mut' }, r.days_to_cover?.toFixed(1) || '—'));
     tr.appendChild(el('td', { class: 'num mut' }, fmtNum(r.avg_daily_volume)));
@@ -1578,11 +1590,11 @@ function renderSISignals() {
     String(s.latest_settlement).slice(8, 10) + '/' + String(s.latest_settlement).slice(0, 4);
 
   const signalSets = [
-    { key: 'spikes', label: 'Spikes (≥50% change)', cols: ['Ticker', 'Name', 'Short $', '%Δ', 'DTC'] },
-    { key: 'high_dtc', label: 'High DTC (≥10 days)', cols: ['Ticker', 'Name', 'Short $', 'DTC', '%Δ'] },
-    { key: 'largest', label: 'Largest Positions', cols: ['Ticker', 'Name', 'Short $', 'DTC', '%Δ'] },
-    { key: 'covering', label: 'Covering (≤-30%)', cols: ['Ticker', 'Name', 'Short $', '%Δ', 'DTC'] },
-    { key: 'new_shorts', label: 'New Shorts (≥5x)', cols: ['Ticker', 'Name', 'Short $', '%Δ', 'DTC'] },
+    { key: 'spikes', label: 'Spikes (≥50% change)', cols: ['Ticker', 'Name', 'Short $', '% Free Float', '%Δ', 'DTC'] },
+    { key: 'high_dtc', label: 'High DTC (≥10 days)', cols: ['Ticker', 'Name', 'Short $', '% Free Float', 'DTC', '%Δ'] },
+    { key: 'largest', label: 'Largest Positions', cols: ['Ticker', 'Name', 'Short $', '% Free Float', 'DTC', '%Δ'] },
+    { key: 'covering', label: 'Covering (≤-30%)', cols: ['Ticker', 'Name', 'Short $', '% Free Float', '%Δ', 'DTC'] },
+    { key: 'new_shorts', label: 'New Shorts (≥5x)', cols: ['Ticker', 'Name', 'Short $', '% Free Float', '%Δ', 'DTC'] },
   ];
 
   for (const ss of signalSets) {
@@ -1616,8 +1628,10 @@ function renderSISignals() {
       tr.appendChild(el('td', { class: 'mono brass' }, r.symbol));
       tr.appendChild(el('td', {}, r.name || '—'));
       tr.appendChild(el('td', { class: 'num' }, fmtUSD(r.current_short)));
+      // % Free Float column (always after Short $ in signal tables)
+      tr.appendChild(el('td', { class: 'num mut' }, fmtFreeFloat(r)));
       // Put %Δ or DTC depending on column order
-      ss.cols.slice(3).forEach((col, ci) => {
+      ss.cols.slice(4).forEach((col, ci) => {
         if (col === '%Δ') {
           const cls = r.change_pct > 0 ? 'num green' : r.change_pct < 0 ? 'num red' : 'num';
           tr.appendChild(el('td', { class: cls }, fmtPct(r.change_pct)));
@@ -1670,6 +1684,9 @@ function renderSITicker() {
   metaGrid.appendChild(el('div', {},
     el('span', { class: 'meta-label' }, 'Industry'),
     el('span', { class: 'meta-value' }, t.industry || '—')));
+  metaGrid.appendChild(el('div', {},
+    el('span', { class: 'meta-label' }, '% Free Float'),
+    el('span', { class: 'meta-value brass' }, t.pct_free_float !== null && t.pct_free_float !== undefined ? t.pct_free_float.toFixed(2) + '%' : '—')));
   metaGrid.appendChild(el('div', {},
     el('span', { class: 'meta-label' }, 'Latest'),
     el('span', { class: 'meta-value mono' },
