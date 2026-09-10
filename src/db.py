@@ -865,8 +865,14 @@ def get_econ_events(
     """Upcoming economic calendar events from the economic_events table.
 
     Mirrors the read-only pattern from get_si_latest / get_si_signals.
+    Returns empty list if the table doesn't exist yet (e.g. old DB mount).
     """
     with db_conn() as c:
+        try:
+            c.execute("SELECT 1 FROM economic_events LIMIT 1").fetchone()
+        except sqlite3.OperationalError:
+            logger.warning("economic_events table not found in DB — returning empty")
+            return []
         where: list[str] = [
             "event_date >= date('now')",
             f"event_date <= date('now', '+{days_ahead} days')",
@@ -894,8 +900,16 @@ def get_econ_events(
 
 
 def get_econ_meta() -> dict:
-    """Top-level economic calendar info: last refresh, categories, impact dist."""
+    """Top-level economic calendar info: last refresh, categories, impact dist.
+
+    Returns zeroed metadata if the table doesn't exist yet.
+    """
     with db_conn() as c:
+        try:
+            c.execute("SELECT 1 FROM economic_events LIMIT 1").fetchone()
+        except sqlite3.OperationalError:
+            logger.warning("economic_events table not found in DB — returning empty meta")
+            return {"last_update": None, "upcoming_count": 0, "categories": []}
         last_update = c.execute(
             "SELECT MAX(updated_at) FROM economic_events"
         ).fetchone()[0]
