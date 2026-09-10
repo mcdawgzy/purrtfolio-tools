@@ -689,6 +689,13 @@ def get_si_signals() -> dict:
             ORDER BY (si.current_short * 1.0 / si.previous_short) DESC
         """, (latest,))
 
+        # Compute pct_of_free_float for each signal set
+        for rows in (spikes, high_dtc, largest, covering, new_shorts):
+            for r in rows:
+                ff = r.get("free_float_shares")
+                cs = r.get("current_short")
+                r["pct_of_free_float"] = round(cs * 100.0 / ff, 2) if ff and ff > 0 and cs else None
+
         return {
             "latest_settlement": latest,
             "spikes": spikes,
