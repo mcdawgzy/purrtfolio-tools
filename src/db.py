@@ -312,8 +312,36 @@ def get_ticker_holders(ticker: str) -> dict:
             ORDER BY fl.report_period DESC, h.market_value_usd DESC
         """, (ticker,)).fetchall()
 
+        # Latest short interest for this ticker (may be None if not in SI watchlist)
+        latest_si_row = c.execute("""
+            SELECT settlement_date, current_short, previous_short,
+                   avg_daily_volume, days_to_cover, change_pct, change_abs
+            FROM short_interest
+            WHERE symbol = ?
+            ORDER BY settlement_date DESC
+            LIMIT 1
+        """, (ticker,)).fetchone()
+        latest_si = dict(latest_si_row) if latest_si_row else None
+
+        # Short interest meta summary (peak, avg DTC, etc.)
+        si_meta_row = c.execute("""
+            SELECT latest_settlement, latest_short, peak_short,
+                   avg_short_12m, peak_dtc,
+                   latest_dtc, peak_short_date, updated_at
+            FROM ticker_short_meta
+            WHERE symbol = ?
+        """, (ticker,)).fetchone()
+        si_meta = dict(si_meta_row) if si_meta_row else None
+
         if not rows:
-            return {"ticker": ticker, "found": False, "holders": [], "history": []}
+            return {
+                "ticker": ticker,
+                "found": False,
+                "holders": [],
+                "history": [],
+                "latest_si": latest_si,
+                "si_meta": si_meta,
+            }
 
         # Aggregate per fund (latest holding)
         per_fund: dict[str, dict] = {}
@@ -345,6 +373,8 @@ def get_ticker_holders(ticker: str) -> dict:
             "total_current_value_usd": sum(h["market_value_usd"] for h in holders),
             "holders": holders,
             "history": _row_dicts(history_rows),
+            "latest_si": latest_si,
+            "si_meta": si_meta,
         }
 
 
@@ -435,6 +465,7 @@ def list_sectors() -> list[dict]:
                 CROSS JOIN periods p
                 WHERE h.report_period = p.prev_q
                   AND t.sector IS NOT NULL AND t.sector != ''
+                  AND t.sector != 'ETFs & Funds'
                   AND h.put_call = ''
                 GROUP BY t.sector
             ),
@@ -448,6 +479,7 @@ def list_sectors() -> list[dict]:
                 CROSS JOIN periods p
                 WHERE h.report_period = p.curr_q
                   AND t.sector IS NOT NULL AND t.sector != ''
+                  AND t.sector != 'ETFs & Funds'
                   AND h.put_call = ''
                 GROUP BY t.sector
             )
