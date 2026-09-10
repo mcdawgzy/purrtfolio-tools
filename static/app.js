@@ -1206,16 +1206,22 @@ function renderConsensusColumn(title, rows, isBuy) {
       chartTableWrap.appendChild(tableWrap);
       wrap.appendChild(chartTableWrap);
 
-      // Bar chart of net value change per sector
+      // Bar chart of percentage value change per sector
       setTimeout(() => {
         const labels = s.map(r => r.sector);
-        const data = s.map(r => r.value_change_usd);
-        const colors = data.map(d => d > 0 ? CHART_COLORS.green : (d < 0 ? CHART_COLORS.red : CHART_COLORS.brass));
+        const pctData = s.map(r => {
+          if (r.prev_value_usd && r.prev_value_usd > 0) {
+            return ((r.value_change_usd / r.prev_value_usd) * 100);
+          }
+          return r.curr_value_usd > 0 ? Infinity : 0;
+        });
+        const absData = s.map(r => r.value_change_usd);
+        const colors = pctData.map(d => d > 0 ? CHART_COLORS.green : (d < 0 ? CHART_COLORS.red : CHART_COLORS.brass));
         createBarChart('sectors-chart', {
           labels: labels,
           datasets: [{
-            label: 'Net value change ($)',
-            data: data,
+            label: 'Net change (%)',
+            data: pctData,
             backgroundColor: colors,
             borderColor: colors.map(c => c),
             borderWidth: 1,
@@ -1227,15 +1233,19 @@ function renderConsensusColumn(title, rows, isBuy) {
             tooltip: {
               callbacks: {
                 label: (ctx) => {
-                  const v = ctx.parsed.x;
-                  return `Δ: ${fmtUSD(v, { sign: true })}`;
+                  const idx = ctx.dataIndex;
+                  return `Δ: ${pctData[idx] > 0 ? '+' : ''}${pctData[idx].toFixed(1)}% (${fmtUSD(absData[idx], { sign: true })})`;
                 },
               },
             },
           },
           scales: {
             x: {
-              ticks: { color: '#E8EBEF', font: { size: 10 } },
+              ticks: {
+                color: '#E8EBEF',
+                font: { size: 10 },
+                callback: (v) => v === Infinity ? 'new' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%`,
+              },
               grid: { color: '#1E2A38' },
             },
             y: {
