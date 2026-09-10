@@ -11,7 +11,10 @@
 */
 'use strict';
 
-const API = 'https://one3f-tracker-wpj6.onrender.com';
+// API base URL — uses local server in dev, production otherwise
+const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? ''
+  : 'https://one3f-tracker-wpj6.onrender.com';
 
 const state = {
   view:   'funds',
@@ -1387,10 +1390,33 @@ function renderSnapshot() {
     ? `${s.date_str.slice(4, 6)}/${s.date_str.slice(6, 8)}/${s.date_str.slice(0, 4)}`
     : '';
 
-  // Hero: snapshot image
+  // Headline / caption (moved above the PNG)
+  if (s.caption) {
+    wrap.appendChild(el('div', { class: 'snapshot-caption' }, s.caption));
+  }
+
+  // What's driving the markets — top 3 movers with driver narratives (moved above the PNG)
+  if (s.top_movers && s.top_movers.length > 0) {
+    const mv = el('div', { class: 'snapshot-movers' });
+    mv.appendChild(el('h3', {}, 'What\u2019s driving the markets'));
+    const ul = el('ul');
+    for (const m of s.top_movers) {
+      const color = m.pct_change > 0 ? 'green' : m.pct_change < 0 ? 'red' : 'dim';
+      const sign = m.pct_change > 0 ? '+' : '';
+      ul.appendChild(el('li', {},
+        el('span', { class: 'mono ' + color }, sign + m.pct_change.toFixed(2) + '%'),
+        el('span', { class: 'mover-name' }, m.name),
+        el('span', { class: 'mover-driver' }, m.driver),
+      ));
+    }
+    mv.appendChild(ul);
+    wrap.appendChild(mv);
+  }
+
+  // Hero: snapshot image (moved below caption + movers)
   const imgUrl = API + '/snapshots/' + s.png_filename;
   const hero = el('div', { class: 'snapshot-hero' });
-  hero.appendChild(el('div', { class: 'snapshot-date' }, 'Market Snapshot · ' + dateLabel));
+  hero.appendChild(el('div', { class: 'snapshot-date' }, 'Market Snapshot \u00b7 ' + dateLabel));
   const img = el('img', {
     src: imgUrl,
     alt: 'Market Snapshot ' + dateLabel,
@@ -1407,29 +1433,6 @@ function renderSnapshot() {
   };
   hero.appendChild(img);
   wrap.appendChild(hero);
-
-  // Caption
-  if (s.caption) {
-    wrap.appendChild(el('div', { class: 'snapshot-caption' }, s.caption));
-  }
-
-  // What's driving the markets — top 3 movers with driver narratives
-  if (s.top_movers && s.top_movers.length > 0) {
-    const mv = el('div', { class: 'snapshot-movers' });
-    mv.appendChild(el('h3', {}, 'What’s driving the markets'));
-    const ul = el('ul');
-    for (const m of s.top_movers) {
-      const color = m.pct_change > 0 ? 'green' : m.pct_change < 0 ? 'red' : 'dim';
-      const sign = m.pct_change > 0 ? '+' : '';
-      ul.appendChild(el('li', {},
-        el('span', { class: 'mono ' + color }, sign + m.pct_change.toFixed(2) + '%'),
-        el('span', { class: 'mover-name' }, m.name),
-        el('span', { class: 'mover-driver' }, m.driver),
-      ));
-    }
-    mv.appendChild(ul);
-    wrap.appendChild(mv);
-  }
 
   return wrap;
 }
