@@ -2,15 +2,20 @@
 """
 LLM utilities for macro market update.
 
-Uses OpenRouter to call poolside/laguna-s-2.1:free (the same model the
-Hermes agent runs on) so that captions and driver narratives are genuinely
-fresh every day — never recycled from a template or static word bank.
+Uses the Nous inference API (the same provider the Hermes agent runs on)
+so that captions and driver narratives are genuinely fresh every day —
+never recycled from a template or static word bank.
+
+Credentials are read from the Hermes auth file
+(~/AppData/Local/hermes/auth.json) to stay consistent with the Hermes
+agent's configured `provider: nous` in config.yaml.
 
 To keep runtime practical (31 tickers), all driver narratives for a single run
 are generated in ONE batched LLM call, and the caption is a second call.
 """
 
 import os
+import json
 import textwrap
 
 import requests
@@ -19,37 +24,51 @@ import requests
 # ─── Model config ───────────────────────────────────────────────────────────
 
 MODEL_ID = "poolside/laguna-s-2.1:free"
-OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+NOUS_INFERENCE_URL = "https://inference-api.nousresearch.com/v1/chat/completions"
 
 
-def _read_api_key() -> str:
-    """Read the OpenRouter API key from the Hermes .env file."""
-    env_path = os.path.join(
+def _read_auth() -> dict:
+    """Read Nous provider credentials from the Hermes auth file."""
+    auth_path = os.path.join(
         os.environ.get("USERPROFILE", os.environ.get("HOME", "")),
-        "AppData", "Local", "hermes", ".env",
+        "AppData", "Local", "hermes", "auth.json",
     )
-    if os.path.exists(env_path):
-        with open(env_path) as f:
-            for line in f:
-                if line.strip().startswith("OPENROUTER_API_KEY="):
-                    return line.split("=", 1)[1].strip()
-    # Fallback: environment variable
-    key = os.environ.get("OPENROUTER_API_KEY")
-    if not key:
-        raise RuntimeError(
-            "OPENROUTER_API_KEY not found in ~/.hermes/.env or environment"
-        )
-    return key
+    if os.path.exists(auth_path):
+        with open(auth_path) as f:
+            data = json.load(f)
+        nous = data.get("providers", {}).get("nous", {})
+        access_token = nous.get("access_token")
+        base_url = nous.get("inference_base_url", NOUS_INFERENCE_URL)
+        if access_token:
+            # inference_base_url is like "https://inference-api.nousresearch.com/v1"
+            # The chat completions endpoint is base_url + "/chat/completions"
+            api_url = base_url.rstrip("/") + "/chat/completions"
+            return {"token": access_token, "base_url": api_url}
+
+    # Fallback: env vars (for non-Hermes environments)
+    token = os.environ.get("NOUS_ACCESS_TOKEN") or os.environ.get("OPENROUTER_API_KEY")
+    if token:
+        fallback_url = os.environ.get("NOUS_API_BASE_URL", NOUS_INFERENCE_URL)
+        api_url = fallback_url.rstrip("/") + "/chat/completions"
+        return {"token": token, "base_url": api_url}
+
+    raise RuntimeError(
+        "Nous API credentials not found. Ensure Hermes is authenticated "
+        "(providers.nous in ~/AppData/Local/hermes/auth.json) or set "
+        "NOUS_ACCESS_TOKEN / OPENROUTER_API_KEY env var."
+    )
 
 
 def _llm_call(messages: list[dict], temperature: float = 0.7, max_tokens: int = 500) -> str:
-    """Make a single conversational call to the LLM via OpenRouter.
+    """Make a single conversational call to the LLM via the Nous inference API.
 
     Retries with exponential backoff on 429 (rate limit) errors.
     """
     import time
 
-    api_key = _read_api_key()
+    auth = _read_auth()
+    api_key = auth["token"]
+    base_url = auth["base_url"]
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -66,7 +85,7 @@ def _llm_call(messages: list[dict], temperature: float = 0.7, max_tokens: int = 
     last_err = None
     for attempt in range(4):
         try:
-            resp = requests.post(OPENROUTER_URL, headers=headers, json=payload, timeout=90)
+            resp = requests.post(base_url, headers=headers, json=payload, timeout=90)
             if resp.status_code == 429 and attempt < 3:
                 wait = 5 * (attempt + 1)  # 5s, 10s, 15s
                 print(f"[LLM] ⚠️ Rate-limited (429), retrying in {wait}s...")
