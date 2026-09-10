@@ -1,4 +1,4 @@
-/* 13F Tracker — single-page drill-down
+/* Trading Tools by Purrtfolio — single-page drill-down
    No framework. State is in `state` object; view = render(state).
    Routing via hash: #/  (funds list)
                     #/fund/{cik}  (fund detail)
@@ -586,7 +586,7 @@ function renderMasthead() {
   const q = state.meta?.quarters?.[0]?.report_period || '';
   const title = state.view === 'snapshot' ? 'Market Snapshot'
     : state.view === 'shortinterest' ? 'Short Interest'
-    : '13F Tracker';
+    : 'Trading Tools';
   return el('div', { class: 'masthead' },
     el('h1', {}, title),
     el('div', { class: 'sub' },

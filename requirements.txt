@@ -1,4 +1,4 @@
-# 13F Tracker — web dashboard
+# Trading Tools by Purrtfolio — web dashboard
 # FastAPI: fastapi + uvicorn
 # SQLite comes with Python stdlib (no install needed)
 fastapi>=0.109.0

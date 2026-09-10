@@ -24,8 +24,8 @@ ROOT = Path(__file__).parent.parent
 STATIC_DIR = ROOT / "static"
 
 app = FastAPI(
-    title="13F Tracker",
-    description="Free 13F institutional ownership dashboard (SEC EDGAR data)",
+    title="Trading Tools by Purrtfolio",
+    description="Free institutional-ownership + macro market dashboard (SEC EDGAR + FINRA data)",
     version="0.1.0",
 )
 
@@ -237,7 +237,7 @@ def index():
     idx = STATIC_DIR / "index.html"
     if not idx.exists():
         return HTMLResponse(
-            "<h1>13F Tracker</h1><p>Frontend not built yet. See <code>static/index.html</code>.</p>",
+            "<h1>Trading Tools by Purrtfolio</h1><p>Frontend not built yet. See <code>static/index.html</code>.</p>",
             status_code=200,
         )
     return FileResponse(idx)
