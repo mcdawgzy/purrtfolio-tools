@@ -10,9 +10,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Check GitHub Pages
+      - name: Check GitHub Pages (legacy)
         run: |
           curl -sf -o /dev/null -w "%{http_code}" https://mcdawgzy.github.io/purrtfolio-tools/ | grep -q 200
+      
+      - name: Check Render Static Site
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}" --max-time 10 https://purrtfolio.onrender.com | grep -q 200
       
       - name: Check Render API Health
         run: |

@@ -15,5 +15,5 @@ services:
       - key: PURRTFOLIO_DB
         value: /opt/render/project/src/purrtfolio.db
       - key: CORS_ALLOWED_ORIGINS
-        value: "https://mcdawgzy.github.io"
+        value: "https://mcdawgzy.github.io,https://purrtfolio.onrender.com"
     # Render free tier: 750 hrs/mo, spins down after 15min idle, cold-start ~30s
