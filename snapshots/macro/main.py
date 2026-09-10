@@ -56,11 +56,31 @@ def run_pipeline(post_to_discord: bool = False, discord_webhook: str = None, dat
     caption = generate_caption(rows)
     print(f"\n[Caption] {caption}")
 
-    # 3. Render PNG
+    # Render PNG
     print("\n[3/3] Rendering PNG...")
     if date_str is None:
         date_str = datetime.now().strftime("%Y%m%d")
     png_path = render_market_update({"timestamp": timestamp, "rows": rows}, date_str=date_str)
+
+    # Save caption sidecar for the web dashboard
+    caption_path = os.path.join("output", f"market_caption_{date_str}.txt")
+    with open(caption_path, "w") as f:
+        f.write(caption)
+
+    # Copy latest PNG + JSON + caption into static/ so GitHub Pages and the
+    # API can serve the most recent snapshot alongside 13F data
+    static_dir = os.path.join(
+        os.environ.get("USERPROFILE", os.path.expanduser("~")),
+        "13f-scanner-web", "static",
+    )
+    snapshots_web_dir = os.path.join(static_dir, "snapshots")
+    os.makedirs(snapshots_web_dir, exist_ok=True)
+    import shutil
+    shutil.copy2(png_path, os.path.join(snapshots_web_dir, "market_snapshot.png"))
+    latest_json = f"output/market_report_{date_str}.json"
+    if os.path.exists(latest_json):
+        shutil.copy2(latest_json, os.path.join(snapshots_web_dir, "market_report_latest.json"))
+    shutil.copy2(caption_path, os.path.join(snapshots_web_dir, "market_caption_latest.txt"))
 
     print(f"\n{'='*60}")
     print(f"COMPLETE: {png_path}")

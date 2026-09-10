@@ -30,6 +30,7 @@ const state = {
   siSignals: null,
   siTicker: null,
   siActiveTab: 'latest',   // 'latest' | 'signals' | 'history'
+  snapshot: null,           // latest market snapshot metadata
 };
 
 // ---------------- helpers ----------------
@@ -108,6 +109,7 @@ function el(tag, attrs = {}, ...children) {
 function parseHash() {
   const h = location.hash.replace(/^#\/?/, '') || '';
   if (!h) return { view: 'funds' };
+  if (h === 'snapshot') return { view: 'snapshot' };
   if (h === 'consensus') return { view: 'consensus' };
   if (h === 'sectors') return { view: 'sectors' };
   if (h === 'short-interest' || h === 'short-interest/') return { view: 'shortinterest' };
@@ -373,6 +375,7 @@ async function handleRoute() {
     else if (r.view === 'consensus') await loadConsensus();
     else if (r.view === 'sectors') await loadSectors();
     else if (r.view === 'shortinterest') await loadShortInterest(r);
+    else if (r.view === 'snapshot') await loadSnapshot();
   } catch (e) {
     state.error = 'Navigation error: ' + e.message;
   }
@@ -471,6 +474,19 @@ async function loadSectors() {
   }
 }
 
+async function loadSnapshot() {
+  state.error = null;
+  state.loading = true;
+  try {
+    await loadMeta();
+    state.snapshot = await api('/api/snapshot/latest');
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+  }
+}
+
 async function reloadFundTab(cik, tab) {
   state.fundTab = tab;
   state.error = null;
@@ -509,6 +525,7 @@ function render() {
   else if (state.view === 'consensus') root.appendChild(renderConsensusView());
   else if (state.view === 'sectors')  root.appendChild(renderSectors());
   else if (state.view === 'shortinterest') root.appendChild(renderShortInterest());
+  else if (state.view === 'snapshot')  root.appendChild(renderSnapshot());
 }
 
 function renderMasthead() {
@@ -527,6 +544,7 @@ function renderNav() {
   const nav = el('div', { class: 'nav' });
   const links = [
     { view: 'funds',     label: 'Funds' },
+    { view: 'snapshot',  label: 'Market Snapshot' },
     { view: 'consensus', label: 'Consensus' },
     { view: 'sectors',   label: 'Sectors' },
   ];
@@ -1258,6 +1276,75 @@ function renderConsensusColumn(title, rows, isBuy) {
 
       return wrap;
     }
+
+
+// ---- Market Snapshot view ----
+function renderSnapshot() {
+  if (!state.snapshot) return el('div', { class: 'empty' }, 'Loading…');
+
+  const s = state.snapshot;
+  if (!s.date_str) {
+    return el('div', { class: 'section' },
+      el('div', { class: 'section-header' },
+        el('h2', {}, 'Market Snapshot'),
+      ),
+      el('div', { class: 'empty' }, 'No snapshot available yet. Run the macro pipeline to generate one.'),
+    );
+  }
+
+  const wrap = el('div', { class: 'section' });
+
+  // Date label
+  const dateLabel = s.date_str
+    ? `${s.date_str.slice(4, 6)}/${s.date_str.slice(6, 8)}/${s.date_str.slice(0, 4)}`
+    : '';
+
+  // Hero: snapshot image
+  const imgUrl = API + '/snapshots/' + s.png_filename;
+  const hero = el('div', { class: 'snapshot-hero' });
+  hero.appendChild(el('div', { class: 'snapshot-date' }, 'Market Snapshot · ' + dateLabel));
+  const img = el('img', {
+    src: imgUrl,
+    alt: 'Market Snapshot ' + dateLabel,
+    style: { maxWidth: '100%', height: 'auto', borderRadius: '4px', border: '1px solid var(--line)' },
+  });
+  img.onerror = () => {
+    img.src = '';
+    img.style.minHeight = '200px';
+    img.style.display = 'flex';
+    img.style.alignItems = 'center';
+    img.style.justifyContent = 'center';
+    img.style.color = 'var(--text-dim)';
+    img.textContent = 'Snapshot image not yet available';
+  };
+  hero.appendChild(img);
+  wrap.appendChild(hero);
+
+  // Caption
+  if (s.caption) {
+    wrap.appendChild(el('div', { class: 'snapshot-caption' }, s.caption));
+  }
+
+  // What's driving the markets — top 3 movers with driver narratives
+  if (s.top_movers && s.top_movers.length > 0) {
+    const mv = el('div', { class: 'snapshot-movers' });
+    mv.appendChild(el('h3', {}, 'What’s driving the markets'));
+    const ul = el('ul');
+    for (const m of s.top_movers) {
+      const color = m.pct_change > 0 ? 'green' : m.pct_change < 0 ? 'red' : 'dim';
+      const sign = m.pct_change > 0 ? '+' : '';
+      ul.appendChild(el('li', {},
+        el('span', { class: 'mono ' + color }, sign + m.pct_change.toFixed(2) + '%'),
+        el('span', { class: 'mover-name' }, m.name),
+        el('span', { class: 'mover-driver' }, m.driver),
+      ));
+    }
+    mv.appendChild(ul);
+    wrap.appendChild(mv);
+  }
+
+  return wrap;
+}
 
 // ---------------- boot ----------------
 async function boot() {

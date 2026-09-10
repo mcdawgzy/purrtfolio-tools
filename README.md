@@ -53,6 +53,7 @@ The DB path defaults to `C:/Users/cho_i/purrtfolio.db`. Override with
 | `GET /api/tickers/{ticker}` | Cross-fund holders of a ticker |
 | `GET /api/consensus` | Tickers with cross-fund momentum |
 | `GET /api/sectors` | Sector aggregation (limited — see note) |
+| `GET /api/snapshot/latest` | Latest macro market snapshot (PNG + top movers) |
 
 All endpoints return JSON. Errors come back as `{"error": "...", "status": NNN}`
 with appropriate HTTP status (404 for missing funds, 422 for bad input, 503 if DB
@@ -107,6 +108,11 @@ Editorial-style macro market update PNG posted to Discord at 7 AM UTC+10:
 - Consolidated treasury rows (2Y/5Y/10Y/30Y only)
 - Text-wrapped driver narratives
 - Green/red color coding on Level/Move column
+- After each run, the latest PNG + JSON report + caption are copied to
+  `static/snapshots/` so the web dashboard can serve them via
+  `/api/snapshot/latest` and `/snapshots/market_snapshot.png`
+- The web frontend has a "Market Snapshot" nav tab showing the latest PNG
+  with the top 3 mover narratives and a fresh daily caption
 
 ## Production deployment
 

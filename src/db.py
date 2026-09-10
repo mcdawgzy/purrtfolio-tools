@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
+import json
 import sqlite3
 import urllib.request
 from contextlib import contextmanager
@@ -637,6 +638,152 @@ def get_si_signals() -> dict:
             "covering": covering,
             "new_shorts": new_shorts,
         }
+
+
+# ---------------------------------------------------------------------------
+# Market Snapshot
+# ---------------------------------------------------------------------------
+def get_snapshot_dir() -> Path:
+    """Directory where the macro pipeline saves its output (PNG + JSON).
+
+    On Render (production), the macro output directory won't exist — the
+    macro pipeline runs locally and copies its output into static/snapshots/
+    via the cron job. On local dev, the pipeline writes to
+    snapshots/macro/output/ directly.
+    """
+    # Prefer a SNAPSHOT_OUTPUT_DIR env var (production), fall back to the local
+    # snapshots/macro/output directory relative to the project.
+    env_dir = os.environ.get("SNAPSHOT_OUTPUT_DIR")
+    if env_dir:
+        p = Path(env_dir)
+        if p.is_absolute():
+            return p
+        return Path.cwd() / "13f-scanner-web" / "snapshots" / "macro" / "output"
+    # Local development: macro pipeline output
+    local_dir = Path(__file__).resolve().parent.parent / "snapshots" / "macro" / "output"
+    if local_dir.exists():
+        return local_dir
+    # Fallback: snapshots copied into static/ by the cron pipeline (Render)
+    return Path(__file__).resolve().parent.parent / "static" / "snapshots"
+
+
+def _find_latest_report_json(out_dir: Path) -> Path | None:
+    """Find the latest market_report JSON in a directory.
+
+    Checks for both dated names (market_report_YYYYMMDD.json) and
+    the latest symlink/copy (market_report_latest.json).
+    """
+    import glob
+    # Prefer dated files (newest first), then fall back to _latest
+    files = sorted(glob.glob(str(out_dir / "market_report_*.json")), reverse=True)
+    if files:
+        return Path(files[0])
+    return None
+
+
+def _resolve_snapshot_filenames(out_dir: Path, date_str: str) -> tuple[str, str]:
+    """Return (png_filename, caption) for a given date_str, trying both
+    dated and '_latest' naming conventions.
+
+    Returns (png_filename or None, caption or "").
+    """
+    # Try dated filenames first
+    png_dated = out_dir / f"market_snapshot_{date_str}.png"
+    png_latest = out_dir / "market_snapshot.png"
+    caption_dated = out_dir / f"market_caption_{date_str}.txt"
+    caption_latest = out_dir / "market_caption_latest.txt"
+
+    png_filename = None
+    if png_dated.exists():
+        png_filename = png_dated.name
+    elif png_latest.exists():
+        png_filename = png_latest.name
+
+    caption = ""
+    if caption_dated.exists():
+        caption = caption_dated.read_text().strip()
+    elif caption_latest.exists():
+        caption = caption_latest.read_text().strip()
+
+    return png_filename, caption
+
+
+def get_latest_snapshot() -> dict | None:
+    """Read the latest macro market snapshot report JSON.
+
+    Returns a dict with date_str, png_filename, caption, and top_movers
+    (the 3 biggest movers by absolute pct_change, with their driver narratives).
+    Returns None if no snapshot is available yet.
+    """
+    out_dir = get_snapshot_dir()
+    if not out_dir.exists():
+        return None
+
+    json_path = _find_latest_report_json(out_dir)
+    if not json_path:
+        return None
+
+    with open(json_path, "r") as f:
+        report = json.load(f)
+
+    date_str = json_path.stem.replace("market_report_", "").replace("_latest", "")
+    png_filename, caption = _resolve_snapshot_filenames(out_dir, date_str)
+
+    # Extract top 3 movers by absolute pct_change
+    data_rows = [r for r in report["rows"] if r.get("pct_change") is not None]
+    top3 = sorted(data_rows, key=lambda x: abs(x["pct_change"]), reverse=True)[:3]
+
+    top_movers = [
+        {
+            "name": r["name"],
+            "pct_change": r["pct_change"],
+            "driver": r["driver"],
+            "level_move": r["level_move"],
+        }
+        for r in top3
+    ]
+
+    return {
+        "date_str": date_str,
+        "png_filename": png_filename,
+        "caption": caption,
+        "top_movers": top_movers,
+        "timestamp": report.get("timestamp", ""),
+    }
+
+
+def get_snapshot_by_date(date_str: str) -> dict | None:
+    """Read a specific snapshot by date (YYYYMMDD)."""
+    out_dir = get_snapshot_dir()
+    json_path = out_dir / f"market_report_{date_str}.json"
+    if not json_path.exists():
+        return None
+
+    with open(json_path, "r") as f:
+        report = json.load(f)
+
+    png_filename, caption = _resolve_snapshot_filenames(out_dir, date_str)
+
+    data_rows = [r for r in report["rows"] if r.get("pct_change") is not None]
+    top3 = sorted(data_rows, key=lambda x: abs(x["pct_change"]), reverse=True)[:3]
+
+    top_movers = [
+        {
+            "name": r["name"],
+            "pct_change": r["pct_change"],
+            "driver": r["driver"],
+            "level_move": r["level_move"],
+        }
+        for r in top3
+    ]
+
+    return {
+        "date_str": date_str,
+        "png_filename": png_filename,
+        "caption": caption,
+        "top_movers": top_movers,
+        "timestamp": report.get("timestamp", ""),
+    }
 
 
 # ---------------------------------------------------------------------------

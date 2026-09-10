@@ -199,6 +199,37 @@ def si_search(q: str = Query(..., min_length=1)):
 
 
 # ---------------------------------------------------------------------------
+# Market Snapshot
+# ---------------------------------------------------------------------------
+@app.get("/api/snapshot/latest")
+def snapshot_latest():
+    """Latest macro market snapshot (PNG + top-3 mover narratives).
+
+    Returns metadata + the PNG filename so the frontend can render the image
+    from the static-mounted snapshots directory.
+    """
+    return db.get_latest_snapshot() or {
+        "date_str": None,
+        "png_filename": None,
+        "caption": None,
+        "top_movers": [],
+        "timestamp": None,
+    }
+
+
+@app.get("/api/snapshot/{date_str}")
+def snapshot_detail(date_str: str):
+    """Specific snapshot by date (YYYYMMDD)."""
+    return db.get_snapshot_by_date(date_str) or {
+        "date_str": date_str,
+        "png_filename": None,
+        "caption": None,
+        "top_movers": [],
+        "timestamp": None,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Frontend (single page, served at /)
 # ---------------------------------------------------------------------------
 @app.get("/", response_class=HTMLResponse)
@@ -215,6 +246,11 @@ def index():
 # Serve static assets (CSS, JS) — must be last so it doesn't shadow API routes
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# Serve macro market snapshot PNGs
+SNAPSHOT_OUT = db.get_snapshot_dir()
+if SNAPSHOT_OUT.exists():
+    app.mount("/snapshots", StaticFiles(directory=str(SNAPSHOT_OUT)), name="snapshots")
 
 
 if __name__ == "__main__":

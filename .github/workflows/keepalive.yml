@@ -26,6 +26,7 @@ jobs:
         run: |
           curl -sf -o /dev/null --max-time 60 https://one3f-tracker-wpj6.onrender.com/api/meta
           curl -sf -o /dev/null --max-time 30 https://one3f-tracker-wpj6.onrender.com/api/funds
+          curl -sf -o /dev/null --max-time 30 https://one3f-tracker-wpj6.onrender.com/api/snapshot/latest
       
       - name: Log Status
         if: always()
