@@ -199,6 +199,47 @@ def si_search(q: str = Query(..., min_length=1)):
 
 
 # ---------------------------------------------------------------------------
+# Form 4 Insider Trading
+# ---------------------------------------------------------------------------
+@app.get("/api/insider/meta")
+def insider_meta():
+    """Metadata for the insider trading tab: latest filing, coverage stats, quarters."""
+    return db.get_insider_meta()
+
+
+@app.get("/api/insider/latest")
+def insider_latest(
+    ticker: str | None = Query(None, description="Filter to a single ticker"),
+    min_value: int | None = Query(None, ge=0, description="Min transaction value USD"),
+    limit: int = Query(100, ge=1, le=500),
+):
+    """Latest insider transactions (Form 4), optionally filtered by ticker."""
+    rows = db.get_insider_latest(
+        ticker=ticker,
+        limit=limit,
+        min_value=min_value,
+    )
+    return {"rows": rows, "total": len(rows)}
+
+
+@app.get("/api/insider/tickers/{ticker}")
+def insider_ticker_detail(ticker: str):
+    """Full insider trading history for a single ticker."""
+    r = db.get_insider_ticker(ticker)
+    if not r:
+        raise HTTPException(404, f"No insider data for {ticker.upper()}")
+    return r
+
+
+@app.get("/api/insider/signals")
+def insider_signals(
+    limit: int = Query(100, ge=1, le=500),
+):
+    """Signal sets: top buys, top sells, officer trades."""
+    return db.get_insider_signals(limit=limit)
+
+
+# ---------------------------------------------------------------------------
 # Economic Calendar
 # ---------------------------------------------------------------------------
 @app.get("/api/econ/events")

@@ -17,9 +17,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./static
-          force_orphan: true
+      - name: Copy static to docs
+        run: |
+          rm -rf docs
+          cp -r static docs
+
+      - name: Deploy docs/ to master
+        run: |
+          git config user.name mcdawgzy
+          git config user.email mcdawgzy@users.noreply.github.com
+          # Only commit/push if docs/ actually changed
+          if ! git diff --quiet --exit-code docs/ 2>/dev/null; then
+            git add docs/
+            git commit -m "chore: deploy static/ to docs/ [skip ci]"
+            git push origin HEAD:master
+          else
+            echo "No changes to docs/"
+          fi
