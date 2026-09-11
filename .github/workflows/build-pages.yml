@@ -17,18 +17,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Copy static to docs
+      - name: Copy static/ to docs/
         run: |
           rm -rf docs
           cp -r static docs
+          # Remove the snapshots double-nesting that cp -r can create
+          if [ -d docs/snapshots/snapshots ]; then
+            rm -rf docs/snapshots/snapshots
+          fi
 
-      - name: Deploy docs/ to master
+      - name: Commit docs/ to master
         run: |
           git config user.name mcdawgzy
           git config user.email mcdawgzy@users.noreply.github.com
-          # Only commit/push if docs/ actually changed
-          if ! git diff --quiet --exit-code docs/ 2>/dev/null; then
-            git add docs/
+          git add docs/
+          # Only commit/push if there are actual changes
+          if ! git diff --cached --quiet; then
             git commit -m "chore: deploy static/ to docs/ [skip ci]"
             git push origin HEAD:master
           else
