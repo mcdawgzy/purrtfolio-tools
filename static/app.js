@@ -692,6 +692,42 @@ function renderMasthead() {
   );
 }
 
+// Nav link definitions grouped by category
+const NAV_GROUPS = [
+  {
+    label: 'Data Views',
+    items: [
+      { view: 'funds',     label: 'Funds' },
+      { view: 'consensus', label: 'Consensus' },
+      { view: 'sectors',   label: 'Sectors' },
+    ],
+  },
+  {
+    label: 'Scanners',
+    items: [
+      { view: 'snapshot',      label: 'Market Snapshot' },
+      { view: 'shortinterest', label: 'Short Interest' },
+      { view: 'economic',      label: 'Economic Calendar' },
+      { view: 'insider',       label: 'Insider Trading' },
+    ],
+  },
+];
+
+// Map nav item view → hash route
+const NAV_ROUTES = {
+  funds:       '#/funds',
+  consensus:   '#/consensus',
+  sectors:     '#/sectors',
+  snapshot:    '#/snapshot',
+  shortinterest: '#/short-interest',
+  economic:    '#/economic-calendar',
+  insider:     '#/insider',
+};
+
+function navHref(item) {
+  return NAV_ROUTES[item.view] || '#/' + item.view;
+}
+
 function renderNav() {
   const nav = el('div', { class: 'nav' });
 
@@ -702,27 +738,46 @@ function renderNav() {
     onclick: (e) => { e.preventDefault(); setHash('#/snapshot'); },
   }, 'Purrtfolio'));
 
-  const links = [
-    { view: 'snapshot',  label: 'Market Snapshot' },
-    { view: 'funds',     label: 'Funds' },
-    { view: 'consensus', label: 'Consensus' },
-    { view: 'sectors',   label: 'Sectors' },
-    { view: 'shortinterest', label: 'Short Interest' },
-    { view: 'economic',  label: 'Economic Calendar' },
-    { view: 'insider',   label: 'Insider Trading' },
-  ];
-  for (const l of links) {
-    const href = l.view === 'snapshot' ? '#/snapshot'
-      : l.view === 'funds' ? '#/funds'
-      : l.view === 'shortinterest' ? '#/short-interest'
-      : l.view === 'economic' ? '#/economic-calendar'
-      : '#/' + l.view;
-    const a = el('a', {
-      class: 'nav-link' + (state.view === l.view ? ' active' : ''),
-      href: href,
-    }, l.label);
-    nav.appendChild(a);
+  // Dropdown groups
+  for (const group of NAV_GROUPS) {
+    const dropdown = el('div', { class: 'nav-dropdown' });
+
+    // Trigger label
+    const trigger = el('div', {
+      class: 'nav-dropdown-label',
+      onclick: (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('open');
+      },
+      onkeydown: (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          dropdown.classList.toggle('open');
+        }
+      },
+    }, group.label);
+
+    // Menu
+    const menu = el('div', { class: 'nav-dropdown-menu' });
+    for (const item of group.items) {
+      const isActive = state.view === item.view;
+      menu.appendChild(el('a', {
+        class: 'nav-link' + (isActive ? ' active' : ''),
+        href: navHref(item),
+        onclick: (e) => {
+          e.preventDefault();
+          setHash(navHref(item));
+          closeNavDropdowns();
+        },
+      }, item.label));
+    }
+
+    dropdown.appendChild(trigger);
+    dropdown.appendChild(menu);
+    nav.appendChild(dropdown);
   }
+
+  // Global ticker search (stays flat, outside dropdowns)
   const search = el('input', {
     class: 'nav-search',
     type: 'search',
@@ -737,6 +792,25 @@ function renderNav() {
   nav.appendChild(el('div', { class: 'nav-spacer' }));
   return nav;
 }
+
+// Close all open dropdowns (click-outside, Escape, after navigation)
+function closeNavDropdowns() {
+  document.querySelectorAll('.nav-dropdown.open').forEach(d => d.classList.remove('open'));
+}
+
+// Click-outside handler
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.nav-dropdown')) {
+    closeNavDropdowns();
+  }
+});
+
+// Escape key closes dropdowns
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeNavDropdowns();
+  }
+});
 
 // ---- Funds list view ----
 function renderFunds() {

@@ -133,6 +133,74 @@ input:focus, select:focus { border-color: var(--brass); }
   border-radius: 2px;
 }
 
+/* ------- Nav dropdowns ------- */
+.nav-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.nav-dropdown-label {
+  color: var(--text-dim);
+  font-size: 12px;
+  font-family: var(--mono);
+  font-weight: 500;
+  padding: 6px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+  border-bottom: 2px solid transparent;
+  transition: border-color 0.15s, color 0.15s;
+}
+.nav-dropdown-label:hover {
+  color: var(--text);
+  border-bottom-color: var(--line-2);
+}
+.nav-dropdown:hover .nav-dropdown-label {
+  color: var(--text);
+}
+.nav-dropdown-label::after {
+  content: ' ▾';
+  font-size: 9px;
+  opacity: 0.5;
+}
+
+.nav-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 160px;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 2px;
+  z-index: 100;
+  flex-direction: column;
+  padding: 4px 0;
+}
+.nav-dropdown.open .nav-dropdown-menu {
+  display: flex;
+}
+.nav-dropdown:hover .nav-dropdown-menu {
+  display: flex;
+}
+.nav-dropdown-menu .nav-link {
+  display: block;
+  padding: 6px 16px;
+  font-size: 12px;
+  font-family: var(--mono);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.nav-dropdown-menu .nav-link:hover {
+  background: var(--panel-2);
+  color: var(--brass);
+}
+.nav-dropdown-menu .nav-link.active {
+  color: var(--brass);
+  background: rgba(201, 162, 78, 0.08);
+}
+
 /* ------- Sections ------- */
 .section { margin-bottom: 36px; }
 .section-header {
@@ -476,6 +544,24 @@ tbody td.mut { color: var(--text-mut); font-size: 11px; }
   .consensus-grid { grid-template-columns: 1fr; }
   .meta-grid { flex-wrap: wrap; }
   .ticker-hero { grid-template-columns: 1fr; gap: 12px; }
+}
+
+/* Mobile: disable hover-based dropdown (touch can't hover); use click toggle only */
+@media (max-width: 768px) {
+  .nav-dropdown:hover .nav-dropdown-menu {
+    display: none;
+  }
+  .nav-dropdown.open .nav-dropdown-menu {
+    display: flex;
+    position: static;
+    min-width: 100%;
+  }
+  .nav-dropdown-label {
+    padding: 8px 6px;
+  }
+  .nav-dropdown-menu .nav-link {
+    padding: 10px 16px;
+  }
 }
 
 /* ------- Market Snapshot view ------- */
