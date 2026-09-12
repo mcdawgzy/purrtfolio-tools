@@ -679,7 +679,7 @@ function renderMasthead() {
         `${state.meta?.counts.unique_tickers?.toLocaleString() || 0} tickers`) : null,
     );
   } else {
-    title = 'Purrtfolio Tools';
+    title = state.view === 'funds' ? 'Funds' : 'Purrtfolio Tools';
   }
 
   return el('div', { class: 'masthead' },
