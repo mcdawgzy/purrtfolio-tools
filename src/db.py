@@ -23,7 +23,7 @@ from typing import Any, Iterator
 _DEFAULT_DB = Path.home() / "purrtfolio.db"
 
 # GitHub Release asset URL for production DB
-_RELEASE_ASSET = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-11c/purrtfolio.db"
+_RELEASE_ASSET = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-12/purrtfolio.db"
 
 logger = logging.getLogger(__name__)
 
@@ -1197,7 +1197,7 @@ def get_insider_signals(limit: int = 100) -> dict:
               AND t.trans_code IN ('P', 'M', 'A', 'X', 'O')
               AND t.transaction_value_usd IS NOT NULL
               AND t.transaction_value_usd > 0
-              AND t.direct_indirect_ownership = 'Direct'
+              AND t.direct_indirect_ownership = 'D'
             ORDER BY t.transaction_value_usd DESC
             LIMIT ?
         """, (limit,)).fetchall()
@@ -1225,7 +1225,7 @@ def get_insider_signals(limit: int = 100) -> dict:
               AND t.trans_code IN ('S', 'D', 'X', 'O')
               AND t.transaction_value_usd IS NOT NULL
               AND t.transaction_value_usd > 0
-              AND t.direct_indirect_ownership = 'Direct'
+              AND t.direct_indirect_ownership = 'D'
             ORDER BY t.transaction_value_usd DESC
             LIMIT ?
         """, (limit,)).fetchall()
@@ -1247,7 +1247,7 @@ def get_insider_signals(limit: int = 100) -> dict:
             JOIN insider_owners o ON s.accession_number = o.accession_number
             JOIN insider_transactions t ON s.accession_number = t.accession_number
             WHERE s.document_type IN ('4', '4/A')
-              AND o.rptowner_relationship = 'OFFICER'
+              AND o.rptowner_relationship LIKE '%OFFICER%'
               AND t.trans_code IN ('P', 'S', 'M', 'A', 'X', 'O')
               AND t.transaction_value_usd IS NOT NULL
               AND t.transaction_value_usd > 0

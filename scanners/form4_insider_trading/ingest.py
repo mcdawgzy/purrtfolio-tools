@@ -29,73 +29,72 @@ logger = logging.getLogger(__name__)
 
 
 def _load_watchlist() -> set[str]:
-    """Load the curated ticker watchlist from the shared watchlist JSON."""
-    wl_path = Path(__file__).resolve().parent.parent / "short_interest_scanner" / "ticker_watchlist.json"
-    if wl_path.exists():
-        with open(wl_path) as f:
+    """Load the curated ticker watchlist."""
+    from .config import WATCHLIST_PATH
+    watchlist_path = Path(WATCHLIST_PATH)
+    tickers = set()
+    if watchlist_path.exists():
+        with open(watchlist_path, encoding="utf-8") as f:
             wl = json.load(f)
-        return set(wl.get("all_tickers", []))
-    return set()
+        # Handle both list-of-dicts and {"all_tickers": [...]} formats
+        if isinstance(wl, list):
+            for entry in wl:
+                tickers.add(entry["symbol"].upper())
+        elif isinstance(wl, dict):
+            for t in wl.get("all_tickers", []):
+                tickers.add(t.upper())
+    return tickers
 
 
 def _get_latest_available_quarter() -> str:
     """Determine the latest SEC quarter that should have been published.
 
-    SEC publishes quarterly ~45 days after quarter end.
-    Q1 (Mar 31) → ~mid-May
-    Q2 (Jun 30) → ~mid-Aug
-    Q3 (Sep 30) → ~mid-Nov
-    Q4 (Dec 31) → ~mid-Feb next year
+    SEC publishes Insider Transactions Data Sets quarterly:
+      Q1 (ends Mar 31) → published ~mid-May
+      Q4 (ends Dec 31) → published ~mid-Feb (next year)
+
+    As of September 2026, Q2 data (published ~mid-Aug) should be available.
+    Q3 data won't be published until ~mid-November.
     """
     now = datetime.now()
-    # Determine which quarters have been published by now
-    # Q1 data typically available mid-May, Q2 mid-Aug, etc.
     year = now.year
     month = now.month
-    day = now.day
 
-    # Quarter end dates
-    q_ends = [(1, 3, 31), (4, 6, 30), (7, 9, 30), (10, 12, 31)]
-
-    # Publication lag: ~45 days. Check if enough time has passed.
-    import time
-    for q_num, (sm, em, ed) in enumerate(q_ends, 1):
-        q_date = datetime(year, em, ed)
-        # Publication estimate: quarter end + 45 days
-        pub_estimate = q_date.timestamp() + 45 * 86400
-        if now.timestamp() >= pub_estimate - 3 * 86400:  # 3-day buffer
-            continue
-        else:
-            # This quarter hasn't been published yet
-            if q_num == 1:
-                return f"{year - 1}Q4"
-            return f"{year}Q{q_num - 1}"
-
-    return f"{year}Q4"
+    # Map: which quarter of DATA is likely published by this month
+    # Q1 published mid-May (month >= 5), Q2 mid-Aug (month >= 8),
+    # Q3 mid-Nov (month >= 11), Q4 mid-Feb (month >= 2)
+    if month >= 11:
+        return f"{year}Q3"
+    elif month >= 8:
+        return f"{year}Q2"
+    elif month >= 5:
+        return f"{year}Q1"
+    elif month >= 2:
+        return f"{year - 1}Q4"
+    else:
+        return f"{year - 1}Q3"
 
 
-def _quarter_url(quarter_str: str) -> str:
-    """Build SEC download URL for a quarter.
+def _quarter_url(quarter_str: str) -> list[str]:
+    """Build SEC download URLs for a quarter.
 
+    Returns a list of URLs to try (primary first).
     Format: 2026Q2 → https://www.sec.gov/files/structureddata/data/insider-transactions-data-sets/2026q2_form345.zip
-    Note: 2026 Q2 uses a different base path (datastandardsinnovation vs structureddata).
     """
-    # Parse "2026Q2" → year=2026, quarter=2
     parts = quarter_str.split("Q")
     year, q = parts[0], parts[1]
     lower = f"{year.lower()}q{q}_form345.zip"
 
-    # Try the structureddata path first (most quarters), then datastandardsinnovation
-    urls = [
+    return [
         f"{SEC_DATASTRUCTURES_BASE}/{lower}",
         f"https://www.sec.gov/files/datastandardsinnovation/data/insider-transactions-data-sets/{lower}",
+        f"https://www.sec.gov/files/insider-transactions-data-sets/{lower}",
     ]
-    return urls[0]  # return primary; downloader will try fallback
 
 
 def _download_quarter_zip(quarter_str: str, download_dir: Path) -> Optional[Path]:
     """Download a quarter's ZIP from SEC."""
-    urls_to_try = _quarter_url(quarter_str), f"https://www.sec.gov/files/datastandardsinnovation/data/insider-transactions-data-sets/{quarter_str.lower()}_form345.zip"
+    urls_to_try = _quarter_url(quarter_str)
 
     for url in urls_to_try:
         fname = url.split("/")[-1]
@@ -433,7 +432,7 @@ def ingest_quarter(quarter_str: str, download_dir: Optional[Path] = None) -> dic
                          direct_indirect_ownership, direct_indirect_ownership_fn,
                          nature_of_ownership, nature_of_ownership_fn,
                          transaction_value_usd)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     accession, trans_sk,
                     t.get("SECURITY_TITLE", "").strip(),
@@ -522,7 +521,7 @@ def ingest_quarter(quarter_str: str, download_dir: Optional[Path] = None) -> dic
                          underlying_sec_value, underlying_sec_value_fn,
                          exercise_date, exercise_date_fn,
                          expiration_date, expiration_date_fn)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     accession, deriv_sk,
                     dt.get("SECURITY_TITLE", "").strip(),
@@ -587,7 +586,7 @@ def ingest_quarter(quarter_str: str, download_dir: Optional[Path] = None) -> dic
                          val_ownfollowingtrans, val_ownfollowingtrans_fn,
                          direct_indirect_ownership, direct_indirect_ownership_fn,
                          nature_of_ownership, nature_of_ownership_fn)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     accession, deriv_hsk,
                     dh.get("SECURITY_TITLE", "").strip(),
@@ -700,3 +699,62 @@ def backfill_quarters(start_quarter: str, end_quarter: str) -> list[dict]:
         results.append(result)
 
     return results
+
+
+def ingest_latest_quarter() -> dict:
+    """Ingest the latest available SEC Insider Transactions Data Set.
+
+    Checks for new quarterly data, downloads it, and ingests for the
+    curated watchlist. Returns a summary dict.
+
+    This is the main cron entry point.
+    """
+    from .db import sync_watchlist, get_ingestion_log_last, log_ingestion
+
+    tickers_ingested = []
+    new_count = 0
+    updated_count = 0
+
+    # 1. Ensure watchlist tickers are in the DB
+    sync_watchlist()
+
+    # 2. Determine latest available quarter
+    latest_q = _get_latest_available_quarter()
+
+    # 3. Check if already ingested
+    last_log = get_ingestion_log_last()
+    if last_log and last_log.get("quarter") == latest_q:
+        logger.info(f"Quarter {latest_q} already ingested, skipping.")
+        return {
+            "status": "no_new_data",
+            "quarter": latest_q,
+            "tickers_ingested": [],
+            "new_count": 0,
+            "updated_count": 0,
+            "ticker_results": [],
+        }
+
+    # 4. Ingest
+    result = ingest_quarter(latest_q)
+    tickers_ingested = result.get("tickers_ingested", [])
+    new_count = result.get("new_rows", 0)
+    updated_count = result.get("updated_rows", 0)
+    ticker_results = result.get("ticker_results", [])
+
+    # 5. Log
+    log_ingestion(
+        quarter=latest_q,
+        record_count=new_count + updated_count,
+        new_count=new_count,
+        updated_count=updated_count,
+        status="completed" if new_count > 0 else "no_new_data",
+    )
+
+    return {
+        "status": "completed" if new_count > 0 else "no_new_data",
+        "quarter": latest_q,
+        "tickers_ingested": tickers_ingested,
+        "new_count": new_count,
+        "updated_count": updated_count,
+        "ticker_results": ticker_results,
+    }

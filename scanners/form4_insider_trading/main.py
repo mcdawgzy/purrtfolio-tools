@@ -180,10 +180,11 @@ def run() -> dict:
 
         ing = ingest_latest_quarter()
         result["processed_tickers"] = len(ing.get("tickers_ingested", []))
-        result["new_records"] = ing.get("new_count", 0)
-        result["updated_records"] = ing.get("updated_count", 0)
+        result["new_records"] = ing.get("new_count", 0) or ing.get("new_rows", 0)
+        result["updated_records"] = ing.get("updated_count", 0) or ing.get("updated_rows", 0)
+        result["quarter"] = ing.get("quarter", "unknown")
         result["results"] = ing.get("ticker_results", [])
-        result["status"] = "completed" if result["new_records"] > 0 else "no_new_data"
+        result["status"] = "completed" if (result["new_records"] > 0 or result["updated_records"] > 0) else "no_new_data"
 
     except Exception as e:
         result["status"] = "error"

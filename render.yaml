@@ -8,7 +8,7 @@ services:
           # Download DB from GitHub Release (free tier has no persistent disk)
           mkdir -p /opt/render/project/src
           curl -L -o /opt/render/project/src/purrtfolio.db \
-            https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-11b/purrtfolio.db
+            https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-12/purrtfolio.db
           echo "DB downloaded: $(ls -lh /opt/render/project/src/purrtfolio.db)"
     startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
     envVars:

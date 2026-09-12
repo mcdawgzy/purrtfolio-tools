@@ -302,6 +302,19 @@ def init_insider_schema():
             )
         """)
 
+        # Ingestion log
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS insider_ingestion_log (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                quarter       TEXT NOT NULL,
+                record_count  INTEGER,
+                new_count     INTEGER,
+                updated_count INTEGER,
+                status        TEXT,
+                created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         conn.commit()
         logger.info("Insider trading schema initialized")
 
@@ -609,7 +622,7 @@ def get_insider_signals(limit: int = 100) -> dict:
               AND t.trans_code IN ('P', 'M', 'A', 'X', 'O')
               AND t.transaction_value_usd IS NOT NULL
               AND t.transaction_value_usd > 0
-              AND t.direct_indirect_ownership = 'Direct'
+              AND t.direct_indirect_ownership = 'D'
             ORDER BY t.transaction_value_usd DESC
             LIMIT ?
         """, (limit,)).fetchall()
@@ -638,7 +651,7 @@ def get_insider_signals(limit: int = 100) -> dict:
               AND t.trans_code IN ('S', 'D', 'X', 'O')
               AND t.transaction_value_usd IS NOT NULL
               AND t.transaction_value_usd > 0
-              AND t.direct_indirect_ownership = 'Direct'
+              AND t.direct_indirect_ownership = 'D'
             ORDER BY t.transaction_value_usd DESC
             LIMIT ?
         """, (limit,)).fetchall()
@@ -661,7 +674,7 @@ def get_insider_signals(limit: int = 100) -> dict:
             JOIN insider_owners o ON s.accession_number = o.accession_number
             JOIN insider_transactions t ON s.accession_number = t.accession_number
             WHERE s.document_type IN ('4', '4/A')
-              AND (o.rptowner_relationship = 'OFFICER')
+              AND (o.rptowner_relationship LIKE '%OFFICER%')
               AND t.trans_code IN ('P', 'S', 'M', 'A', 'X', 'O')
               AND t.transaction_value_usd IS NOT NULL
               AND t.transaction_value_usd > 0
@@ -679,3 +692,81 @@ def get_insider_signals(limit: int = 100) -> dict:
             "top_sells": _row_dicts(sells),
             "officer_trades": _row_dicts(officers),
         }
+
+
+# ---------------------------------------------------------------------------
+# Watchlist & ingestion log
+# ---------------------------------------------------------------------------
+def sync_watchlist() -> int:
+    """Sync the curated ticker watchlist into the tickers dimension table.
+
+    Returns the number of tickers in the watchlist.
+    Uses the existing tickers table schema (ticker as PK).
+    """
+    import json
+
+    from .config import WATCHLIST_PATH
+
+    with get_db() as conn:
+        c = conn.cursor()
+        # Ensure tickers table exists (shared with other scanners)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS tickers (
+                ticker  TEXT PRIMARY KEY,
+                name    TEXT,
+                sector  TEXT,
+                industry TEXT,
+                category TEXT,
+                exchange TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            ) WITHOUT ROWID
+        """)
+
+        with open(WATCHLIST_PATH, encoding="utf-8") as f:
+            watchlist = json.load(f)
+
+        for entry in watchlist:
+            symbol = entry["symbol"].upper()
+            name = entry.get("name", "")
+            c.execute("""
+                INSERT INTO tickers (ticker, name)
+                VALUES (?, ?)
+                ON CONFLICT(ticker) DO UPDATE SET
+                    name = COALESCE(excluded.name, tickers.name),
+                    updated_at = CURRENT_TIMESTAMP
+            """, (symbol, name))
+
+        conn.commit()
+        return len(watchlist)
+
+
+def get_ingestion_log_last() -> dict | None:
+    """Return the most recent ingestion log entry, or None."""
+    with get_db_readonly() as c:
+        row = c.execute(
+            "SELECT quarter, record_count, new_count, updated_count, "
+            "status, created_at FROM insider_ingestion_log "
+            "ORDER BY created_at DESC LIMIT 1"
+        ).fetchone()
+        return _row_dicts([row])[0] if row else None
+
+
+def log_ingestion(
+    quarter: str,
+    record_count: int,
+    new_count: int,
+    updated_count: int,
+    status: str = "completed",
+) -> int:
+    """Record an ingestion run in the log. Returns the log row id."""
+    with get_db() as conn:
+        c = conn.cursor()
+        cur = c.execute(
+            "INSERT INTO insider_ingestion_log "
+            "(quarter, record_count, new_count, updated_count, status) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (quarter, record_count, new_count, updated_count, status),
+        )
+        conn.commit()
+        return cur.lastrowid

@@ -14,8 +14,8 @@ SCRIPTS_DIR = BASE_DIR / "scripts"
 # Database — uses the unified purrtfolio.db
 DB_PATH = Path("C:/Users/cho_i/purrtfolio.db")
 
-# Watchlist — reuse the same curated tickers as the short interest scanner
-WATCHLIST_PATH = Path(__file__).resolve().parent.parent / "short_interest_scanner" / "ticker_watchlist.json"
+# Watchlist — curated tickers for Form 4 scanning (same universe as short interest)
+WATCHLIST_PATH = Path(__file__).resolve().parent / "ticker_watchlist.json"
 
 # SEC Insider Transactions Data Sets
 # Updated quarterly; URL pattern:

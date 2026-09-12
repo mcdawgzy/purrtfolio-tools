@@ -1949,8 +1949,15 @@ function renderInsider() {
       tabs.appendChild(el('div', {
         class: 'tab' + (state.insiderActiveTab === t.key ? ' active' : ''),
         onclick: () => {
+          if (state.insiderActiveTab === t.key) return;
           state.insiderActiveTab = t.key;
           render();
+          if (state.insiderActiveTab === 'signals' && !state.insiderSignals) {
+            api('/api/insider/signals', { limit: 100 })
+              .then(resp => { state.insiderSignals = resp; })
+              .catch(e => { state.error = e.message; })
+              .finally(() => { render(); });
+          }
         },
       }, t.label));
     }

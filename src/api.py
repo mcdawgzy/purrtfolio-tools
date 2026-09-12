@@ -201,6 +201,32 @@ def si_search(q: str = Query(..., min_length=1)):
 # ---------------------------------------------------------------------------
 # Form 4 Insider Trading
 # ---------------------------------------------------------------------------
+def _transform_latest_row(row: dict) -> dict:
+    """Map raw DB columns to frontend-friendly field names."""
+    trans_cd = row.get("trans_acquired_disp_cd", "")
+    is_buy = trans_cd == "A"
+    return {
+        "accession_number": row.get("accession_number"),
+        "ticker": row.get("ticker"),
+        "company_name": row.get("issuername"),
+        "trade_date": row.get("trans_date"),
+        "filing_date": row.get("filing_date"),
+        "insider_cik": row.get("rptownercik"),
+        "insider_name": row.get("rptownername"),
+        "relationship": row.get("rptowner_relationship"),
+        "title": row.get("rptowner_title"),
+        "transaction_type": row.get("trans_code"),  # P, S, M, A, etc.
+        "quantity": row.get("trans_shares"),
+        "price": row.get("trans_pricepershare"),
+        "value": row.get("transaction_value_usd"),
+        "ownership_type": row.get("direct_indirect_ownership"),
+        "nature_of_ownership": row.get("nature_of_ownership"),
+        "shares_post": row.get("shrs_ownfollowingtrans"),
+        "value_post": row.get("val_ownfollowingtrans"),
+        "is_buy": is_buy,
+    }
+
+
 @app.get("/api/insider/meta")
 def insider_meta():
     """Metadata for the insider trading tab: latest filing, coverage stats, quarters."""
@@ -219,7 +245,7 @@ def insider_latest(
         limit=limit,
         min_value=min_value,
     )
-    return {"rows": rows, "total": len(rows)}
+    return {"rows": [_transform_latest_row(r) for r in rows], "total": len(rows)}
 
 
 @app.get("/api/insider/tickers/{ticker}")
@@ -228,6 +254,9 @@ def insider_ticker_detail(ticker: str):
     r = db.get_insider_ticker(ticker)
     if not r:
         raise HTTPException(404, f"No insider data for {ticker.upper()}")
+    # Transform transactions to frontend-friendly names
+    if "transactions" in r:
+        r["trades"] = [_transform_latest_row(t) for t in r["transactions"]]
     return r
 
 
@@ -236,7 +265,20 @@ def insider_signals(
     limit: int = Query(100, ge=1, le=500),
 ):
     """Signal sets: top buys, top sells, officer trades."""
-    return db.get_insider_signals(limit=limit)
+    raw = db.get_insider_signals(limit=limit)
+    # Transform signal rows and rename keys to match frontend expectations
+    raw["officer_buys"] = [_transform_latest_row(r) for r in raw.get("officer_trades", [])]
+    raw["top_buys"] = [_transform_latest_row(r) for r in raw.get("top_buys", [])]
+    raw["top_sells"] = [_transform_latest_row(r) for r in raw.get("top_sells", [])]
+    raw["recent_activity"] = raw["top_buys"][:10] + raw["top_sells"][:10]
+    return raw
+
+
+@app.get("/api/insider/search")
+def insider_search(q: str = Query(..., min_length=1)):
+    """Search insider trading tickers."""
+    results = db.search_insider_tickers(q)
+    return {"results": results}
 
 
 # ---------------------------------------------------------------------------
