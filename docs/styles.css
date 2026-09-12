@@ -95,8 +95,17 @@ input:focus, select:focus { border-color: var(--brass); }
 .nav {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 4px;
   margin-bottom: 24px;
+}
+.nav-brand {
+  color: var(--brass);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0 4px;
+  text-decoration: none;
 }
 .nav .nav-search {
   flex: 1;
@@ -144,6 +153,10 @@ input:focus, select:focus { border-color: var(--brass); }
   color: var(--text-mut);
   font-family: var(--mono);
 }
+.section-header .hint.brass {
+  color: var(--brass);
+  font-weight: 500;
+}
 
 /* ------- Stats grid (top of page) ------- */
 .stats {
@@ -176,6 +189,7 @@ input:focus, select:focus { border-color: var(--brass); }
 /* ------- Tables ------- */
 .table-wrap {
   border: 1px solid var(--line);
+  border-radius: 4px;
   overflow: hidden;
 }
 table {
@@ -465,13 +479,8 @@ tbody td.mut { color: var(--text-mut); font-size: 11px; }
 }
 
 /* ------- Market Snapshot view ------- */
-.snapshot-hero { padding: 20px 0; }
-.snapshot-hero .snapshot-date {
-  font-size: 12px;
-  font-family: var(--mono);
-  color: var(--text-mut);
-  margin-bottom: 12px;
-}
+.snapshot-hero { padding: 16px 0; }
+.snapshot-hero img { max-width: 100%; }
 .snapshot-hero img { max-width: 100%; }
 .snapshot-hero .snapshot-img-placeholder {
   min-height: 200px;
@@ -486,11 +495,11 @@ tbody td.mut { color: var(--text-mut); font-size: 11px; }
 .snapshot-caption {
   font-size: 14px;
   color: var(--text);
-  margin: 20px 0;
-  padding: 16px 20px;
+  margin: 16px 0;
+  padding: 14px 18px;
   background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  border-left: 3px solid var(--brass);
+  border-radius: 0 4px 4px 0;
   line-height: 1.5;
 }
 .snapshot-movers { padding: 20px 0; }

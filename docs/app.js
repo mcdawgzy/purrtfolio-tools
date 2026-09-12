@@ -656,23 +656,52 @@ function render() {
 
 function renderMasthead() {
   const q = state.meta?.quarters?.[0]?.report_period || '';
-  const title = state.view === 'snapshot' ? 'Market Snapshot'
-    : state.view === 'shortinterest' ? 'Short Interest'
-    : state.view === 'insider' ? 'Insider Trading'
-    : state.view === 'economic' ? 'Economic Calendar'
-    : 'Trading Tools';
+  const isDataPage = state.view === 'funds' || state.view === 'fund' || state.view === 'ticker' || state.view === 'consensus' || state.view === 'sectors';
+
+  // View-specific titles
+  let title;
+  if (state.view === 'snapshot') {
+    title = 'Market Snapshot';
+  } else if (state.view === 'shortinterest') {
+    title = 'Short Interest';
+  } else if (state.view === 'insider') {
+    title = 'Insider Trading';
+  } else if (state.view === 'economic') {
+    title = 'Economic Calendar';
+  } else if (state.view === 'fund') {
+    // Show fund name instead of generic title
+    return el('div', { class: 'masthead' },
+      el('h1', {}, state.fund?.name || 'Fund'),
+      isDataPage ? el('div', { class: 'sub' },
+        q ? `Latest quarter: ${q} · ` : '',
+        `${state.meta?.counts.filings || 0} filings · `,
+        `${state.meta?.counts.funds || 0} funds · `,
+        `${state.meta?.counts.unique_tickers?.toLocaleString() || 0} tickers`) : null,
+    );
+  } else {
+    title = 'Purrtfolio Tools';
+  }
+
   return el('div', { class: 'masthead' },
     el('h1', {}, title),
-    el('div', { class: 'sub' },
-      q ? `Latest quarter: ${q} · ` : '',
+    isDataPage && q ? el('div', { class: 'sub' },
+      `Latest quarter: ${q} · `,
       `${state.meta?.counts.filings || 0} filings · `,
       `${state.meta?.counts.funds || 0} funds · `,
-      `${state.meta?.counts.unique_tickers?.toLocaleString() || 0} tickers`),
+      `${state.meta?.counts.unique_tickers?.toLocaleString() || 0} tickers`) : null,
   );
 }
 
 function renderNav() {
   const nav = el('div', { class: 'nav' });
+
+  // Brand / logo
+  nav.appendChild(el('a', {
+    class: 'nav-brand',
+    href: '#/snapshot',
+    onclick: (e) => { e.preventDefault(); setHash('#/snapshot'); },
+  }, 'Purrtfolio'));
+
   const links = [
     { view: 'snapshot',  label: 'Market Snapshot' },
     { view: 'funds',     label: 'Funds' },
@@ -1476,12 +1505,25 @@ function renderSnapshot() {
 
   const wrap = el('div', { class: 'section' });
 
-  // Date label
-  const dateLabel = s.date_str
-    ? `${s.date_str.slice(4, 6)}/${s.date_str.slice(6, 8)}/${s.date_str.slice(0, 4)}`
-    : '';
+  // Date label — handle both YYYYMMDD format and "latest" / other strings
+  let dateLabel = '';
+  if (s.date_str) {
+    if (/^\d{8}$/.test(s.date_str)) {
+      dateLabel = `${s.date_str.slice(4, 6)}/${s.date_str.slice(6, 8)}/${s.date_str.slice(0, 4)}`;
+    } else {
+      // e.g. "latest" — try the timestamp field as fallback
+      const ts = s.timestamp || '';
+      dateLabel = ts.slice(0, 10).replace(/(\d{4})-(\d{2})-(\d{2})/, '$2/$3/$1') || s.date_str;
+    }
+  }
 
-  // Headline / caption (moved above the PNG)
+  // Header
+  wrap.appendChild(el('div', { class: 'section-header' },
+    el('h2', {}, 'Market Snapshot'),
+    dateLabel ? el('div', { class: 'hint brass' }, dateLabel) : el('div', { class: 'hint' }, 'No date available'),
+  ));
+
+  // Headline / caption
   if (s.caption) {
     wrap.appendChild(el('div', { class: 'snapshot-caption' }, s.caption));
   }
@@ -1504,14 +1546,13 @@ function renderSnapshot() {
     wrap.appendChild(mv);
   }
 
-  // Hero: snapshot image (moved below caption + movers)
+  // Hero: snapshot image
   const imgUrl = API + '/snapshots/' + s.png_filename;
   const hero = el('div', { class: 'snapshot-hero' });
-  hero.appendChild(el('div', { class: 'snapshot-date' }, 'Market Snapshot \u00b7 ' + dateLabel));
   const img = el('img', {
     src: imgUrl,
     alt: 'Market Snapshot ' + dateLabel,
-    style: { maxWidth: '100%', height: 'auto', borderRadius: '4px', border: '1px solid var(--line)' },
+    style: { maxWidth: '100%', height: 'auto', borderRadius: '6px', border: '1px solid var(--line)' },
   });
   img.onerror = () => {
     img.src = '';
@@ -1621,7 +1662,7 @@ function renderEconomicCalendar() {
     for (const e of dayEvents) {
       const tr = el('tr');
       tr.appendChild(el('td', { class: 'mono' }, fmtDateISO(e.event_date)));
-      tr.appendChild(el('td', { class: 'num mut' }, e.event_time || '—'));
+      tr.appendChild(el('td', { class: 'mono mut' }, e.event_time || '—'));
       tr.appendChild(el('td', {}, e.event_name));
       tr.appendChild(el('td', { class: 'mono mut' }, e.category || '—'));
       const impactCls = e.impact === 'high' ? 'num red'
@@ -2031,11 +2072,14 @@ function renderInsiderLatestTable() {
     tr.appendChild(el('td', { class: 'mono' }, fmtDateYMD(r.trade_date)));
     tr.appendChild(el('td', {}, r.insider_name || '—'));
     tr.appendChild(el('td', {}, r.relationship || '—'));
-    const typeCls = r.transaction_type === 'S' ? 'num red' : r.transaction_type === 'P' ? 'num green' : 'num';
-    tr.appendChild(el('td', { class: typeCls }, r.transaction_type === 'P' ? 'Buy' : r.transaction_type === 'S' ? 'Sale' : r.transaction_type));
+    const isBuy = r.is_buy || r.transaction_type === 'P' || r.transaction_type === 'A' || r.transaction_type === 'M';
+    const isSell = r.transaction_type === 'S' || !isBuy;
+    const typeCls = isSell ? 'num red' : isBuy ? 'num green' : 'num';
+    const typeLabel = r.transaction_type === 'P' ? 'Buy' : r.transaction_type === 'S' ? 'Sale' : r.transaction_type;
+    tr.appendChild(el('td', { class: typeCls }, typeLabel));
     tr.appendChild(el('td', { class: 'num' }, fmtNum(r.quantity)));
     tr.appendChild(el('td', { class: 'num mut' }, r.price ? r.price.toFixed(2) : '—'));
-    const valCls = r.transaction_type === 'S' ? 'num red' : r.transaction_type === 'P' ? 'num green' : 'num';
+    const valCls = isSell ? 'num red' : isBuy ? 'num green' : 'num';
     tr.appendChild(el('td', { class: valCls }, r.value ? fmtUSD(r.value) : '—'));
     tr.appendChild(el('td', {}, r.ownership_type || '—'));
     tbody.appendChild(tr);
@@ -2094,13 +2138,13 @@ function renderInsiderSignals() {
       tr.appendChild(el('td', { class: 'mono brass' }, r.ticker));
       tr.appendChild(el('td', {}, r.insider_name || r.insider || '—'));
       tr.appendChild(el('td', { class: 'mono' }, fmtDateYMD(r.trade_date || r.date)));
-      const valCls = (r.transaction_type === 'S' || ss.key === 'top_sells') ? 'num red' : 'num green';
+      const valCls = (r.is_buy === false || r.transaction_type === 'S' || ss.key === 'top_sells') ? 'num red' : 'num green';
       tr.appendChild(el('td', { class: valCls }, r.value ? fmtUSD(r.value) : '—'));
       // Last column varies by signal set
       if (ss.key === 'officer_buys') {
         tr.appendChild(el('td', {}, r.relationship || '—'));
       } else {
-        const typeCls = r.transaction_type === 'S' ? 'num red' : r.transaction_type === 'P' ? 'num green' : 'num';
+        const typeCls = (r.is_buy === false || r.transaction_type === 'S') ? 'num red' : (r.is_buy === true || r.transaction_type === 'P') ? 'num green' : 'num';
         tr.appendChild(el('td', { class: typeCls }, r.transaction_type === 'P' ? 'Buy' : r.transaction_type === 'S' ? 'Sale' : (r.transaction_type || '—')));
       }
       tbody.appendChild(tr);
@@ -2126,23 +2170,26 @@ function renderInsiderTicker() {
     href: '#/insider',
     onclick: (e) => { e.preventDefault(); setHash('#/insider'); },
   }, '← Insider Trading'));
-  header.appendChild(el('h2', {}, t.ticker || ''));
+  header.appendChild(el('h2', {}, t.ticker || t.symbol || ''));
 
   const metaGrid = el('div', { class: 'meta-grid' });
   metaGrid.appendChild(el('div', {},
     el('span', { class: 'meta-label' }, 'Name'),
-    el('span', { class: 'meta-value' }, t.name || '—')));
+    el('span', { class: 'meta-value' }, t.name || t.company_name || '—')));
   metaGrid.appendChild(el('div', {},
     el('span', { class: 'meta-label' }, 'Total Trades'),
-    el('span', { class: 'meta-value' }, fmtNum(t.trade_count || 0))));
+    el('span', { class: 'meta-value' }, fmtNum(t.trade_count || t.total_transactions || 0))));
   metaGrid.appendChild(el('div', {},
     el('span', { class: 'meta-label' }, 'Last Trade'),
-    el('span', { class: 'meta-value mono' }, fmtDateYMD(t.last_trade_date))));
+    el('span', { class: 'meta-value mono' },
+      t.last_trade_date && typeof t.last_trade_date === 'object'
+        ? fmtDateYMD(t.last_trade_date.filing_date)
+        : fmtDateYMD(t.last_trade_date))));
   header.appendChild(metaGrid);
   wrap.appendChild(header);
 
   if (!t.trades || !t.trades.length) {
-    wrap.appendChild(el('div', { class: 'empty' }, `No insider trading data for "${t.ticker || ''}".`));
+    wrap.appendChild(el('div', { class: 'empty' }, `No insider trading data for "${t.ticker || t.symbol || ''}".`));
     return wrap;
   }
 
@@ -2163,11 +2210,14 @@ function renderInsiderTicker() {
     tr.appendChild(el('td', { class: 'mono' }, fmtDateYMD(r.trade_date)));
     tr.appendChild(el('td', {}, r.insider_name || '—'));
     tr.appendChild(el('td', {}, r.relationship || '—'));
-    const typeCls = r.transaction_type === 'S' ? 'num red' : r.transaction_type === 'P' ? 'num green' : 'num';
-    tr.appendChild(el('td', { class: typeCls }, r.transaction_type === 'P' ? 'Buy' : r.transaction_type === 'S' ? 'Sale' : r.transaction_type));
+    const isBuy = r.is_buy || r.transaction_type === 'P' || r.transaction_type === 'A' || r.transaction_type === 'M';
+    const isSell = r.transaction_type === 'S' || !isBuy;
+    const typeCls = isSell ? 'num red' : isBuy ? 'num green' : 'num';
+    const typeLabel = r.transaction_type === 'P' ? 'Buy' : r.transaction_type === 'S' ? 'Sale' : r.transaction_type;
+    tr.appendChild(el('td', { class: typeCls }, typeLabel));
     tr.appendChild(el('td', { class: 'num' }, fmtNum(r.quantity)));
     tr.appendChild(el('td', { class: 'num mut' }, r.price ? r.price.toFixed(2) : '—'));
-    const valCls = r.transaction_type === 'S' ? 'num red' : r.transaction_type === 'P' ? 'num green' : 'num';
+    const valCls = isSell ? 'num red' : isBuy ? 'num green' : 'num';
     tr.appendChild(el('td', { class: valCls }, r.value ? fmtUSD(r.value) : '—'));
     tr.appendChild(el('td', {}, r.ownership_type || '—'));
     tbody.appendChild(tr);
