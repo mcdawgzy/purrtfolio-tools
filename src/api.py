@@ -338,6 +338,119 @@ def snapshot_detail(date_str: str):
 
 
 # ---------------------------------------------------------------------------
+# Price Momentum Scanner
+# ---------------------------------------------------------------------------
+import sys as _sys, os as _os
+_scanners = _os.path.join(_os.path.dirname(STATIC_DIR.parent), "scanners")
+if _scanners not in _sys.path:
+    _sys.path.insert(0, _scanners)
+
+try:
+    from price_momentum import db as pm_db
+    from correlation_matrix import db as cm_db
+    _SCANNERS_OK = True
+except Exception as e:
+    log.warning(f"Scanner modules not importable in API: {e}")
+    pm_db, cm_db, _SCANNERS_OK = None, None, False
+
+
+# ── Price Momentum ──────────────────────────────────────────────
+
+@app.get("/api/momentum/meta")
+def momentum_meta():
+    """Metadata for the momentum tab."""
+    if not _SCANNERS_OK:
+        return {"latest_signal_date": None, "bar_count": 0, "ticker_count": 0}
+    return pm_db.get_meta()
+
+
+@app.get("/api/momentum/rankings")
+def momentum_rankings(
+    min_price: float = Query(5.0, description="Min SMA-20d price to filter micro-caps"),
+    limit: int = Query(50, ge=1, le=200),
+):
+    """Top momentum movers by 20-day ROC."""
+    return pm_db.get_momentum_rankings(min_price=min_price, limit=limit) if _SCANNERS_OK else []
+
+
+@app.get("/api/momentum/volume-spikes")
+def momentum_volume_spikes(limit: int = Query(30, ge=1, le=100)):
+    """Tickers with volume > 2x the 10-day volume EMA."""
+    return pm_db.get_volume_spike_alerts(limit=limit) if _SCANNERS_OK else []
+
+
+@app.get("/api/momentum/consolidation")
+def momentum_consolidation(limit: int = Query(30, ge=1, le=100)):
+    """Tickers in consolidation patterns (low vol, narrow range)."""
+    return pm_db.get_consolidation_scan(limit=limit) if _SCANNERS_OK else []
+
+
+@app.get("/api/momentum/earnings-gaps")
+def momentum_earnings_gaps(limit: int = Query(30, ge=1, le=100)):
+    """Top overnight gaps (earnings / news gaps)."""
+    return pm_db.get_earnings_gaps(limit=limit) if _SCANNERS_OK else []
+
+
+@app.get("/api/momentum/tickers/{ticker}")
+def momentum_ticker(ticker: str, limit: int = Query(60, ge=1, le=200)):
+    """Daily OHLCV history for a single ticker."""
+    if not _SCANNERS_OK:
+        return {"ticker": ticker.upper(), "bars": []}
+    bars = pm_db.price_history_for_ticker(ticker, limit=limit)
+    return {"ticker": ticker.upper(), "bars": bars}
+
+
+@app.get("/api/momentum/search")
+def momentum_search(q: str = Query(..., min_length=1)):
+    """Search the momentum watchlist."""
+    return {"results": pm_db.search_tickers(q)} if _SCANNERS_OK else {"results": []}
+
+
+# ── Correlation Matrix ──────────────────────────────────────────
+
+@app.get("/api/correlation/meta")
+def correlation_meta():
+    """Metadata for the correlation matrix tab."""
+    if not _SCANNERS_OK:
+        return {"latest_date": None, "total_rows": 0}
+    return cm_db.get_meta()
+
+
+@app.get("/api/correlation/matrix")
+def correlation_matrix(
+    window: str = Query("3_month", pattern="^(1_month|3_month|6_month|12_month)$"),
+    date_str: str | None = Query(None),
+    tickers: str | None = Query(None, description="Comma-separated ticker list"),
+    min_corr_abs: float = Query(0.0, ge=0, le=1),
+):
+    """Full correlation matrix for a window."""
+    ticker_list = tickers.split(",") if tickers else None
+    return cm_db.get_corr_matrix(window=window, date_str=date_str, tickers=ticker_list,
+                                 min_corr_abs=min_corr_abs) if _SCANNERS_OK else \
+        {"date": None, "window": window, "tickers": [], "pivots": [], "matrix": {}}
+
+
+@app.get("/api/correlation/ticker/{ticker}")
+def correlation_ticker(
+    ticker: str,
+    window: str = Query("3_month", pattern="^(1_month|3_month|6_month|12_month)$"),
+):
+    """Correlations of *ticker* vs all pivot tickers."""
+    return cm_db.get_corr_for_ticker(ticker, window=window) if _SCANNERS_OK else {}
+
+
+@app.get("/api/correlation/pivot/{pivot}")
+def correlation_pivot(
+    pivot: str,
+    window: str = Query("3_month", pattern="^(1_month|3_month|6_month|12_month)$"),
+    limit: int = Query(50, ge=1, le=200),
+    min_abs: float = Query(0.2, ge=0, le=1),
+):
+    """All tickers' correlation to a pivot ticker, sorted by abs value."""
+    return cm_db.get_corr_to_pivot(pivot, window=window, limit=limit, min_abs=min_abs) if _SCANNERS_OK else []
+
+
+# ---------------------------------------------------------------------------
 # Frontend (single page, served at /)
 # ---------------------------------------------------------------------------
 @app.get("/", response_class=HTMLResponse)

@@ -8,7 +8,7 @@
                     #/short-interest  (short interest overview)
                     #/short-interest/signals  (SI signals)
                     #/short-interest/{ticker}  (SI ticker history)
-*/
+|*/
 'use strict';
 
 // API base URL — uses local server in dev, production otherwise
@@ -47,6 +47,19 @@ const state = {
   insiderSignals: null,     // top buys / sells / officer trades
   insiderTicker: null,      // single ticker full history
   insiderActiveTab: 'latest',  // 'latest' | 'signals' | 'ticker'
+  // Price Momentum
+  momMeta: null,
+  momRankings: { rows: [], total: 0 },
+  momVolumeSpikes: { rows: [], total: 0 },
+  momConsolidation: { rows: [], total: 0 },
+  momGaps: { rows: [], total: 0 },
+  momTickerHistory: null,
+  momActiveTab: 'rankings',   // 'rankings' | 'volume-spikes' | 'consolidation' | 'gaps' | 'ticker'
+  // Correlation Matrix
+  corrMeta: null,
+  corrMatrix: null,
+  corrPivotView: null,        // correlation to a specific pivot ticker
+  corrActiveTab: 'matrix',   // 'matrix' | 'pivot'
 };
 
 // ---------------- helpers ----------------
@@ -160,6 +173,19 @@ function parseHash() {
     const rest = h.slice('short-interest/'.length);
     if (rest === 'signals') return { view: 'shortinterest', siTab: 'signals' };
     return { view: 'shortinterest', siTab: 'ticker', siTicker: rest.toUpperCase() };
+  }
+  if (h === 'momentum' || h === 'momentum/') return { view: 'momentum' };
+  if (h.startsWith('momentum/')) {
+    const rest = h.slice('momentum/'.length);
+    if (rest === 'volume-spikes') return { view: 'momentum', momTab: 'volume-spikes' };
+    if (rest === 'consolidation') return { view: 'momentum', momTab: 'consolidation' };
+    if (rest === 'gaps') return { view: 'momentum', momTab: 'gaps' };
+    return { view: 'momentum', momTab: 'ticker', momTicker: rest.toUpperCase() };
+  }
+  if (h === 'correlation' || h === 'correlation/') return { view: 'correlation' };
+  if (h.startsWith('correlation/')) {
+    const rest = h.slice('correlation/'.length);
+    return { view: 'correlation', corrPivot: rest.toUpperCase() };
   }
   if (h.startsWith('fund/')) {
     const rest = h.slice(5);
@@ -421,6 +447,8 @@ async function handleRoute() {
     else if (r.view === 'economic') await loadEconomicCalendar();
     else if (r.view === 'snapshot') await loadSnapshot();
     else if (r.view === 'insider') await loadInsider(r);
+    else if (r.view === 'momentum') await loadMomentum(r);
+    else if (r.view === 'correlation') await loadCorrelation(r);
   } catch (e) {
     state.error = 'Navigation error: ' + e.message;
   }
@@ -611,6 +639,54 @@ async function loadInsider(r) {
   }
 }
 
+async function loadMomentum(r) {
+  state.error = null;
+  state.loading = true;
+  state.momActiveTab = r.momTab || (r.momTicker ? 'ticker' : 'rankings');
+  try {
+    await loadMeta();
+    const [meta, rankings, spikes, consolidation, gaps] = await Promise.all([
+      api('/api/momentum/meta'),
+      api('/api/momentum/rankings'),
+      api('/api/momentum/volume-spikes'),
+      api('/api/momentum/consolidation'),
+      api('/api/momentum/earnings-gaps'),
+    ]);
+    state.momMeta = meta;
+    state.momRankings = { rows: rankings, total: rankings.length };
+    state.momVolumeSpikes = { rows: spikes, total: spikes.length };
+    state.momConsolidation = { rows: consolidation, total: consolidation.length };
+    state.momGaps = { rows: gaps, total: gaps.length };
+    if (r.momTicker) {
+      state.momTickerHistory = await api('/api/momentum/tickers/' + r.momTicker);
+    }
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+  }
+}
+
+async function loadCorrelation(r) {
+  state.error = null;
+  state.loading = true;
+  state.corrActiveTab = r.corrPivot ? 'pivot' : 'matrix';
+  try {
+    await loadMeta();
+    const meta = await api('/api/correlation/meta');
+    state.corrMeta = meta;
+    if (r.corrPivot) {
+      state.corrPivotView = await api('/api/correlation/pivot/' + r.corrPivot);
+    } else {
+      state.corrMatrix = await api('/api/correlation/matrix');
+    }
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+  }
+}
+
 async function reloadFundTab(cik, tab) {
   state.fundTab = tab;
   state.error = null;
@@ -652,6 +728,8 @@ function render() {
   else if (state.view === 'economic')   root.appendChild(renderEconomicCalendar());
   else if (state.view === 'snapshot')  root.appendChild(renderSnapshot());
   else if (state.view === 'insider')   root.appendChild(renderInsider());
+  else if (state.view === 'momentum')   root.appendChild(renderMomentum());
+  else if (state.view === 'correlation') root.appendChild(renderCorrelation());
 }
 
 function renderMasthead() {
@@ -668,6 +746,10 @@ function renderMasthead() {
     title = 'Insider Trading';
   } else if (state.view === 'economic') {
     title = 'Economic Calendar';
+  } else if (state.view === 'momentum') {
+    title = 'Price Momentum';
+  } else if (state.view === 'correlation') {
+    title = 'Correlation Matrix';
   } else if (state.view === 'fund') {
     // Show fund name instead of generic title
     return el('div', { class: 'masthead' },
@@ -709,6 +791,8 @@ const NAV_GROUPS = [
       { view: 'shortinterest', label: 'Short Interest' },
       { view: 'economic',      label: 'Economic Calendar' },
       { view: 'insider',       label: 'Insider Trading' },
+      { view: 'momentum',      label: 'Price Momentum' },
+      { view: 'correlation',   label: 'Correlation Matrix' },
     ],
   },
 ];
@@ -722,6 +806,8 @@ const NAV_ROUTES = {
   shortinterest: '#/short-interest',
   economic:    '#/economic-calendar',
   insider:     '#/insider',
+  momentum:    '#/momentum',
+  correlation: '#/correlation',
 };
 
 function navHref(item) {
@@ -2303,6 +2389,290 @@ function renderInsiderTicker() {
   return wrap;
 }
 
+
+// ===========================================================================
+// Price Momentum
+// ===========================================================================
+
+function renderMomentum() {
+  const wrap = el('div', { class: 'section' });
+
+  // Stats bar
+  const meta = state.momMeta || {};
+  const stats = el('div', { class: 'stats' });
+  stats.appendChild(stat('Latest Date', meta.latest_signal_date || '—'));
+  stats.appendChild(stat('Tickers Tracked', meta.ticker_count || 0));
+  stats.appendChild(stat('Bars Stored', meta.bar_count || 0));
+  wrap.appendChild(stats);
+
+  // Tab bar
+  const TAB_DEFS = [
+    { key: 'rankings',     label: 'Top Movers' },
+    { key: 'volume-spikes', label: 'Volume Spikes' },
+    { key: 'consolidation', label: 'Consolidation' },
+    { key: 'gaps',          label: 'Earnings Gaps' },
+  ];
+  const tabBar = el('div', { class: 'tab-bar' });
+  for (const t of TAB_DEFS) {
+    const active = state.momActiveTab === t.key ? ' active' : '';
+    tabBar.appendChild(el('a', {
+      class: 'tab' + active,
+      onclick: () => { state.momActiveTab = t.key; setHash('#/momentum'); },
+    }, t.label));
+  }
+  wrap.appendChild(tabBar);
+
+  // Tab content
+  if (state.momActiveTab === 'rankings') {
+    wrap.appendChild(renderMomentumTable('Top Movers', state.momRankings.rows, [
+      { label: 'Ticker',     key: 'ticker',     cls: 'mono brass' },
+      { label: 'Name',       key: 'name',       cls: '' },
+      { label: '24h %',      key: 'pct_change', cls: 'num', fmt: fmtPct, color: true },
+      { label: 'SMA 20d',    key: 'sma_20d',    cls: 'num mut', fmt: fmtUSD },
+      { label: 'Vol Ratio',  key: 'volume_ratio', cls: 'num', fmt: (v) => v ? v.toFixed(1) + 'x' : '—' },
+      { label: 'Spike?',     key: 'is_volume_spike', cls: 'num', fmt: (v) => v ? '⚡' : '' },
+    ]));
+  } else if (state.momActiveTab === 'volume-spikes') {
+    wrap.appendChild(renderMomentumTable('Volume Spikes', state.momVolumeSpikes.rows, [
+      { label: 'Ticker',     key: 'ticker',     cls: 'mono brass' },
+      { label: 'Name',       key: 'name',       cls: '' },
+      { label: '24h %',      key: 'pct_change', cls: 'num', fmt: fmtPct, color: true },
+      { label: 'Vol Ratio',  key: 'volume_ratio', cls: 'num', fmt: (v) => v ? v.toFixed(1) + 'x' : '—' },
+      { label: 'SMA 20d',    key: 'sma_20d',    cls: 'num mut', fmt: fmtUSD },
+    ]));
+  } else if (state.momActiveTab === 'consolidation') {
+    wrap.appendChild(renderMomentumTable('Consolidation', state.momConsolidation.rows, [
+      { label: 'Ticker',     key: 'ticker',     cls: 'mono brass' },
+      { label: 'Name',       key: 'name',       cls: '' },
+      { label: 'Category',   key: 'category',   cls: '' },
+      { label: '20d ROC',    key: 'roc_20d',    cls: 'num', fmt: fmtPct, color: true },
+      { label: 'Vol Ratio',  key: 'volume_ratio', cls: 'num', fmt: (v) => v ? v.toFixed(1) + 'x' : '—' },
+    ]));
+  } else if (state.momActiveTab === 'gaps') {
+    wrap.appendChild(renderMomentumTable('Earnings Gaps', state.momGaps.rows, [
+      { label: 'Ticker',     key: 'ticker',     cls: 'mono brass' },
+      { label: 'Name',       key: 'name',       cls: '' },
+      { label: 'Gap %',      key: 'gap_pct',    cls: 'num', fmt: fmtPct, color: true },
+      { label: '20d ROC',    key: 'roc_20d',    cls: 'num', fmt: fmtPct, color: true },
+      { label: 'SMA 20d',    key: 'sma_20d',    cls: 'num mut', fmt: fmtUSD },
+    ]));
+  }
+
+  // Ticker history modal/link
+  if (state.momTickerHistory) {
+    wrap.appendChild(renderMomentumTickerHistory(state.momTickerHistory));
+  }
+
+  return wrap;
+}
+
+function renderMomentumTable(title, rows, cols) {
+  const wrap = el('div', { class: 'table-wrap' });
+  if (!rows.length) {
+    wrap.appendChild(el('div', { class: 'empty' }, 'No data available yet.'));
+    return wrap;
+  }
+
+  const table = el('table');
+  const thead = el('thead');
+  const trh = el('tr');
+  for (const c of cols) {
+    trh.appendChild(el('th', { class: c.cls }, c.label));
+  }
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = el('tbody');
+  for (const r of rows) {
+    const tr = el('tr', {
+      style: { cursor: 'pointer' },
+      onclick: () => setHash('#/momentum/' + r.ticker),
+    });
+    for (const c of cols) {
+      let val = r[c.key];
+      if (c.fmt) val = c.fmt(val);
+      let tdClass = c.cls;
+      if (c.color && typeof val === 'string' && val.includes('+')) tdClass += ' green';
+      else if (c.color && typeof val === 'string' && val.includes('−') || (val && typeof val === 'string' && val.startsWith('−'))) tdClass += ' red';
+      tr.appendChild(el('td', { class: tdClass }, val != null ? val : '—'));
+    }
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+function renderMomentumTickerHistory(data) {
+  const wrap = el('div', { class: 'section' });
+  wrap.appendChild(el('h2', {}, `Price History: ${data.ticker}`));
+  const bars = data.bars || [];
+  if (!bars.length) {
+    wrap.appendChild(el('div', { class: 'empty' }, 'No price history.'));
+    return wrap;
+  }
+
+  // Simple table
+  const table = el('table');
+  const thead = el('thead');
+  const trh = el('tr');
+  ['Date', 'Open', 'High', 'Low', 'Close', 'Volume'].forEach(h => {
+    trh.appendChild(el('th', { class: h === 'Volume' ? 'num' : '' }, h));
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = el('tbody');
+  for (const b of bars) {
+    const tr = el('tr');
+    tr.appendChild(el('td', { class: 'mono' }, fmtDateYMD(b.date)));
+    tr.appendChild(el('td', { class: 'num' }, b.open?.toFixed(2) || '—'));
+    tr.appendChild(el('td', { class: 'num green' }, b.high?.toFixed(2) || '—'));
+    tr.appendChild(el('td', { class: 'num red' }, b.low?.toFixed(2) || '—'));
+    tr.appendChild(el('td', { class: 'num' }, b.close?.toFixed(2) || '—'));
+    tr.appendChild(el('td', { class: 'num mut' }, fmtNum(b.volume)));
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+// ===========================================================================
+// Correlation Matrix
+// ===========================================================================
+
+function renderCorrelation() {
+  const wrap = el('div', { class: 'section' });
+  const meta = state.corrMeta || {};
+
+  // Stats bar
+  const stats = el('div', { class: 'stats' });
+  stats.appendChild(stat('Latest Date', meta.latest_date || '—'));
+  stats.appendChild(stat('Total Rows', meta.total_rows || 0));
+  wrap.appendChild(stats);
+
+  // Tab bar: matrix vs pivot
+  const tabBar = el('div', { class: 'tab-bar' });
+  for (const t of [{ key: 'matrix', label: 'Matrix' }, { key: 'pivot', label: 'Pivot View' }]) {
+    const active = state.corrActiveTab === t.key ? ' active' : '';
+    tabBar.appendChild(el('a', {
+      class: 'tab' + active,
+      onclick: () => { state.corrActiveTab = t.key; setHash('#/correlation'); },
+    }, t.label));
+  }
+  wrap.appendChild(tabBar);
+
+  if (state.corrActiveTab === 'pivot') {
+    wrap.appendChild(renderCorrelationPivot());
+  } else {
+    wrap.appendChild(renderCorrelationMatrixView());
+  }
+
+  return wrap;
+}
+
+function renderCorrelationMatrixView() {
+  const m = state.corrMatrix;
+  if (!m || !m.tickers || !m.tickers.length) {
+    return el('div', { class: 'table-wrap' },
+      el('div', { class: 'empty' }, 'No correlation data available yet.'));
+  }
+
+  const wrap = el('div', { class: 'table-wrap' });
+
+  // Window selector
+  const PIVOTS = m.pivots || [];
+  const WINDOWS = ['1_month', '3_month', '6_month', '12_month'];
+
+  // Controls
+  const controls = el('div', { class: 'filters' });
+  controls.appendChild(el('span', {}, `Date: ${m.date || '—'}  |  `));
+  controls.appendChild(el('span', {}, `Rows: ${m.tickers.length}  |  `));
+  controls.appendChild(el('span', {}, `Pivots: ${PIVOTS.length}`));
+  wrap.appendChild(controls);
+
+  // Build a heatmap-style table
+  // Columns: ticker + pivots
+  const table = el('table', { class: 'corr-matrix' });
+  const thead = el('thead');
+  const trh = el('tr');
+  trh.appendChild(el('th', {}, 'Ticker'));
+  for (const p of PIVOTS) {
+    trh.appendChild(el('th', { class: 'num' }, p));
+  }
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = el('tbody');
+  for (const tkr of m.tickers) {
+    const rowData = m.matrix[tkr] || {};
+    const tr = el('tr');
+    tr.appendChild(el('td', { class: 'mono brass' }, tkr));
+    for (const p of PIVOTS) {
+      const val = rowData[p];
+      const txt = val != null ? val.toFixed(2) : '—';
+      let cls = 'num';
+      let style = '';
+      if (val != null) {
+        if (val >= 0.5) cls += ' green';
+        else if (val <= -0.5) cls += ' red';
+        // Background tint
+        const intensity = Math.min(Math.abs(val), 1) * 0.3;
+        const bg = val >= 0
+          ? `rgba(46,154,105,${intensity})`
+          : `rgba(199,62,76,${intensity})`;
+        style = `background:${bg}`;
+      }
+      tr.appendChild(el('td', { class: cls, style: { background: style ? bg : undefined } }, txt));
+    }
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+
+  // Click a pivot to drill in
+  wrap.appendChild(el('div', { class: 'hint', style: { marginTop: '0.5rem' } },
+    '💡 Click any pivot header to see full ranking via #/correlation/' + PIVOTS[0]));
+
+  return wrap;
+}
+
+function renderCorrelationPivot() {
+  const p = state.corrPivotView;
+  if (!p || !p.length) {
+    return el('div', { class: 'table-wrap' },
+      el('div', { class: 'empty' }, 'No pivot data available.'));
+  }
+
+  const wrap = el('div', { class: 'table-wrap' });
+  const table = el('table');
+  const thead = el('thead');
+  const trh = el('tr');
+  ['Ticker', 'Name', 'Category', 'Correlation'].forEach(h => {
+    trh.appendChild(el('th', { class: h === 'Correlation' ? 'num' : '' }, h));
+  });
+  thead.appendChild(trh);
+
+  const tbody = el('tbody');
+  for (const r of p) {
+    const tr = el('tr', {
+      style: { cursor: 'pointer' },
+      onclick: () => setHash('#/ticker/' + r.ticker),
+    });
+    tr.appendChild(el('td', { class: 'mono brass' }, r.ticker));
+    tr.appendChild(el('td', {}, r.name || '—'));
+    tr.appendChild(el('td', {}, r.category || '—'));
+    const val = r.corr;
+    const txt = val != null ? val.toFixed(2) : '—';
+    const cls = `num ${val >= 0.5 ? 'green' : val <= -0.5 ? 'red' : ''}`;
+    tr.appendChild(el('td', { class: cls }, txt));
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
 
 // ---------------- boot ----------------
 async function boot() {
