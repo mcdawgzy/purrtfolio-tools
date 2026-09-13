@@ -5,6 +5,8 @@ services:
     plan: free
     buildCommand: |
           pip install -r requirements.txt
+          # Also install scanner deps (yfinance, pandas)
+          pip install yfinance pandas
           bash scripts/download_db.sh
     startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
     envVars:

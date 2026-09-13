@@ -338,7 +338,7 @@ def snapshot_detail(date_str: str):
 
 
 # ---------------------------------------------------------------------------
-# Price Momentum Scanner
+# Price Momentum Scanner — on-demand via yfinance (DB cached if writable)
 # ---------------------------------------------------------------------------
 import sys as _sys, os as _os
 _scanners = _os.path.join(_os.path.dirname(STATIC_DIR.parent), "scanners")
@@ -353,15 +353,81 @@ except Exception as e:
     log.warning(f"Scanner modules not importable in API: {e}")
     pm_db, cm_db, _SCANNERS_OK = None, None, False
 
+try:
+    import yfinance as _yf
+    _YF_OK = True
+except Exception:
+    _YF_OK = False
+
+
+def _mom_watchlist():
+    """Return the curated momentum watchlist tickers."""
+    if _SCANNERS_OK:
+        tickers = pm_db.get_watchlist_tickers()
+        if tickers:
+            return tickers
+    # Fallback: reuse the macro snapshot tickers
+    with db.db_conn() as c:
+        return [r[0] for r in c.execute(
+            "SELECT DISTINCT ticker FROM macro_tickers ORDER BY id"
+        ).fetchall()]
+
+
+def _fetch_ohlcv(tickers: list[str], days: int = 25) -> dict:
+    """Fetch recent daily OHLCV for a list of tickers via yfinance."""
+    if not _YF_OK or not tickers:
+        return {}
+    try:
+        period = f"{max(days + 5, 30)}d"
+        df = _yf.download(
+            tickers=" ".join(tickers),
+            period=period,
+            interval="1d",
+            group_actions=False,
+            auto_adjust=False,
+            progress=False,
+        )
+        if df.empty:
+            return {}
+        # Return {ticker: {date: [open, high, low, close, volume]}}
+        result: dict[str, dict] = {}
+        cols = df.columns
+        if isinstance(cols, pd.MultiIndex):
+            # Multi-index: (field, ticker)
+            for ticker in tickers:
+                if ticker not in cols.get_level_values(1):
+                    continue
+                sub = df[ticker].dropna(how="all")
+                if sub.empty:
+                    continue
+                series = {}
+                for field in ("Open", "High", "Low", "Close", "Volume"):
+                    if field in sub.columns:
+                        s = sub[field].dropna()
+                        series[field] = {d.strftime("%Y-%m-%d"): float(v) for d, v in s.items()}
+                result[ticker] = series
+        else:
+            # Single-column DataFrame (single ticker)
+            for field in ("Open", "High", "Low", "Close", "Volume"):
+                if field in df.columns:
+                    s = df[field].dropna()
+                    result.setdefault("_single", {})[field] = {
+                        d.strftime("%Y-%m-%d"): float(v) for d, v in s.items()
+                    }
+        return result
+    except Exception as e:
+        log.warning(f"yfinance fetch failed: {e}")
+        return {}
+
 
 # ── Price Momentum ──────────────────────────────────────────────
 
 @app.get("/api/momentum/meta")
 def momentum_meta():
     """Metadata for the momentum tab."""
-    if not _SCANNERS_OK:
-        return {"latest_signal_date": None, "bar_count": 0, "ticker_count": 0}
-    return pm_db.get_meta()
+    if _SCANNERS_OK:
+        return pm_db.get_meta()
+    return {"latest_signal_date": None, "bar_count": 0, "ticker_count": 0}
 
 
 @app.get("/api/momentum/rankings")
@@ -369,51 +435,249 @@ def momentum_rankings(
     min_price: float = Query(5.0, description="Min SMA-20d price to filter micro-caps"),
     limit: int = Query(50, ge=1, le=200),
 ):
-    """Top momentum movers by 20-day ROC."""
-    return pm_db.get_momentum_rankings(min_price=min_price, limit=limit) if _SCANNERS_OK else []
+    """Top momentum movers by 20-day ROC. Computes on-demand via yfinance."""
+    # Try DB first (cron-populated)
+    if _SCANNERS_OK and pm_db.bar_count() > 0:
+        return pm_db.get_momentum_rankings(min_price=min_price, limit=limit)
+    # Fallback: on-demand fetch
+    tickers = _mom_watchlist()
+    data = _fetch_ohlcv(tickers, days=25)
+    if not data:
+        return []
+    import pandas as pd
+    rows = []
+    for tkr, fields in data.items():
+        closes = sorted(fields.get("Close", {}).items())
+        if len(closes) < 22:
+            continue
+        prices = [c[1] for c in closes]
+        sma20 = sum(prices[-20:]) / 20
+        if sma20 < min_price:
+            continue
+        roc20 = (prices[-1] / prices[-21] - 1) if len(prices) >= 21 else 0
+        vol = fields.get("Volume", {})
+        vol_vals = sorted(vol.values())[-10:]
+        vol_ema10 = sum(vol_vals) / max(len(vol_vals), 1)
+        rows.append({
+            "ticker": tkr,
+            "close": round(prices[-1], 2),
+            "sma20": round(sma20, 2),
+            "roc20": round(roc20 * 100, 2),
+            "vol_vs_ema10": round(vol_vals[-1] / vol_ema10 * 100, 0) if vol_ema10 else 100,
+            "signal": "strong_momentum" if roc20 > 0.1 else ("weak_momentum" if roc20 > 0 else "weak_momentum"),
+        })
+    rows.sort(key=lambda r: r["roc20"], reverse=True)
+    return rows[:limit]
 
 
 @app.get("/api/momentum/volume-spikes")
 def momentum_volume_spikes(limit: int = Query(30, ge=1, le=100)):
-    """Tickers with volume > 2x the 10-day volume EMA."""
-    return pm_db.get_volume_spike_alerts(limit=limit) if _SCANNERS_OK else []
+    """Tickers with volume > 2x the 10-day volume EMA. On-demand yfinance."""
+    if _SCANNERS_OK and pm_db.bar_count() > 0:
+        return pm_db.get_volume_spike_alerts(limit=limit)
+    tickers = _mom_watchlist()
+    data = _fetch_ohlcv(tickers, days=15)
+    if not data:
+        return []
+    rows = []
+    for tkr, fields in data.items():
+        vol = fields.get("Volume", {})
+        if len(vol) < 11:
+            continue
+        vol_vals = sorted(vol.values())
+        vol_ema10 = sum(vol_vals[-10:]) / 10
+        latest_vol = vol_vals[-1]
+        if vol_ema10 > 0 and latest_vol / vol_ema10 > 2:
+            rows.append({
+                "ticker": tkr,
+                "latest_volume": int(latest_vol),
+                "volume_ratio": round(latest_vol / vol_ema10, 2),
+            })
+    rows.sort(key=lambda r: r["volume_ratio"], reverse=True)
+    return rows[:limit]
 
 
 @app.get("/api/momentum/consolidation")
 def momentum_consolidation(limit: int = Query(30, ge=1, le=100)):
-    """Tickers in consolidation patterns (low vol, narrow range)."""
-    return pm_db.get_consolidation_scan(limit=limit) if _SCANNERS_OK else []
+    """Tickers in consolidation (ATR < 3% of price, inside-day range)."""
+    if _SCANNERS_OK and pm_db.bar_count() > 0:
+        return pm_db.get_consolidation_scan(limit=limit)
+    tickers = _mom_watchlist()
+    data = _fetch_ohlcv(tickers, days=15)
+    if not data:
+        return []
+    rows = []
+    for tkr, fields in data.items():
+        hi = fields.get("High", {})
+        lo = fields.get("Low", {})
+        cl = fields.get("Close", {})
+        common_dates = sorted(set(hi.keys()) & set(lo.keys()) & set(cl.keys()))
+        if len(common_dates) < 10:
+            continue
+        recent = common_dates[-10:]
+        atr = sum((hi[d] - lo[d]) for d in recent) / 10
+        prices = [cl[d] for d in recent]
+        avg_price = sum(prices) / len(prices)
+        if avg_price == 0:
+            continue
+        atr_pct = atr / avg_price * 100
+        if atr_pct < 3:
+            rows.append({
+                "ticker": tkr,
+                "atr_pct": round(atr_pct, 2),
+                "price": round(prices[-1], 2),
+                "range_10d_pct": round((max(prices) - min(prices)) / avg_price * 100, 2),
+            })
+    rows.sort(key=lambda r: r["range_10d_pct"])
+    return rows[:limit]
 
 
 @app.get("/api/momentum/earnings-gaps")
 def momentum_earnings_gaps(limit: int = Query(30, ge=1, le=100)):
-    """Top overnight gaps (earnings / news gaps)."""
-    return pm_db.get_earnings_gaps(limit=limit) if _SCANNERS_OK else []
+    """Detect overnight gaps (>1%) in recent price action."""
+    if _SCANNERS_OK and pm_db.bar_count() > 0:
+        return pm_db.get_earnings_gaps(limit=limit)
+    tickers = _mom_watchlist()
+    data = _fetch_ohlcv(tickers, days=10)
+    if not data:
+        return []
+    rows = []
+    for tkr, fields in data.items():
+        opens = sorted(fields.get("Open", {}).items())
+        closes = sorted(fields.get("Close", {}).items())
+        # Match by date
+        close_map = dict(closes)
+        gaps = []
+        for d, o in opens:
+            if d in close_map and close_map[d] > 0:
+                gap_pct = (o - close_map[d]) / close_map[d] * 100
+                gaps.append({"date": d, "gap_pct": round(gap_pct, 2)})
+        big_gaps = [g for g in gaps if abs(g["gap_pct"]) > 1]
+        if big_gaps:
+            rows.append({
+                "ticker": tkr,
+                "gap": big_gaps[-1],
+            })
+    rows.sort(key=lambda r: abs(r["gap"]["gap_pct"]), reverse=True)
+    return rows[:limit]
 
 
 @app.get("/api/momentum/tickers/{ticker}")
 def momentum_ticker(ticker: str, limit: int = Query(60, ge=1, le=200)):
     """Daily OHLCV history for a single ticker."""
-    if not _SCANNERS_OK:
+    if _SCANNERS_OK and pm_db.bar_count() > 0:
+        bars = pm_db.price_history_for_ticker(ticker, limit=limit)
+        return {"ticker": ticker.upper(), "bars": bars}
+    # Fallback: yfinance
+    data = _fetch_ohlcv([ticker.upper()], days=limit)
+    if not data:
         return {"ticker": ticker.upper(), "bars": []}
-    bars = pm_db.price_history_for_ticker(ticker, limit=limit)
-    return {"ticker": ticker.upper(), "bars": bars}
+    fields = next(iter(data.values()))
+    bars = sorted(fields.get("Close", {}).items(), reverse=True)[:limit]
+    result = []
+    for d, v in bars:
+        result.append({
+            "date": d,
+            "open": fields.get("Open", {}).get(d, v),
+            "high": fields.get("High", {}).get(d, v),
+            "low": fields.get("Low", {}).get(d, v),
+            "close": v,
+            "volume": int(fields.get("Volume", {}).get(d, 0)),
+        })
+    return {"ticker": ticker.upper(), "bars": result}
 
 
 @app.get("/api/momentum/search")
 def momentum_search(q: str = Query(..., min_length=1)):
     """Search the momentum watchlist."""
-    return {"results": pm_db.search_tickers(q)} if _SCANNERS_OK else {"results": []}
+    tickers = _mom_watchlist()
+    ql = q.upper().lower()
+    results = [{"ticker": t, "name": t} for t in tickers if ql in t.lower()]
+    return {"results": results}
 
 
 # ── Correlation Matrix ──────────────────────────────────────────
 
+def _corr_watchlist():
+    """Tickers to compute correlations for (same as momentum watchlist)."""
+    return _mom_watchlist()
+
+
+def _corr_pivots():
+    """Pivot/asset-class tickers for correlation."""
+    if _SCANNERS_OK:
+        pivots = cm_db.get_pivot_tickers()
+        if pivots:
+            return pivots
+    return ["^GSPC", "^NDX", "^RUT", "^TNX", "^IRX", "^VIX", "SPY", "QQQ"]
+
+
+def _compute_corr_on_demand(
+    target_tickers: list[str],
+    pivots: list[str],
+    window: str,
+) -> dict:
+    """Compute correlation of each target vs each pivot, on-demand via yfinance."""
+    if not _YF_OK:
+        return {}
+    import pandas as pd
+    day_map = {"1_month": 21, "3_month": 63, "6_month": 126, "12_month": 252}
+    days = day_map.get(window, 63)
+    all_tickers = list(dict.fromkeys(pivots + target_tickers))
+    try:
+        df = _yf.download(
+            tickers=" ".join(all_tickers),
+            period=f"{days + 10}d",
+            interval="1d",
+            progress=False,
+            auto_adjust=True,
+        )
+    except Exception as e:
+        log.warning(f"yfinance corr fetch failed: {e}")
+        return {}
+    if df.empty:
+        return {}
+    cols = df.columns
+    # Get close prices aligned by date
+    if isinstance(cols, pd.MultiIndex):
+        closes = {}
+        for tk in all_tickers:
+            if tk in cols.get_level_values(1):
+                closes[tk] = df[tk]["Close"].dropna()
+        price_df = pd.DataFrame(closes).dropna()
+    else:
+        price_df = df["Close"].dropna().to_frame("price")
+        # Single ticker — can't compute matrix
+        if len(all_tickers) == 1:
+            return {}
+    if price_df.shape[0] < days:
+        price_df = price_df.tail(days)
+    returns = price_df.pct_change().dropna()
+    if returns.empty:
+        return {}
+    result: dict[str, dict] = {}
+    for tk in target_tickers:
+        if tk not in returns.columns:
+            continue
+        tk_ret = returns[tk]
+        corr = {}
+        for p in pivots:
+            if p not in returns.columns:
+                continue
+            c = tk_ret.corr(returns[p])
+            if c is not None and not (c != c):  # not NaN
+                corr[p] = round(float(c), 4)
+        if corr:
+            result[tk] = corr
+    return result
+
+
 @app.get("/api/correlation/meta")
 def correlation_meta():
     """Metadata for the correlation matrix tab."""
-    if not _SCANNERS_OK:
-        return {"latest_date": None, "total_rows": 0}
-    return cm_db.get_meta()
+    if _SCANNERS_OK:
+        return cm_db.get_meta()
+    return {"latest_date": None, "total_rows": 0}
 
 
 @app.get("/api/correlation/matrix")
@@ -423,11 +687,20 @@ def correlation_matrix(
     tickers: str | None = Query(None, description="Comma-separated ticker list"),
     min_corr_abs: float = Query(0.0, ge=0, le=1),
 ):
-    """Full correlation matrix for a window."""
+    """Full correlation matrix for a window. On-demand yfinance if DB stale."""
     ticker_list = tickers.split(",") if tickers else None
-    return cm_db.get_corr_matrix(window=window, date_str=date_str, tickers=ticker_list,
-                                 min_corr_abs=min_corr_abs) if _SCANNERS_OK else \
-        {"date": None, "window": window, "tickers": [], "pivots": [], "matrix": {}}
+    # Try DB first (cron-populated)
+    if _SCANNERS_OK and cm_db.total_rows() > 0:
+        result = cm_db.get_corr_matrix(window=window, date_str=date_str, tickers=ticker_list,
+                                     min_corr_abs=min_corr_abs)
+        if result.get("matrix") or result.get("tickers"):
+            return result
+    # Fallback: on-demand computation
+    targets = ticker_list or _corr_watchlist()
+    pivots = _corr_pivots()
+    corr_data = _compute_corr_on_demand(targets, pivots, window)
+    if not corr_data:
+        return {"date": None, "window": window, "tickers": [], "pivots": [], "matrix": {}}
 
 
 @app.get("/api/correlation/ticker/{ticker}")
@@ -436,7 +709,14 @@ def correlation_ticker(
     window: str = Query("3_month", pattern="^(1_month|3_month|6_month|12_month)$"),
 ):
     """Correlations of *ticker* vs all pivot tickers."""
-    return cm_db.get_corr_for_ticker(ticker, window=window) if _SCANNERS_OK else {}
+    if _SCANNERS_OK:
+        result = cm_db.get_corr_for_ticker(ticker, window=window)
+        if result:
+            return result
+    # Fallback: on-demand
+    pivots = _corr_pivots()
+    corr = _compute_corr_on_demand([ticker.upper()], pivots, window)
+    return corr.get(ticker.upper(), {})
 
 
 @app.get("/api/correlation/pivot/{pivot}")
@@ -447,7 +727,20 @@ def correlation_pivot(
     min_abs: float = Query(0.2, ge=0, le=1),
 ):
     """All tickers' correlation to a pivot ticker, sorted by abs value."""
-    return cm_db.get_corr_to_pivot(pivot, window=window, limit=limit, min_abs=min_abs) if _SCANNERS_OK else []
+    if _SCANNERS_OK:
+        result = cm_db.get_corr_to_pivot(pivot, window=window, limit=limit, min_abs=min_abs)
+        if result:
+            return result
+    # Fallback: on-demand
+    targets = _corr_watchlist()
+    corr = _compute_corr_on_demand(targets, [pivot.upper()], window)
+    rows = []
+    for tk, pdict in corr.items():
+        for p, v in pdict.items():
+            if abs(v) >= min_abs:
+                rows.append({"target": tk, "pivot": p, "correlation": v})
+    rows.sort(key=lambda r: abs(r["correlation"]), reverse=True)
+    return rows[:limit]
 
 
 # ---------------------------------------------------------------------------
