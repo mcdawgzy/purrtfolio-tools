@@ -6,16 +6,17 @@ services:
     buildCommand: pip install -r requirements.txt
     preDeployCommand: |
           # Download DB from GitHub Release (free tier has no persistent disk)
-          mkdir -p /opt/render/project/src
+          # DB path matches the PURRTFOLIO_DB env var set in Render dashboard
+          mkdir -p /opt/render
           curl -L -o /tmp/purrtfolio.db.gz \
             https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/purrtfolio.db.gz
           gunzip -f /tmp/purrtfolio.db.gz
-          mv /tmp/purrtfolio.db /opt/render/project/src/purrtfolio.db
-          echo "DB downloaded: $(ls -lh /opt/render/project/src/purrtfolio.db)"
+          mv /tmp/purrtfolio.db /opt/render/purrtfolio.db
+          echo "DB downloaded: $(ls -lh /opt/render/purrtfolio.db)"
     startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PURRTFOLIO_DB
-        value: /opt/render/project/src/purrtfolio.db
+        value: /opt/render/purrtfolio.db
       - key: CORS_ALLOWED_ORIGINS
         value: "https://mcdawgzy.github.io,https://purrtfolio.onrender.com"
     # Render free tier: 750 hrs/mo, spins down after 15min idle, cold-start ~30s
