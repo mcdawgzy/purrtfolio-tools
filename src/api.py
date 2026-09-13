@@ -355,9 +355,11 @@ except Exception as e:
 
 try:
     import yfinance as _yf
+    import pandas as _pd
     _YF_OK = True
 except Exception:
     _YF_OK = False
+    _pd = None
 
 
 def _mom_watchlist():
@@ -366,10 +368,10 @@ def _mom_watchlist():
         tickers = pm_db.get_watchlist_tickers()
         if tickers:
             return tickers
-    # Fallback: reuse the macro snapshot tickers
+    # Fallback: reuse tickers from the tickers table (available in all DB versions)
     with db.db_conn() as c:
         return [r[0] for r in c.execute(
-            "SELECT DISTINCT ticker FROM macro_tickers ORDER BY id"
+            "SELECT DISTINCT ticker FROM tickers WHERE ticker IS NOT NULL ORDER BY ticker"
         ).fetchall()]
 
 
@@ -392,7 +394,7 @@ def _fetch_ohlcv(tickers: list[str], days: int = 25) -> dict:
         # Return {ticker: {date: [open, high, low, close, volume]}}
         result: dict[str, dict] = {}
         cols = df.columns
-        if isinstance(cols, pd.MultiIndex):
+        if isinstance(cols, _pd.MultiIndex):
             # Multi-index: (field, ticker)
             for ticker in tickers:
                 if ticker not in cols.get_level_values(1):
@@ -444,7 +446,6 @@ def momentum_rankings(
     data = _fetch_ohlcv(tickers, days=25)
     if not data:
         return []
-    import pandas as pd
     rows = []
     for tkr, fields in data.items():
         closes = sorted(fields.get("Close", {}).items())
@@ -620,7 +621,7 @@ def _compute_corr_on_demand(
     """Compute correlation of each target vs each pivot, on-demand via yfinance."""
     if not _YF_OK:
         return {}
-    import pandas as pd
+    import pandas as _pd2
     day_map = {"1_month": 21, "3_month": 63, "6_month": 126, "12_month": 252}
     days = day_map.get(window, 63)
     all_tickers = list(dict.fromkeys(pivots + target_tickers))
@@ -639,12 +640,12 @@ def _compute_corr_on_demand(
         return {}
     cols = df.columns
     # Get close prices aligned by date
-    if isinstance(cols, pd.MultiIndex):
+    if isinstance(cols, _pd2.MultiIndex):
         closes = {}
         for tk in all_tickers:
             if tk in cols.get_level_values(1):
                 closes[tk] = df[tk]["Close"].dropna()
-        price_df = pd.DataFrame(closes).dropna()
+        price_df = _pd2.DataFrame(closes).dropna()
     else:
         price_df = df["Close"].dropna().to_frame("price")
         # Single ticker — can't compute matrix
