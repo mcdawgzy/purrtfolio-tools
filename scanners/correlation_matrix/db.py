@@ -34,6 +34,11 @@ def get_db():
 
 @contextmanager
 def get_db_readonly():
+    """Read-only connection (web API side).
+
+    Falls back gracefully if the DB file doesn't exist yet — callers should
+    check bar_count() == 0 before calling query functions.
+    """
     uri = f"file:{DB_PATH}?mode=ro"
     conn = sqlite3.connect(uri, uri=True, timeout=10)
     conn.row_factory = sqlite3.Row
@@ -213,9 +218,13 @@ def get_corr_to_pivot(
 
 
 def get_meta() -> dict:
-    latest_date = get_latest_corr_date()
-    with get_db_readonly() as conn:
-        count = conn.execute("SELECT COUNT(*) FROM corr_matrices").fetchone()[0]
+    try:
+        latest_date = get_latest_corr_date()
+        with get_db_readonly() as conn:
+            count = conn.execute("SELECT COUNT(*) FROM corr_matrices").fetchone()[0]
+    except (sqlite3.OperationalError, sqlite3.DatabaseError):
+        count = 0
+        latest_date = None
     return {
         "latest_date": latest_date,
         "total_rows": count,

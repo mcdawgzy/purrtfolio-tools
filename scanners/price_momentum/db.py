@@ -176,11 +176,14 @@ def get_latest_bars(tickers: List[str], limit: int = 30) -> List[Dict]:
 
 def get_latest_signal_date() -> Optional[str]:
     """Most recent date for which signals exist."""
-    with get_db_readonly() as conn:
-        r = conn.execute(
-            "SELECT MAX(date) FROM price_momentum_signals"
-        ).fetchone()
-    return r[0] if r and r[0] else None
+    try:
+        with get_db_readonly() as conn:
+            r = conn.execute(
+                "SELECT MAX(date) FROM price_momentum_signals"
+            ).fetchone()
+        return r[0] if r and r[0] else None
+    except (sqlite3.OperationalError, sqlite3.DatabaseError):
+        return None
 
 
 def get_momentum_rankings(
@@ -281,15 +284,18 @@ def search_tickers(query: str, limit: int = 20) -> List[Dict]:
 def get_meta() -> dict:
     """Metadata for the momentum tab."""
     latest_date = get_latest_signal_date()
-    with get_db_readonly() as conn:
-        counts = {
-            "bars": conn.execute(
-                "SELECT COUNT(*) FROM price_history"
-            ).fetchone()[0],
-            "tickers": conn.execute(
-                "SELECT COUNT(DISTINCT ticker) FROM price_history"
-            ).fetchone()[0],
-        }
+    try:
+        with get_db_readonly() as conn:
+            counts = {
+                "bars": conn.execute(
+                    "SELECT COUNT(*) FROM price_history"
+                ).fetchone()[0],
+                "tickers": conn.execute(
+                    "SELECT COUNT(DISTINCT ticker) FROM price_history"
+                ).fetchone()[0],
+            }
+    except (sqlite3.OperationalError, sqlite3.DatabaseError):
+        counts = {"bars": 0, "tickers": 0}
     return {
         "latest_signal_date": latest_date,
         "bar_count": counts["bars"],

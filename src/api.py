@@ -511,6 +511,21 @@ def _ensure_momentum_db():
 
 # ── Price Momentum ──────────────────────────────────────────────
 
+@app.get("/api/momentum/debug")
+def momentum_debug():
+    """Debug: check DB state on Render."""
+    _slim = Path(os.environ.get("MOMENTUM_DB", "/opt/render/momentum_data.db"))
+    _gz = Path(str(_slim) + ".gz")
+    return {
+        "PURRTFOLIO_DB": os.environ.get("PURRTFOLIO_DB", "not set"),
+        "MOMENTUM_DB": os.environ.get("MOMENTUM_DB", "not set"),
+        "slim_db_exists": _slim.exists(),
+        "slim_db_size": _slim.stat().st_size if _slim.exists() else 0,
+        "slim_gz_exists": _gz.exists(),
+        "scanners_ok": _SCANNERS_OK,
+        "pm_db_path": pm_db.DB_PATH if _SCANNERS_OK and hasattr(pm_db, 'DB_PATH') else 'N/A',
+    }
+
 @app.get("/api/momentum/meta")
 def momentum_meta():
     """Metadata for the momentum tab."""
