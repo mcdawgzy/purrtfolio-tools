@@ -481,11 +481,41 @@ def _fetch_ohlcv(tickers: list[str], days: int = 25) -> dict:
     return result
 
 
+def _ensure_momentum_db():
+    """Lazily download the slim momentum DB if it's missing or stale.
+
+    Called from endpoints when bar_count() returns 0 (DB not yet downloaded).
+    Downloads the 0.3MB compressed DB from GitHub Release — fast enough
+    for a single cold-start request.
+    """
+    _slim_db_path = os.environ.get("MOMENTUM_DB")
+    if not _slim_db_path:
+        _slim_db_path = "/opt/render/momentum_data.db"
+    _slim_db = Path(_slim_db_path)
+    if _slim_db.exists() and _slim_db.stat().st_size > 100_000:
+        return  # Already present
+    log.info("Momentum DB missing — downloading...")
+    _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/momentum_data.db.gz"
+    _gz = Path(str(_slim_db_path) + ".gz")
+    try:
+        db._download_with_redirect(_url, str(_gz))
+        import gzip, shutil
+        _slim_db.parent.mkdir(parents=True, exist_ok=True)
+        with gzip.open(str(_gz), "rb") as f_in, open(str(_slim_db), "wb") as f_out:
+            shutil.copyfileobj(f_in, f_out)
+        os.remove(str(_gz))
+        log.info(f"Momentum DB downloaded ({_slim_db.stat().st_size / 1e6:.1f}MB)")
+    except Exception as e:
+        log.error(f"Momentum DB download failed: {e}")
+
+
 # ── Price Momentum ──────────────────────────────────────────────
 
 @app.get("/api/momentum/meta")
 def momentum_meta():
     """Metadata for the momentum tab."""
+    if _SCANNERS_OK and pm_db.bar_count() == 0:
+        _ensure_momentum_db()
     if _SCANNERS_OK:
         return pm_db.get_meta()
     return {"latest_signal_date": None, "bar_count": 0, "ticker_count": 0}
@@ -496,7 +526,10 @@ def momentum_rankings(
     min_price: float = Query(5.0, description="Min SMA-20d price to filter micro-caps"),
     limit: int = Query(50, ge=1, le=200),
 ):
-    """Top momentum movers by 20-day ROC. Computes on-demand via yfinance."""
+    """Top momentum movers by 20-day ROC."""
+    # Ensure DB is downloaded
+    if _SCANNERS_OK and pm_db.bar_count() == 0:
+        _ensure_momentum_db()
     # Try DB first (cron-populated)
     if _SCANNERS_OK and pm_db.bar_count() > 0:
         return pm_db.get_momentum_rankings(min_price=min_price, limit=limit)
@@ -532,7 +565,9 @@ def momentum_rankings(
 
 @app.get("/api/momentum/volume-spikes")
 def momentum_volume_spikes(limit: int = Query(30, ge=1, le=100)):
-    """Tickers with volume > 2x the 10-day volume EMA. On-demand yfinance."""
+    """Tickers with volume > 2x the 10-day volume EMA."""
+    if _SCANNERS_OK and pm_db.bar_count() == 0:
+        _ensure_momentum_db()
     if _SCANNERS_OK and pm_db.bar_count() > 0:
         return pm_db.get_volume_spike_alerts(limit=limit)
     tickers = _mom_watchlist()
@@ -560,6 +595,8 @@ def momentum_volume_spikes(limit: int = Query(30, ge=1, le=100)):
 @app.get("/api/momentum/consolidation")
 def momentum_consolidation(limit: int = Query(30, ge=1, le=100)):
     """Tickers in consolidation (ATR < 3% of price, inside-day range)."""
+    if _SCANNERS_OK and pm_db.bar_count() == 0:
+        _ensure_momentum_db()
     if _SCANNERS_OK and pm_db.bar_count() > 0:
         return pm_db.get_consolidation_scan(limit=limit)
     tickers = _mom_watchlist()
@@ -595,6 +632,8 @@ def momentum_consolidation(limit: int = Query(30, ge=1, le=100)):
 @app.get("/api/momentum/earnings-gaps")
 def momentum_earnings_gaps(limit: int = Query(30, ge=1, le=100)):
     """Detect overnight gaps (>1%) in recent price action."""
+    if _SCANNERS_OK and pm_db.bar_count() == 0:
+        _ensure_momentum_db()
     if _SCANNERS_OK and pm_db.bar_count() > 0:
         return pm_db.get_earnings_gaps(limit=limit)
     tickers = _mom_watchlist()
@@ -625,6 +664,8 @@ def momentum_earnings_gaps(limit: int = Query(30, ge=1, le=100)):
 @app.get("/api/momentum/tickers/{ticker}")
 def momentum_ticker(ticker: str, limit: int = Query(60, ge=1, le=200)):
     """Daily OHLCV history for a single ticker."""
+    if _SCANNERS_OK and pm_db.bar_count() == 0:
+        _ensure_momentum_db()
     if _SCANNERS_OK and pm_db.bar_count() > 0:
         bars = pm_db.price_history_for_ticker(ticker, limit=limit)
         return {"ticker": ticker.upper(), "bars": bars}
@@ -747,7 +788,9 @@ def correlation_matrix(
     tickers: str | None = Query(None, description="Comma-separated ticker list"),
     min_corr_abs: float = Query(0.0, ge=0, le=1),
 ):
-    """Full correlation matrix for a window. On-demand yfinance if DB stale."""
+    """Full correlation matrix for a window."""
+    if _SCANNERS_OK and cm_db.total_rows() == 0:
+        _ensure_momentum_db()
     ticker_list = tickers.split(",") if tickers else None
     # Try DB first (cron-populated)
     if _SCANNERS_OK and cm_db.total_rows() > 0:
@@ -769,6 +812,8 @@ def correlation_ticker(
     window: str = Query("3_month", pattern="^(1_month|3_month|6_month|12_month)$"),
 ):
     """Correlations of *ticker* vs all pivot tickers."""
+    if _SCANNERS_OK and cm_db.total_rows() == 0:
+        _ensure_momentum_db()
     if _SCANNERS_OK:
         result = cm_db.get_corr_for_ticker(ticker, window=window)
         if result:
@@ -787,6 +832,8 @@ def correlation_pivot(
     min_abs: float = Query(0.2, ge=0, le=1),
 ):
     """All tickers' correlation to a pivot ticker, sorted by abs value."""
+    if _SCANNERS_OK and cm_db.total_rows() == 0:
+        _ensure_momentum_db()
     if _SCANNERS_OK:
         result = cm_db.get_corr_to_pivot(pivot, window=window, limit=limit, min_abs=min_abs)
         if result:
