@@ -1,4 +1,5 @@
 """Configuration for Price Momentum Scanner"""
+import os
 import json
 from pathlib import Path
 
@@ -9,7 +10,8 @@ EXPORTS_DIR = BASE_DIR / "exports"
 WATCHLIST_PATH = BASE_DIR / "ticker_watchlist.json"
 
 # Canonical DB (same unified store as 13F / SI / insider)
-DB_PATH = Path("C:/Users/cho_i/purrtfolio.db")
+# Override with MOMENTUM_DB env var (used on Render — slim DB)
+DB_PATH = Path(os.environ.get("MOMENTUM_DB", "C:/Users/cho_i/purrtfolio.db"))
 
 # ─── Watchlist ─────────────────────────────────────────────────────
 # Curated from the macro snapshot tickers + the SI watchlist overlap.

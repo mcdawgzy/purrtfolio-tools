@@ -1,4 +1,5 @@
 """Configuration for Correlation Matrix Scanner"""
+import os
 from pathlib import Path
 
 # ─── Paths ──────────────────────────────────────────────────────────
@@ -8,7 +9,8 @@ EXPORTS_DIR = BASE_DIR / "exports"
 WATCHLIST_PATH = BASE_DIR / "ticker_watchlist.json"
 
 # Canonical DB — same unified store as 13F / SI / insider
-DB_PATH = Path("C:/Users/cho_i/purrtfolio.db")
+# Override with MOMENTUM_DB env var (used on Render — slim DB)
+DB_PATH = Path(os.environ.get("MOMENTUM_DB", "C:/Users/cho_i/purrtfolio.db"))
 
 # ─── Correlation windows (trading days) ──────────────────────────────
 # 20d  ≈ 1 month, 60d ≈ 3 months, 120d ≈ 6 months, 252d ≈ 1 year

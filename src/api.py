@@ -43,21 +43,24 @@ app.add_middleware(
 async def _ensure_db():
     """Ensure the DB is present and fresh on startup.
 
-    On Render free tier, each cold-start runs this once. If the DB is
-    missing or stale (lacks new scanner tables), we download the latest
-    release in the background so the first request doesn't time out.
+    Downloads the slim momentum DB (price_history + corr_matrices, ~0.3MB
+    compressed) on cold start. The full DB (13F/SI/insider data) is handled
+    by the buildCommand.
     """
-    import threading
-    db_path = db.get_db_path()
-    if not db._db_has_new_tables(db_path):
-        log.info("DB stale/missing — starting background download...")
-        def _bg():
-            try:
-                db._download_db_if_needed(db_path)
-                log.info("Background DB download complete.")
-            except Exception as e:
-                log.error(f"Background DB download failed: {e}")
-        threading.Thread(target=_bg, daemon=True).start()
+    _slim_db = Path("/opt/render/momentum_data.db")
+    _slim_gz = Path("/opt/render/momentum_data.db.gz")
+    if not _slim_db.exists() or _slim_db.stat().st_size < 100_000:
+        log.info("Downloading slim momentum DB...")
+        _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/momentum_data.db.gz"
+        try:
+            db._download_with_redirect(_url, str(_slim_gz))
+            import gzip, shutil
+            with gzip.open(str(_slim_gz), "rb") as f_in, open(str(_slim_db), "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
+            os.remove(str(_slim_gz))
+            log.info(f"Slim momentum DB ready ({_slim_db.stat().st_size / 1e6:.1f}MB)")
+        except Exception as e:
+            log.error(f"Slim momentum DB download failed: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -381,6 +384,15 @@ try:
 except Exception:
     _YF_OK = False
     _pd = None
+
+
+# yfinance is installed via buildCommand — used for on-demand fallback
+try:
+    import yfinance as _yf
+    import pandas as _pd
+    _YF_OK = True
+except Exception:
+    _YF_OK = False
 
 
 def _mom_watchlist():

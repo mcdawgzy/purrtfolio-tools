@@ -5,18 +5,16 @@ services:
     plan: free
     buildCommand: |
           pip install -r requirements.txt
-          # Download fresh DB from GitHub Release (free tier has no persistent disk)
-          rm -f /opt/render/purrtfolio.db /opt/render/purrtfolio.db.gz
-          mkdir -p /opt/render
-          curl -fSL -o /opt/render/purrtfolio.db.gz \
-             https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/purrtfolio.db.gz
-          python -c "import gzip,shutil; shutil.copyfileobj(gzip.open('/opt/render/purrtfolio.db.gz'), open('/opt/render/purrtfolio.db','wb'))"
-          rm -f /opt/render/purrtfolio.db.gz
-          echo "DB ready: $(ls -lh /opt/render/purrtfolio.db)"
+          # yfinance + pandas needed for on-demand momentum/correlation fallback
+          pip install yfinance pandas
     startCommand: uvicorn "src.api:app" --host 0.0.0.0 --port $PORT
     envVars:
       - key: PURRTFOLIO_DB
         value: /opt/render/purrtfolio.db
+      - key: MOMENTUM_DB
+        value: /opt/render/momentum_data.db
       - key: CORS_ALLOWED_ORIGINS
         value: "https://mcdawgzy.github.io,https://purrtfolio.onrender.com"
     # Render free tier: 750 hrs/mo, spins down after 15min idle, cold-start ~30s
+    # The main DB (13F/SI/insider) is downloaded during build via scripts/download_db.sh
+    # The slim momentum DB (~0.3MB) is downloaded at startup in api.py
