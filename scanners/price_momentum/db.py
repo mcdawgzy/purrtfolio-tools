@@ -202,7 +202,7 @@ def get_momentum_rankings(
                    s.is_volume_spike, s.is_consolidating,
                    s.gapped_open, s.gap_pct
             FROM price_momentum_signals s
-            JOIN tickers t ON s.ticker = t.ticker
+            LEFT JOIN tickers t ON s.ticker = t.ticker
             WHERE s.date = ?
               AND (s.sma_20d >= ? OR s.sma_20d IS NULL)
             ORDER BY ABS(s.roc_20d) DESC NULLS LAST
@@ -222,7 +222,7 @@ def get_volume_spike_alerts(limit: int = 30) -> List[Dict]:
                    s.roc_20d, s.volume_ratio, s.sma_20d,
                    s.is_consolidating
             FROM price_momentum_signals s
-            JOIN tickers t ON s.ticker = t.ticker
+            LEFT JOIN tickers t ON s.ticker = t.ticker
             WHERE s.date = ? AND s.is_volume_spike = 1
             ORDER BY s.volume_ratio DESC
             LIMIT ?
@@ -241,7 +241,7 @@ def get_consolidation_scan(limit: int = 30) -> List[Dict]:
                    s.roc_20d, s.roc_10d, s.sma_20d,
                    s.volume_ratio, s.is_consolidating
             FROM price_momentum_signals s
-            JOIN tickers t ON s.ticker = t.ticker
+            LEFT JOIN tickers t ON s.ticker = t.ticker
             WHERE s.date = ? AND s.is_consolidating = 1
             ORDER BY s.volume_ratio ASC
             LIMIT ?
@@ -259,7 +259,7 @@ def get_earnings_gaps(limit: int = 30) -> List[Dict]:
             SELECT s.ticker, t.name, t.category,
                    s.gap_pct, s.roc_20d, s.sma_20d
             FROM price_momentum_signals s
-            JOIN tickers t ON s.ticker = t.ticker
+            LEFT JOIN tickers t ON s.ticker = t.ticker
             WHERE s.date = ? AND s.gapped_open = 1
             ORDER BY ABS(s.gap_pct) DESC
             LIMIT ?
@@ -269,16 +269,33 @@ def get_earnings_gaps(limit: int = 30) -> List[Dict]:
 
 def search_tickers(query: str, limit: int = 20) -> List[Dict]:
     """Search the momentum watchlist."""
+    q = f"%{query.upper()}%"
+    q_lo = f"%{query}%"
     with get_db_readonly() as conn:
-        rows = conn.execute("""
-            SELECT ticker, name, category, exchange, latest_short, latest_dtc
-            FROM tickers
-            WHERE ticker LIKE ? OR name LIKE ?
-            ORDER BY CASE WHEN ticker LIKE ? THEN 0 ELSE 1 END,
-                     latest_short DESC NULLS LAST
-            LIMIT ?
-        """, (f"%{query.upper()}%", f"%{query}%", f"{query.upper()}%", limit)).fetchall()
-    return [dict(r) for r in rows]
+        # First: tickers in the tickers table
+        rows = conn.execute(
+            """SELECT ticker, name, category, exchange, latest_short, latest_dtc
+               FROM tickers
+               WHERE ticker LIKE ? OR name LIKE ?
+               ORDER BY CASE WHEN ticker LIKE ? THEN 0 ELSE 1 END,
+                      latest_short DESC NULLS LAST
+               LIMIT ?""",
+            (q, q_lo, q, limit),
+        ).fetchall()
+        results = [dict(r) for r in rows]
+        # If we need more, search price_history for tickers not in tickers table
+        if len(results) < limit:
+            extra = conn.execute(
+                """SELECT DISTINCT ph.ticker as ticker, ph.ticker as name,
+                          '' as category, '' as exchange, 0 as latest_short, 0 as latest_dtc
+                   FROM price_history ph
+                   WHERE ph.ticker LIKE ?
+                     AND ph.ticker NOT IN (SELECT ticker FROM tickers)
+                   LIMIT ?""",
+                (q, limit - len(results)),
+            ).fetchall()
+            results.extend(dict(r) for r in extra)
+    return results
 
 
 def get_meta() -> dict:

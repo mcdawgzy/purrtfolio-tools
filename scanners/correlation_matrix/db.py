@@ -207,7 +207,7 @@ def get_corr_to_pivot(
             SELECT cm.ticker, t.name, t.category,
                    json_extract(cm.corr_json, '{json_path}') AS corr
             FROM corr_matrices cm
-            JOIN tickers t ON cm.ticker = t.ticker
+            LEFT JOIN tickers t ON cm.ticker = t.ticker
             WHERE cm.window = ? AND cm.date = ?
               AND json_extract(cm.corr_json, '{json_path}') IS NOT NULL
               AND ABS(json_extract(cm.corr_json, '{json_path}')) >= ?
