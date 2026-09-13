@@ -50,6 +50,7 @@ def _download_with_redirect(url: str, dest: str) -> None:
     import urllib.request as _ul
     opener = _ul.build_opener(_ul.HTTPRedirectHandler)
     with opener.open(url) as response, open(dest, "wb") as out:
+        import shutil
         shutil.copyfileobj(response, out)
 
 
@@ -88,20 +89,28 @@ def _download_db_if_needed(db_path: Path) -> Path:
     """
     if db_path.exists() and _db_has_new_tables(db_path):
         return db_path
-    logger.info(f"DB not found at {db_path}, downloading from {_RELEASE_ASSET}...")
+    logger.info(f"DB stale or missing at {db_path}, downloading fresh copy...")
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Download the .gz file — use curl (follows redirects) with fallback to urllib
-    gz_path = str(db_path) + ".gz"
+    # Download the .gz file to a temp path, decompress, then swap
+    gz_path = str(db_path) + ".gz.new"
+    tmp_db = str(db_path) + ".new"
     _download_with_redirect(_RELEASE_ASSET, gz_path)
     logger.info(f"Downloaded ({os.path.getsize(gz_path) / 1e6:.1f}MB compressed)")
 
     # Decompress
     import gzip, shutil
-    with gzip.open(gz_path, "rb") as f_in, open(db_path, "wb") as f_out:
+    with gzip.open(gz_path, "rb") as f_in, open(tmp_db, "wb") as f_out:
         shutil.copyfileobj(f_in, f_out)
     os.remove(gz_path)
-    logger.info(f"Decompressed DB ({db_path.stat().st_size / 1e6:.1f}MB)")
+    logger.info(f"Decompressed DB ({os.path.getsize(tmp_db) / 1e6:.1f}MB)")
+
+    # Replace the old DB atomically
+    if db_path.exists():
+        os.chmod(db_path, 0o644)  # ensure writable
+        os.remove(db_path)
+    os.rename(tmp_db, db_path)
+    logger.info(f"DB swapped to {db_path}")
     return db_path
 
 

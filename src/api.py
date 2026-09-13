@@ -363,16 +363,33 @@ except Exception:
 
 
 def _mom_watchlist():
-    """Return the curated momentum watchlist tickers."""
+    """Return the curated momentum watchlist tickers.
+
+    Order of preference:
+      1. DB-stored watchlist (from price_momentum DB module)
+      2. Hardcoded curated list (always available, ~54 tickers)
+    """
     if _SCANNERS_OK:
         tickers = pm_db.get_watchlist_tickers()
         if tickers:
             return tickers
-    # Fallback: reuse tickers from the tickers table (available in all DB versions)
-    with db.db_conn() as c:
-        return [r[0] for r in c.execute(
-            "SELECT DISTINCT ticker FROM tickers WHERE ticker IS NOT NULL ORDER BY ticker"
-        ).fetchall()]
+    # Hardcoded curated list — mirrors scanners/price_momentum/config.py
+    return [
+        "^GSPC", "^NDX", "^DJI", "^RUT",
+        "AAPL", "MSFT", "NVDA", "GOOGL", "META", "AMZN", "TSLA",
+        "AVGO", "ASML", "AMD", "INTC", "CRM", "ADBE", "NFLX", "ORCL",
+        "JPM", "BAC", "WFC", "GS", "MS", "BLK", "SCHW",
+        "JNJ", "UNH", "PFE", "ABBV", "MRK", "TMO", "LLY",
+        "XOM", "CVX", "COP", "EOG", "SLB", "OXY",
+        "WMT", "HD", "PG", "KO", "PEP", "COST", "NKE", "MCD",
+        "^N225", "^GDAXI", "^FTSE", "^STOXX", "^HSI",
+        "DX-Y.NYB", "USDJPY=X", "EURUSD=X", "GBPUSD=X", "AUDUSD=X",
+        "^IRX", "^FVX", "^TNX", "^TYX",
+        "GC=F", "SI=F", "CL=F", "BZ=F", "HG=F",
+        "HYG", "LQD", "TIP", "^VIX",
+        "SPY", "QQQ", "IWM", "DIA", "VTI", "VOO", "VEA", "VWO",
+        "BTC-USD", "ETH-USD",
+    ]
 
 
 def _fetch_ohlcv(tickers: list[str], days: int = 25) -> dict:

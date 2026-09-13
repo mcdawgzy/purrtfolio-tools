@@ -220,3 +220,18 @@ def get_meta() -> dict:
         "latest_date": latest_date,
         "total_rows": count,
     }
+
+
+def total_rows() -> int:
+    """Total rows in corr_matrices (0 if missing/empty)."""
+    try:
+        with get_db_readonly() as conn:
+            return conn.execute("SELECT COUNT(*) FROM corr_matrices").fetchone()[0]
+    except sqlite3.OperationalError:
+        return 0
+
+
+def get_pivot_tickers() -> List[str]:
+    """Return the pivot/asset-class tickers used for correlation."""
+    from .config import PIVOT_TICKERS
+    return PIVOT_TICKERS

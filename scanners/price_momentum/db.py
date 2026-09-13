@@ -297,6 +297,23 @@ def get_meta() -> dict:
     }
 
 
+def bar_count() -> int:
+    """Total bars in price_history (0 if table missing/empty)."""
+    try:
+        with get_db_readonly() as conn:
+            return conn.execute(
+                "SELECT COUNT(*) FROM price_history"
+            ).fetchone()[0]
+    except sqlite3.OperationalError:
+        return 0
+
+
+def get_watchlist_tickers() -> List[str]:
+    """Return the curated momentum watchlist tickers from config."""
+    from .config import CURATED_TICKERS
+    return CURATED_TICKERS
+
+
 def price_history_for_ticker(ticker: str, limit: int = 60) -> List[Dict]:
     """Daily OHLCV for a single ticker (most recent first)."""
     with get_db_readonly() as conn:

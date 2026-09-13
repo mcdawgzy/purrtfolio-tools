@@ -5,10 +5,15 @@ services:
     plan: free
     buildCommand: |
           pip install -r requirements.txt
-          # Also install scanner deps (yfinance, pandas)
-          pip install yfinance pandas
-          bash scripts/download_db.sh
-    startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
+          # Download fresh DB from GitHub Release (free tier has no persistent disk)
+          rm -f /opt/render/purrtfolio.db /opt/render/purrtfolio.db.gz
+          mkdir -p /opt/render
+          curl -fSL -o /opt/render/purrtfolio.db.gz \
+             https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/purrtfolio.db.gz
+          python -c "import gzip,shutil; shutil.copyfileobj(gzip.open('/opt/render/purrtfolio.db.gz'), open('/opt/render/purrtfolio.db','wb'))"
+          rm -f /opt/render/purrtfolio.db.gz
+          echo "DB ready: $(ls -lh /opt/render/purrtfolio.db)"
+    startCommand: uvicorn "src.api:app" --host 0.0.0.0 --port $PORT
     envVars:
       - key: PURRTFOLIO_DB
         value: /opt/render/purrtfolio.db
