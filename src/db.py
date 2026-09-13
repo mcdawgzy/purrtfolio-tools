@@ -49,7 +49,8 @@ def _download_with_redirect(url: str, dest: str) -> None:
     # Fallback: urllib with redirect handler
     import urllib.request as _ul
     opener = _ul.build_opener(_ul.HTTPRedirectHandler)
-    opener.retrieve(url, dest)
+    with opener.open(url) as response, open(dest, "wb") as out:
+        shutil.copyfileobj(response, out)
 
 
 def _db_has_new_tables(db_path: Path) -> bool:

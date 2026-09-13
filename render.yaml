@@ -5,24 +5,7 @@ services:
     plan: free
     buildCommand: |
           pip install -r requirements.txt
-          # Download fresh DB from GitHub Release (free tier has no persistent disk)
-          python -c "
-          import subprocess, gzip, shutil, os
-          # Remove stale DB
-          for f in ['/opt/render/purrtfolio.db', '/opt/render/purrtfolio.db.gz']:
-              if os.path.exists(f): os.remove(f)
-          os.makedirs('/opt/render', exist_ok=True)
-          # Download
-          subprocess.run(['curl', '-fSL', '-o', '/opt/render/purrtfolio.db.gz',
-              'https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/purrtfolio.db.gz'],
-              check=True)
-          # Decompress
-          with gzip.open('/opt/render/purrtfolio.db.gz', 'rb') as fin, \
-               open('/opt/render/purrtfolio.db', 'wb') as fout:
-              shutil.copyfileobj(fin, fout)
-          os.remove('/opt/render/purrtfolio.db.gz')
-          print('DB ready:', os.path.getsize('/opt/render/purrtfolio.db'))
-          "
+          bash scripts/download_db.sh
     startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PURRTFOLIO_DB
