@@ -5,8 +5,6 @@ services:
     plan: free
     buildCommand: |
           pip install -r requirements.txt
-          # yfinance + pandas needed for on-demand momentum/correlation fallback
-          pip install yfinance pandas
     startCommand: uvicorn "src.api:app" --host 0.0.0.0 --port $PORT
     envVars:
       - key: PURRTFOLIO_DB
@@ -16,5 +14,6 @@ services:
       - key: CORS_ALLOWED_ORIGINS
         value: "https://mcdawgzy.github.io,https://purrtfolio.onrender.com"
     # Render free tier: 750 hrs/mo, spins down after 15min idle, cold-start ~30s
-    # The main DB (13F/SI/insider) is downloaded during build via scripts/download_db.sh
-    # The slim momentum DB (~0.3MB) is downloaded at startup in api.py
+    # The main DB (13F/SI/insider) is fetched from pre-downloaded /opt/render/purrtfolio.db
+    # The slim momentum DB (price_history + corr_matrices, ~0.3MB) is downloaded
+    # at startup in api.py from the GitHub Release. Updated daily by cron jobs.

@@ -41,14 +41,19 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def _ensure_db():
-    """Ensure the DB is present and fresh on startup.
+    """Ensure the slim momentum DB is ready on startup.
 
-    Downloads the slim momentum DB (price_history + corr_matrices, ~0.3MB
-    compressed) on cold start. The full DB (13F/SI/insider data) is handled
-    by the buildCommand.
+    On Render free tier, each cold-start runs this once. We download the
+    slim momentum DB (price_history + corr_matrices, ~0.3MB compressed)
+    from the GitHub Release. This is fast (<5s) and doesn't block the
+    cold-start window.
+
+    Note: yfinance on-demand fallback is NOT used on Render — data comes
+    from the cron-populated DB which is refreshed daily.
     """
-    _slim_db = Path("/opt/render/momentum_data.db")
-    _slim_gz = Path("/opt/render/momentum_data.db.gz")
+    _slim_db_path = os.environ.get("MOMENTUM_DB", "/opt/render/momentum_data.db")
+    _slim_db = Path(_slim_db_path)
+    _slim_gz = Path(str(_slim_db) + ".gz")
     if not _slim_db.exists() or _slim_db.stat().st_size < 100_000:
         log.info("Downloading slim momentum DB...")
         _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/momentum_data.db.gz"

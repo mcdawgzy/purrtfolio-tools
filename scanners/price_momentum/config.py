@@ -11,7 +11,14 @@ WATCHLIST_PATH = BASE_DIR / "ticker_watchlist.json"
 
 # Canonical DB (same unified store as 13F / SI / insider)
 # Override with MOMENTUM_DB env var (used on Render — slim DB)
-DB_PATH = Path(os.environ.get("MOMENTUM_DB", "C:/Users/cho_i/purrtfolio.db"))
+# On Render, default to /opt/render/momentum_data.db if PURRTFOLIO_DB is /opt/render/purrtfolio.db
+_momentum_db_env = os.environ.get("MOMENTUM_DB")
+if _momentum_db_env:
+    DB_PATH = Path(_momentum_db_env)
+elif os.environ.get("PURRTFOLIO_DB") == "/opt/render/purrtfolio.db":
+    DB_PATH = Path("/opt/render/momentum_data.db")
+else:
+    DB_PATH = Path("C:/Users/cho_i/purrtfolio.db")
 
 # ─── Watchlist ─────────────────────────────────────────────────────
 # Curated from the macro snapshot tickers + the SI watchlist overlap.
