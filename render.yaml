@@ -5,7 +5,9 @@ services:
     plan: free
     buildCommand: |
           pip install -r requirements.txt
-          # Download DB from GitHub Release (free tier has no persistent disk)
+          # Download fresh DB from GitHub Release (free tier has no persistent disk)
+          # Wipe any stale DB from previous builds
+          rm -f /opt/render/purrtfolio.db /opt/render/purrtfolio.db.gz
           mkdir -p /opt/render
           curl -fSL -o /opt/render/purrtfolio.db.gz \
             https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/purrtfolio.db.gz

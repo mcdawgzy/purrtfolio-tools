@@ -28,13 +28,29 @@ _RELEASE_ASSET = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download
 logger = logging.getLogger(__name__)
 
 
+def _db_has_new_tables(db_path: Path) -> bool:
+    """Check whether the existing DB contains the new scanner tables."""
+    try:
+        conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
+        tables = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+        conn.close()
+        names = {t[0] for t in tables}
+        return {"price_history", "price_momentum_signals", "corr_matrices"}.issubset(names)
+    except Exception:
+        return False
+
+
 def _download_db_if_needed(db_path: Path) -> Path:
     """Download DB from GitHub Release if it doesn't exist locally.
 
     The release asset is gzip-compressed (purrtfolio.db.gz) to keep the
     download fast on Render's free tier. We decompress on the fly.
+
+    Also re-downloads if the existing DB lacks the new tables (stale build).
     """
-    if db_path.exists():
+    if db_path.exists() and _db_has_new_tables(db_path):
         return db_path
     logger.info(f"DB not found at {db_path}, downloading from {_RELEASE_ASSET}...")
     db_path.parent.mkdir(parents=True, exist_ok=True)
