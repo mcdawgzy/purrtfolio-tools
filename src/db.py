@@ -23,19 +23,33 @@ from typing import Any, Iterator
 _DEFAULT_DB = Path.home() / "purrtfolio.db"
 
 # GitHub Release asset URL for production DB
-_RELEASE_ASSET = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-12/purrtfolio.db"
+_RELEASE_ASSET = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/purrtfolio.db.gz"
 
 logger = logging.getLogger(__name__)
 
 
 def _download_db_if_needed(db_path: Path) -> Path:
-    """Download DB from GitHub Release if it doesn't exist locally."""
+    """Download DB from GitHub Release if it doesn't exist locally.
+
+    The release asset is gzip-compressed (purrtfolio.db.gz) to keep the
+    download fast on Render's free tier. We decompress on the fly.
+    """
     if db_path.exists():
         return db_path
     logger.info(f"DB not found at {db_path}, downloading from {_RELEASE_ASSET}...")
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    urllib.request.urlretrieve(_RELEASE_ASSET, db_path)
-    logger.info(f"Downloaded DB ({db_path.stat().st_size / 1e6:.1f}MB)")
+
+    # Download the .gz file
+    gz_path = str(db_path) + ".gz"
+    urllib.request.urlretrieve(_RELEASE_ASSET, gz_path)
+    logger.info(f"Downloaded ({os.path.getsize(gz_path) / 1e6:.1f}MB compressed)")
+
+    # Decompress
+    import gzip, shutil
+    with gzip.open(gz_path, "rb") as f_in, open(db_path, "wb") as f_out:
+        shutil.copyfileobj(f_in, f_out)
+    os.remove(gz_path)
+    logger.info(f"Decompressed DB ({db_path.stat().st_size / 1e6:.1f}MB)")
     return db_path
 
 

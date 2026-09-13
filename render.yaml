@@ -7,8 +7,10 @@ services:
     preDeployCommand: |
           # Download DB from GitHub Release (free tier has no persistent disk)
           mkdir -p /opt/render/project/src
-          curl -L -o /opt/render/project/src/purrtfolio.db \
-            https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-12/purrtfolio.db
+          curl -L -o /tmp/purrtfolio.db.gz \
+            https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/purrtfolio.db.gz
+          gunzip -f /tmp/purrtfolio.db.gz
+          mv /tmp/purrtfolio.db /opt/render/project/src/purrtfolio.db
           echo "DB downloaded: $(ls -lh /opt/render/project/src/purrtfolio.db)"
     startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
     envVars:
