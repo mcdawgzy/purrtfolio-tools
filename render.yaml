@@ -3,16 +3,14 @@ services:
     name: 13f-tracker-api
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
-    preDeployCommand: |
+    buildCommand: |
+          pip install -r requirements.txt
           # Download DB from GitHub Release (free tier has no persistent disk)
-          # DB path matches the PURRTFOLIO_DB env var set in Render dashboard
           mkdir -p /opt/render
-          curl -L -o /tmp/purrtfolio.db.gz \
+          curl -fSL -o /opt/render/purrtfolio.db.gz \
             https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/purrtfolio.db.gz
-          gunzip -f /tmp/purrtfolio.db.gz
-          mv /tmp/purrtfolio.db /opt/render/purrtfolio.db
-          echo "DB downloaded: $(ls -lh /opt/render/purrtfolio.db)"
+          gunzip -f /opt/render/purrtfolio.db.gz
+          echo "DB ready: $(ls -lh /opt/render/purrtfolio.db)"
     startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PURRTFOLIO_DB
