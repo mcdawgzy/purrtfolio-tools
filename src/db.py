@@ -54,7 +54,8 @@ def _download_with_redirect(url: str, dest: str) -> None:
 
 
 def _db_has_new_tables(db_path: Path) -> bool:
-    """Check whether the existing DB contains the new scanner tables."""
+    """Check whether the existing DB contains the new scanner tables
+    AND has actual data (not just empty schema from a partial build)."""
     try:
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
         tables = conn.execute(
@@ -62,7 +63,17 @@ def _db_has_new_tables(db_path: Path) -> bool:
         ).fetchall()
         conn.close()
         names = {t[0] for t in tables}
-        return {"price_history", "price_momentum_signals", "corr_matrices"}.issubset(names)
+        required = {"price_history", "price_momentum_signals", "corr_matrices"}
+        if not required.issubset(names):
+            return False
+        # Verify the tables have data
+        for tbl in required:
+            conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
+            count = conn.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
+            conn.close()
+            if count == 0:
+                return False
+        return True
     except Exception:
         return False
 
