@@ -13,7 +13,6 @@ import logging
 import os
 import json
 import sqlite3
-import urllib.request
 from contextlib import contextmanager
 from datetime import date
 from pathlib import Path
@@ -26,6 +25,31 @@ _DEFAULT_DB = Path.home() / "purrtfolio.db"
 _RELEASE_ASSET = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/purrtfolio.db.gz"
 
 logger = logging.getLogger(__name__)
+
+
+def _download_with_redirect(url: str, dest: str) -> None:
+    """Download a URL to dest, following HTTP redirects.
+
+    Tries curl first (available on Render Linux), falls back to
+    urllib with a proper HTTPRedirectHandler.
+    """
+    import subprocess, shutil as _sh
+    curl = _sh.which("curl")
+    if curl:
+        result = subprocess.run(
+            [curl, "-fSL", "-o", dest, url],
+            capture_output=True, timeout=300,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"curl failed (exit {result.returncode}): "
+                f"{result.stderr.decode()[:500]}"
+            )
+        return
+    # Fallback: urllib with redirect handler
+    import urllib.request as _ul
+    opener = _ul.build_opener(_ul.HTTPRedirectHandler)
+    opener.retrieve(url, dest)
 
 
 def _db_has_new_tables(db_path: Path) -> bool:
@@ -55,9 +79,9 @@ def _download_db_if_needed(db_path: Path) -> Path:
     logger.info(f"DB not found at {db_path}, downloading from {_RELEASE_ASSET}...")
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Download the .gz file
+    # Download the .gz file — use curl (follows redirects) with fallback to urllib
     gz_path = str(db_path) + ".gz"
-    urllib.request.urlretrieve(_RELEASE_ASSET, gz_path)
+    _download_with_redirect(_RELEASE_ASSET, gz_path)
     logger.info(f"Downloaded ({os.path.getsize(gz_path) / 1e6:.1f}MB compressed)")
 
     # Decompress
