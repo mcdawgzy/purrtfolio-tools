@@ -370,7 +370,7 @@ def snapshot_detail(date_str: str):
 # Price Momentum Scanner — on-demand via yfinance (DB cached if writable)
 # ---------------------------------------------------------------------------
 import sys as _sys, os as _os
-_scanners = _os.path.join(_os.path.dirname(STATIC_DIR.parent), "scanners")
+_scanners = str(STATIC_DIR.parent / "scanners")
 if _scanners not in _sys.path:
     _sys.path.insert(0, _scanners)
 
