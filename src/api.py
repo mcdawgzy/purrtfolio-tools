@@ -414,50 +414,54 @@ def _mom_watchlist():
 
 
 def _fetch_ohlcv(tickers: list[str], days: int = 25) -> dict:
-    """Fetch recent daily OHLCV for a list of tickers via yfinance."""
+    """Fetch recent daily OHLCV for a list of tickers via yfinance.
+
+    Downloads in batches of 20 to avoid yfinance timeouts with large lists.
+    """
     if not _YF_OK or not tickers:
         return {}
-    try:
-        period = f"{max(days + 5, 30)}d"
-        df = _yf.download(
-            tickers=" ".join(tickers),
-            period=period,
-            interval="1d",
-            group_actions=False,
-            auto_adjust=False,
-            progress=False,
-        )
-        if df.empty:
-            return {}
-        # Return {ticker: {date: [open, high, low, close, volume]}}
-        result: dict[str, dict] = {}
-        cols = df.columns
-        if isinstance(cols, _pd.MultiIndex):
-            # Multi-index: (field, ticker)
-            for ticker in tickers:
-                if ticker not in cols.get_level_values(1):
-                    continue
-                sub = df[ticker].dropna(how="all")
-                if sub.empty:
-                    continue
-                series = {}
+    result: dict[str, dict] = {}
+    batch_size = 20
+    for i in range(0, len(tickers), batch_size):
+        batch = tickers[i:i + batch_size]
+        try:
+            period = f"{max(days + 5, 30)}d"
+            df = _yf.download(
+                tickers=" ".join(batch),
+                period=period,
+                interval="1d",
+                group_actions=False,
+                auto_adjust=False,
+                progress=False,
+            )
+            if df.empty:
+                continue
+            cols = df.columns
+            if isinstance(cols, _pd.MultiIndex):
+                for ticker in batch:
+                    if ticker not in cols.get_level_values(1):
+                        continue
+                    sub = df[ticker].dropna(how="all")
+                    if sub.empty:
+                        continue
+                    series = {}
+                    for field in ("Open", "High", "Low", "Close", "Volume"):
+                        if field in sub.columns:
+                            s = sub[field].dropna()
+                            series[field] = {d.strftime("%Y-%m-%d"): float(v) for d, v in s.items()}
+                    result[ticker] = series
+            else:
+                # Single-column DataFrame (single ticker in batch)
                 for field in ("Open", "High", "Low", "Close", "Volume"):
-                    if field in sub.columns:
-                        s = sub[field].dropna()
-                        series[field] = {d.strftime("%Y-%m-%d"): float(v) for d, v in s.items()}
-                result[ticker] = series
-        else:
-            # Single-column DataFrame (single ticker)
-            for field in ("Open", "High", "Low", "Close", "Volume"):
-                if field in df.columns:
-                    s = df[field].dropna()
-                    result.setdefault("_single", {})[field] = {
-                        d.strftime("%Y-%m-%d"): float(v) for d, v in s.items()
-                    }
-        return result
-    except Exception as e:
-        log.warning(f"yfinance fetch failed: {e}")
-        return {}
+                    if field in df.columns:
+                        s = df[field].dropna()
+                        result.setdefault("_single", {})[field] = {
+                            d.strftime("%Y-%m-%d"): float(v) for d, v in s.items()
+                        }
+        except Exception as e:
+            log.warning(f"yfinance batch fetch failed for {batch}: {e}")
+            continue
+    return result
 
 
 # ── Price Momentum ──────────────────────────────────────────────
