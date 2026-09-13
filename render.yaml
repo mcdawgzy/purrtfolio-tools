@@ -11,7 +11,7 @@ services:
           mkdir -p /opt/render
           curl -fSL -o /opt/render/purrtfolio.db.gz \
             https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/purrtfolio.db.gz
-          gunzip -f /opt/render/purrtfolio.db.gz
+          python -c "import gzip,shutil; shutil.copyfileobj(gzip.open('/opt/render/purrtfolio.db.gz'), open('/opt/render/purrtfolio.db','wb')); import os; os.remove('/opt/render/purrtfolio.db.gz')"
           echo "DB ready: $(ls -lh /opt/render/purrtfolio.db)"
     startCommand: uvicorn src.api:app --host 0.0.0.0 --port $PORT
     envVars:
