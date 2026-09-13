@@ -39,6 +39,27 @@ app.add_middleware(
 )
 
 
+@app.on_event("startup")
+async def _ensure_db():
+    """Ensure the DB is present and fresh on startup.
+
+    On Render free tier, each cold-start runs this once. If the DB is
+    missing or stale (lacks new scanner tables), we download the latest
+    release in the background so the first request doesn't time out.
+    """
+    import threading
+    db_path = db.get_db_path()
+    if not db._db_has_new_tables(db_path):
+        log.info("DB stale/missing — starting background download...")
+        def _bg():
+            try:
+                db._download_db_if_needed(db_path)
+                log.info("Background DB download complete.")
+            except Exception as e:
+                log.error(f"Background DB download failed: {e}")
+        threading.Thread(target=_bg, daemon=True).start()
+
+
 # ---------------------------------------------------------------------------
 # Error envelope
 # ---------------------------------------------------------------------------
