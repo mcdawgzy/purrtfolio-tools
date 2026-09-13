@@ -9,9 +9,21 @@ DATA_DIR  = BASE_DIR / "data"
 EXPORTS_DIR = BASE_DIR / "exports"
 WATCHLIST_PATH = BASE_DIR / "ticker_watchlist.json"
 
+import os
+import json
+from pathlib import Path
+
 # Canonical DB (same unified store as 13F / SI / insider)
-# Override with MOMENTUM_DB env var (used on Render — slim DB)
-# On Render, default to /opt/render/momentum_data.db if PURRTFOLIO_DB is /opt/render/purrtfolio.db
+# On Render, detect via hostname or /opt/render path
+_is_render = (
+    os.environ.get("RENDER") is not None
+    or os.environ.get("RENDER_GIT_BRANCH") is not None
+    or os.path.exists("/opt/render")
+)
+DB_PATH = Path(os.environ.get("MOMENTUM_DB")) if os.environ.get("MOMENTUM_DB") else (
+    Path("/opt/render/momentum_data.db") if _is_render
+    else Path("C:/Users/cho_i/purrtfolio.db")
+)
 _momentum_db_env = os.environ.get("MOMENTUM_DB")
 if _momentum_db_env:
     DB_PATH = Path(_momentum_db_env)
