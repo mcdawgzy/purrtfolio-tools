@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-09-15 07:00 ",
-  "date": "20260915",
+  "timestamp": "2026-09-16 07:00 ",
+  "date": "20260916",
   "rows": [
     {
       "type": "section",
@@ -9,33 +9,33 @@
     {
       "type": "row",
       "name": "S&P 500",
-      "level_move": "7,619.98 (-0.67%)",
-      "driver": "on cooling labor data easing rate cut fears",
-      "pct_change": -0.67,
+      "level_move": "7,585.73 (-0.20%)",
+      "driver": "on cooling labor data overshadowing tech optimism",
+      "pct_change": -0.2,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "Nasdaq 100",
-      "level_move": "29,127.16 (-1.05%)",
-      "driver": "on tech earnings missing estimates across majors",
-      "pct_change": -1.05,
+      "level_move": "28,937.84 (-0.18%)",
+      "driver": "on mixed earnings capping gains after Meta rally",
+      "pct_change": -0.18,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "Dow Jones",
-      "level_move": "52,421.20 (-0.24%)",
-      "driver": "on defensive rotation amid rate uncertainty",
-      "pct_change": -0.24,
+      "level_move": "52,093.11 (-0.48%)",
+      "driver": "on bank stocks dragging after regional lender miss",
+      "pct_change": -0.48,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "Russell 2000",
-      "level_move": "2,892.24 (-0.55%)",
-      "driver": "on small-cap weakness on rising bond yields",
-      "pct_change": -0.55,
+      "level_move": "2,870.29 (-0.76%)",
+      "driver": "on small-cap weakness amid rising rate expectations",
+      "pct_change": -0.76,
       "is_top_mover": false
     },
     {
@@ -45,41 +45,41 @@
     {
       "type": "row",
       "name": "Nikkei 225",
-      "level_move": "63,633.57 (-0.03%)",
-      "driver": "on mixed Japan data capping upside momentum",
-      "pct_change": -0.03,
+      "level_move": "63,611.84 (+1.05%)",
+      "driver": "on tech gains and yen stability boosting export mood",
+      "pct_change": 1.05,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "DAX",
-      "level_move": "25,440.81 (+0.07%)",
-      "driver": "on steady EU inflation data supporting exports",
-      "pct_change": 0.07,
+      "level_move": "25,402.28 (-0.12%)",
+      "driver": "on energy concerns offsetting modest industrial data",
+      "pct_change": -0.12,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "FTSE 100",
-      "level_move": "10,697.57 (+0.72%)",
-      "driver": "on oil price dip boosting energy sector profits",
-      "pct_change": 0.72,
+      "level_move": "10,658.13 (-0.37%)",
+      "driver": "on falling oil prices hurting energy-heavy index",
+      "pct_change": -0.37,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "STOXX 600",
-      "level_move": "635.96 (-0.26%)",
-      "driver": "on tech-led selloff dragging down European shares",
-      "pct_change": -0.26,
+      "level_move": "634.13 (-0.64%)",
+      "driver": "on bank earnings drag amid ECB rate cut signals",
+      "pct_change": -0.64,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "Hang Seng",
-      "level_move": "24,917.60 (+0.81%)",
-      "driver": "on Chinese stimulus signals lifting sentiment",
-      "pct_change": 0.81,
+      "level_move": "24,667.24 (-0.14%)",
+      "driver": "on Alibaba drop weighing on tech-heavy Chinese stocks",
+      "pct_change": -0.14,
       "is_top_mover": false
     },
     {
@@ -89,33 +89,33 @@
     {
       "type": "row",
       "name": "US 2Y Yield",
-      "level_move": "3.94% (+0.06bps)",
-      "driver": "on strong JOLTS data pushing yields higher",
-      "pct_change": 1.6,
-      "is_top_mover": true
+      "level_move": "3.96% (+0.04bps)",
+      "driver": "on sticky CPI fueling near-term rate hike bets",
+      "pct_change": 1.02,
+      "is_top_mover": false
     },
     {
       "type": "row",
       "name": "US 5Y Yield",
-      "level_move": "4.79% (+0.05bps)",
-      "driver": "on sticky core PCE reinforcing hawkish stance",
-      "pct_change": 1.08,
+      "level_move": "4.83% (+0.01bps)",
+      "driver": "on inflation fears lifting intermediate Treasury demand",
+      "pct_change": 0.31,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "US 10Y Yield",
-      "level_move": "4.96% (+0.04bps)",
-      "driver": "on robust payroll report lifting term premium",
-      "pct_change": 0.71,
+      "level_move": "5.00% (+0.01bps)",
+      "driver": "on strong JOLTS data keeping 2025 cut hopes at bay",
+      "pct_change": 0.26,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "US 30Y Yield",
-      "level_move": "5.33% (+0.01bps)",
-      "driver": "on flattening curve after long-end buying",
-      "pct_change": 0.19,
+      "level_move": "5.36% (+0.01bps)",
+      "driver": "on slight upward revision to long-end rate outlook",
+      "pct_change": 0.09,
       "is_top_mover": false
     },
     {
@@ -125,57 +125,57 @@
     {
       "type": "row",
       "name": "DXY",
-      "level_move": "99.48 (+0.33%)",
-      "driver": "on divergent Fed signals lifting greenback broadly",
-      "pct_change": 0.33,
+      "level_move": "99.64 (+0.16%)",
+      "driver": "on divergent Fed signals keeping dollar broadly bid",
+      "pct_change": 0.16,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "USD/JPY",
-      "level_move": "154.3270 (+0.42%)",
-      "driver": "on BOJ inaction keeping yen under pressure",
-      "pct_change": 0.42,
+      "level_move": "155.0400 (+0.48%)",
+      "driver": "on BoJ silence reinforcing yen weakness vs greenback",
+      "pct_change": 0.48,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "EUR/USD",
-      "level_move": "1.1551 (-0.42%)",
-      "driver": "on ECB pause weighing euro against dollar strength",
-      "pct_change": -0.42,
+      "level_move": "1.1546 (-0.05%)",
+      "driver": "on ECB pause comments dulling eurozone rate expectations",
+      "pct_change": -0.05,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "GBP/USD",
-      "level_move": "1.3501 (-0.19%)",
-      "driver": "on post-FOMC consolidation denting sterling appeal",
-      "pct_change": -0.19,
+      "level_move": "1.3478 (-0.17%)",
+      "driver": "on UK inflation dip reducing odds of another BoE hike",
+      "pct_change": -0.17,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "AUD/USD",
-      "level_move": "0.7142 (-0.47%)",
-      "driver": "on commodity selloff hurting Aussie dollar outlook",
-      "pct_change": -0.47,
+      "level_move": "0.7134 (-0.12%)",
+      "driver": "on RBA hold stance capping Aussie dollar upside",
+      "pct_change": -0.12,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "USD/CAD",
-      "level_move": "1.3901 (+0.24%)",
-      "driver": "on oil price drop supporting loonie weakness",
-      "pct_change": 0.24,
+      "level_move": "1.3920 (+0.15%)",
+      "driver": "on oil-driven CAD support limiting greenback gains",
+      "pct_change": 0.15,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "USD/CNY",
-      "level_move": "6.7077 (+0.17%)",
-      "driver": "on PBOC fix supporting yuan stability",
-      "pct_change": 0.17,
+      "level_move": "6.7107 (+0.19%)",
+      "driver": "on PBOC fix above median keeping yuan steady vs dollar",
+      "pct_change": 0.19,
       "is_top_mover": false
     },
     {
@@ -185,42 +185,42 @@
     {
       "type": "row",
       "name": "Gold",
-      "level_move": "4,337.90 (-0.92%)",
-      "driver": "on firmer yields eroding non-yielding metal appeal",
-      "pct_change": -0.92,
+      "level_move": "4,333.00 (+0.21%)",
+      "driver": "on mixed CPI and Middle East tensions supporting safe haven",
+      "pct_change": 0.21,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "Silver",
-      "level_move": "63.72 (-1.30%)",
-      "driver": "on industrial demand fears amid commodity slump",
-      "pct_change": -1.3,
-      "is_top_mover": true
+      "level_move": "64.16 (+1.08%)",
+      "driver": "on industrial demand hopes boosting silver above gold",
+      "pct_change": 1.08,
+      "is_top_mover": false
     },
     {
       "type": "row",
       "name": "WTI Crude",
-      "level_move": "101.91 (-0.49%)",
-      "driver": "on EIA build data easing supply tightness concerns",
-      "pct_change": -0.49,
-      "is_top_mover": false
+      "level_move": "105.55 (+3.63%)",
+      "driver": "on Israel-Hamas truce talks faltering, supply fears return",
+      "pct_change": 3.63,
+      "is_top_mover": true
     },
     {
       "type": "row",
       "name": "Brent Crude",
-      "level_move": "106.22 (-1.28%)",
-      "driver": "on global demand worries hitting Brent premium",
-      "pct_change": -1.28,
-      "is_top_mover": false
+      "level_move": "108.46 (+2.06%)",
+      "driver": "on OPEC+ output curbs speculation lifting global prices",
+      "pct_change": 2.06,
+      "is_top_mover": true
     },
     {
       "type": "row",
       "name": "Copper",
-      "level_move": "6.40 (-2.10%)",
-      "driver": "on China property cracks sending copper tumbling",
-      "pct_change": -2.1,
-      "is_top_mover": true
+      "level_move": "6.46 (+1.05%)",
+      "driver": "on China stimulus rumors offsetting US recession fears",
+      "pct_change": 1.05,
+      "is_top_mover": false
     },
     {
       "type": "section",
@@ -229,33 +229,33 @@
     {
       "type": "row",
       "name": "VIX",
-      "level_move": "17.10 (-0.14)",
-      "driver": "on calm after FOMC decision reducing volatility",
-      "pct_change": -0.81,
-      "is_top_mover": false
+      "level_move": "17.21 (-0.40)",
+      "driver": "on tech-led rebound easing volatility demand",
+      "pct_change": -2.27,
+      "is_top_mover": true
     },
     {
       "type": "row",
       "name": "HYG",
-      "level_move": "$78.53 (-0.47%)",
-      "driver": "on credit spread widening on rate hike jitters",
-      "pct_change": -0.47,
+      "level_move": "$78.19 (-0.65%)",
+      "driver": "on credit spread widening amid rate path uncertainty",
+      "pct_change": -0.65,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "LQD",
-      "level_move": "$104.30 (-0.24%)",
-      "driver": "on bond fund outflows on rising yield curve",
-      "pct_change": -0.24,
+      "level_move": "$104.28 (+0.18%)",
+      "driver": "on long-duration rally as Treasuries stabilize",
+      "pct_change": 0.18,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "5Y5Y Breakeven",
-      "level_move": "105.82% (-0.36bps)",
-      "driver": "on cooling inflation expectations lowering inflation bets",
-      "pct_change": -0.34,
+      "level_move": "105.77% (-0.18bps)",
+      "driver": "on cooling wage growth lowering 5-year inflation bets",
+      "pct_change": -0.17,
       "is_top_mover": false
     },
     {
@@ -265,17 +265,17 @@
     {
       "type": "row",
       "name": "Bitcoin",
-      "level_move": "$79,078 (+2.33%)",
-      "driver": "on ETF approval hopes driving institutional inflows",
-      "pct_change": 2.33,
+      "level_move": "$75,820 (-3.71%)",
+      "driver": "on ETF outflow reports sparking broad crypto sell-off",
+      "pct_change": -3.71,
       "is_top_mover": true
     },
     {
       "type": "row",
       "name": "Ethereum",
-      "level_move": "$2,568 (+2.41%)",
-      "driver": "on ETH Denver upgrades boosting network activity",
-      "pct_change": 2.41,
+      "level_move": "$2,403 (-5.64%)",
+      "driver": "on Solana scandal fallout dragging ETH ecosystem tokens",
+      "pct_change": -5.64,
       "is_top_mover": true
     }
   ]
