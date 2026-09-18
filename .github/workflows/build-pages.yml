@@ -34,6 +34,8 @@ jobs:
           # Only commit/push if there are actual changes
           if ! git diff --cached --quiet; then
             git commit -m "chore: deploy static/ to docs/ [skip ci]"
+            # Pull first to avoid divergence with local commits (e.g. macro snapshot pushes)
+            git pull --rebase origin master
             git push origin HEAD:master
           else
             echo "No changes to docs/"

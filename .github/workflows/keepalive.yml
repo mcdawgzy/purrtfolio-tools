@@ -13,21 +13,27 @@ jobs:
       - name: Check GitHub Pages (legacy)
         run: |
           curl -sf -o /dev/null -w "%{http_code}" https://mcdawgzy.github.io/purrtfolio-tools/ | grep -q 200
-      
+
       - name: Check Render Static Site
         run: |
           curl -sf -o /dev/null -w "%{http_code}" --max-time 10 https://purrtfolio.onrender.com | grep -q 200
-      
+
       - name: Check Render API Health
+        # On Render free tier, the container spins down after 15min idle.
+        # A cold start with a 528MB DB download can take 30-60s+, so we use
+        # a generous 90s timeout. If this fails, we still want the warmup
+        # step to run (hence if: always()), to push the service past cold start.
+        continue-on-error: true
         run: |
-          curl -sf -o /dev/null -w "%{http_code}" --max-time 10 https://one3f-tracker-wpj6.onrender.com/api/health | grep -q 200
-      
+          curl -sf -o /dev/null -w "%{http_code}" --max-time 90 https://one3f-tracker-wpj6.onrender.com/api/health | grep -q 200
+
       - name: Warm Up Render API (cold start prevention)
+        if: always()
         run: |
-          curl -sf -o /dev/null --max-time 60 https://one3f-tracker-wpj6.onrender.com/api/meta
-          curl -sf -o /dev/null --max-time 30 https://one3f-tracker-wpj6.onrender.com/api/funds
-          curl -sf -o /dev/null --max-time 30 https://one3f-tracker-wpj6.onrender.com/api/snapshot/latest
-      
+          curl -sf -o /dev/null --max-time 90 https://one3f-tracker-wpj6.onrender.com/api/meta
+          curl -sf -o /dev/null --max-time 60 https://one3f-tracker-wpj6.onrender.com/api/funds
+          curl -sf -o /dev/null --max-time 60 https://one3f-tracker-wpj6.onrender.com/api/snapshot/latest
+
       - name: Log Status
         if: always()
         run: echo "Keep-alive check completed at $(date)"
