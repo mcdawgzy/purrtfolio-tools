@@ -56,7 +56,7 @@ async def _ensure_db():
     _slim_gz = Path(str(_slim_db) + ".gz")
     if not _slim_db.exists() or _slim_db.stat().st_size < 100_000:
         log.info("Downloading slim momentum DB...")
-        _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/momentum_data.db.gz"
+        _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-18/momentum_data.db.gz"
         try:
             db._download_with_redirect(_url, str(_slim_gz))
             import gzip, shutil
@@ -494,7 +494,7 @@ def _ensure_momentum_db():
     if _slim_db.exists() and _slim_db.stat().st_size > 100_000:
         return  # Already present
     log.info("Momentum DB missing — downloading...")
-    _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-13/momentum_data.db.gz"
+    _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-18/momentum_data.db.gz"
     _gz = Path(str(_slim_db_path) + ".gz")
     try:
         db._download_with_redirect(_url, str(_gz))
