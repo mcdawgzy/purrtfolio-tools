@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: 13f-tracker-api
+    name: 13f-tracker
     env: python
     plan: free
     buildCommand: |
