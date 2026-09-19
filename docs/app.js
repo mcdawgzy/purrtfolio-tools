@@ -2642,18 +2642,17 @@ function renderCorrelationMatrixView() {
       const val = rowData[p];
       const txt = val != null ? val.toFixed(2) : '—';
       let cls = 'num';
-      let style = '';
+      let bg = null;
       if (val != null) {
         if (val >= 0.5) cls += ' green';
         else if (val <= -0.5) cls += ' red';
         // Background tint
         const intensity = Math.min(Math.abs(val), 1) * 0.3;
-        const bg = val >= 0
+        bg = val >= 0
           ? `rgba(46,154,105,${intensity})`
           : `rgba(199,62,76,${intensity})`;
-        style = `background:${bg}`;
       }
-      tr.appendChild(el('td', { class: cls, style: { background: style ? bg : undefined } }, txt));
+      tr.appendChild(el('td', { class: cls, style: { background: bg || undefined } }, txt));
     }
     tbody.appendChild(tr);
   }
