@@ -63,13 +63,28 @@ const state = {
 };
 
 // ---------------- helpers ----------------
-async function api(path, params = {}) {
+// Retry transient failures (network errors from Render free-tier cold starts,
+// and 5xx/429/408) so a single spin-up hiccup doesn't surface as "Failed to fetch".
+async function api(path, params = {}, _attempt = 1) {
   const url = new URL(API + path, location.origin);
   Object.entries(params).forEach(([k, v]) => {
     if (v !== '' && v !== null && v !== undefined) url.searchParams.set(k, v);
   });
-  const r = await fetch(url);
+  let r;
+  try {
+    r = await fetch(url);
+  } catch (e) {
+    // Network-level failure (instance asleep / DNS / connection reset).
+    if (_attempt >= 3) throw e;
+    await new Promise(res => setTimeout(res, 250 * _attempt));
+    return api(path, params, _attempt + 1);
+  }
   if (!r.ok) {
+    // Retry transient server-side errors; fail fast on real 4xx client errors.
+    if (_attempt < 3 && (r.status >= 500 || r.status === 408 || r.status === 429)) {
+      await new Promise(res => setTimeout(res, 250 * _attempt));
+      return api(path, params, _attempt + 1);
+    }
     const body = await r.text();
     throw new Error(`HTTP ${r.status}: ${body.slice(0, 200)}`);
   }
@@ -2417,7 +2432,7 @@ function renderMomentum() {
     const active = state.momActiveTab === t.key ? ' active' : '';
     tabBar.appendChild(el('a', {
       class: 'tab' + active,
-      onclick: () => { state.momActiveTab = t.key; setHash('#/momentum'); },
+      onclick: () => { state.momActiveTab = t.key; setHash(t.key === 'rankings' ? '#/momentum' : '#/momentum/' + t.key); },
     }, t.label));
   }
   wrap.appendChild(tabBar);
