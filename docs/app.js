@@ -452,6 +452,14 @@ window.addEventListener('unhandledrejection', (e) => {
 async function handleRoute() {
   const r = parseHash();
   state.view = r.view;
+  // Drop the momentum cache when leaving the view so re-entry refetches fresh
+  // intraday data (tab switches within momentum stay cached — see loadMomentum).
+  if (r.view !== 'momentum') {
+    state.momRankings = null; state.momVolumeSpikes = null;
+    state.momConsolidation = null; state.momGaps = null;
+    state.momTickerHistory = null;
+    state.momActiveTab = 'rankings';
+  }
   try {
     if (r.view === 'funds')        await loadFunds();
     else if (r.view === 'fund')    await loadFund(r.cik, r.tab);
@@ -655,9 +663,15 @@ async function loadInsider(r) {
 }
 
 async function loadMomentum(r) {
+  state.momActiveTab = r.momTicker ? 'ticker' : (r.momTab || 'rankings');
+  // Tab switch within Price Momentum (no specific ticker): if all four
+  // datasets are already cached, flip the tab view instantly without a server
+  // round-trip — handleRoute() re-renders after we return.
+  if (!r.momTicker && state.momRankings && state.momVolumeSpikes && state.momConsolidation && state.momGaps) {
+    return;
+  }
   state.error = null;
   state.loading = true;
-  state.momActiveTab = r.momTab || (r.momTicker ? 'ticker' : 'rankings');
   try {
     await loadMeta();
     const [meta, rankings, spikes, consolidation, gaps] = await Promise.all([
