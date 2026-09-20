@@ -118,6 +118,15 @@ def main():
         "Enrich tickers with GICS sector data"
     )
 
+    # Step 5: Enrich factors (for the Factor Exposure / Style-Drift dashboard).
+    #    Classifies each holding by Size / Value-Growth / Momentum via yfinance +
+    #    the momentum scanner's already-computed ROC. Adds the `ticker_factors`
+    #    table to purrtfolio.db. Re-run with --refresh to re-classify everything.
+    run_cmd(
+        f'python enrich_factors.py {db_flag} --limit 300 --refresh',
+        "Enrich tickers with factor classification (size / value-growth / momentum)"
+    )
+
     print(f"\n{'='*60}")
     print("  Pipeline completed successfully!")
     print(f"  Completed: {datetime.now().isoformat()}")
