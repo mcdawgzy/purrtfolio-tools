@@ -66,11 +66,36 @@ const state = {
   crowdedTrades: null,       // {quarter, rows}
   factorActiveTab: 'drift',  // 'drift' | 'crowded' | 'ticker'
   factorTicker: null,
+  // Put/Call Ratio
+  pcrMeta: null,
+  pcrLatest: null,        // { latest_date, rows: [...] }
+  pcrSignals: null,
+  pcrHistory: null,       // { series, rows: [...] }
+  pcrActiveTab: 'latest',  // 'latest' | 'signals' | 'history'
+  pcrHistorySeries: 'TOTAL',
+  pcrHistoryDays: 60,
 };
 
 // ---------------- helpers ----------------
+// Lazy-load Chart.js — only fetched when a chart view is first rendered,
+// so non-chart pages don't pay the 205KB download cost.
+let _chartJsPromise = null;
+function ensureChartJS() {
+  if (typeof Chart !== 'undefined') return Promise.resolve();
+  if (_chartJsPromise) return _chartJsPromise;
+  _chartJsPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = './chart.min.js';
+    script.onload = () => { resolve(); };
+    script.onerror = () => { reject(new Error('Failed to load chart.min.js')); };
+    document.head.appendChild(script);
+  });
+  return _chartJsPromise;
+}
+
 // Retry transient failures (network errors from Render free-tier cold starts,
-// and 5xx/429/408) so a single spin-up hiccup doesn't surface as "Failed to fetch".
+// and 5xx/429/408) with exponential backoff so a single spin-up hiccup doesn't
+// surface as "Failed to fetch". 5 attempts with 2s base covers ~30s cold starts.
 async function api(path, params = {}, _attempt = 1) {
   const url = new URL(API + path, location.origin);
   Object.entries(params).forEach(([k, v]) => {
@@ -81,14 +106,14 @@ async function api(path, params = {}, _attempt = 1) {
     r = await fetch(url);
   } catch (e) {
     // Network-level failure (instance asleep / DNS / connection reset).
-    if (_attempt >= 3) throw e;
-    await new Promise(res => setTimeout(res, 250 * _attempt));
+    if (_attempt >= 5) throw e;
+    await new Promise(res => setTimeout(res, 2000 * Math.pow(2, _attempt - 1)));
     return api(path, params, _attempt + 1);
   }
   if (!r.ok) {
     // Retry transient server-side errors; fail fast on real 4xx client errors.
-    if (_attempt < 3 && (r.status >= 500 || r.status === 408 || r.status === 429)) {
-      await new Promise(res => setTimeout(res, 250 * _attempt));
+    if (_attempt < 5 && (r.status >= 500 || r.status === 408 || r.status === 429)) {
+      await new Promise(res => setTimeout(res, 2000 * Math.pow(2, _attempt - 1)));
       return api(path, params, _attempt + 1);
     }
     const body = await r.text();
@@ -214,6 +239,12 @@ function parseHash() {
     if (rest === 'crowded') return { view: 'factors', factorTab: 'crowded' };
     return { view: 'factors', factorTab: 'ticker', factorTicker: rest.toUpperCase() };
   }
+  if (h === 'put-call-ratio' || h === 'put-call-ratio/') return { view: 'putcallratio' };
+  if (h.startsWith('put-call-ratio/')) {
+    const rest = h.slice('put-call-ratio/'.length);
+    if (rest === 'signals') return { view: 'putcallratio', pcrTab: 'signals' };
+    return { view: 'putcallratio', pcrTab: 'history', pcrTicker: rest.toUpperCase() };
+  }
   if (h.startsWith('fund/')) {
     const rest = h.slice(5);
     const [cik, qs] = rest.split('?');
@@ -275,7 +306,8 @@ function generateColorShades(baseColor, count) {
   return CHART_COLOR_ARRAY.slice(0, count);
 }
 
-function createPieChart(canvasId, data, options = {}) {
+async function createPieChart(canvasId, data, options = {}) {
+  await ensureChartJS();
   const ctx = document.getElementById(canvasId);
   if (!ctx) return null;
   if (charts[canvasId]) {
@@ -326,7 +358,8 @@ function createPieChart(canvasId, data, options = {}) {
   return charts[canvasId];
 }
 
-function createBarChart(canvasId, data, options = {}) {
+async function createBarChart(canvasId, data, options = {}) {
+  await ensureChartJS();
   const ctx = document.getElementById(canvasId);
   if (!ctx) return null;
   if (charts[canvasId]) {
@@ -489,7 +522,8 @@ async function handleRoute() {
     else if (r.view === 'insider') await loadInsider(r);
     else if (r.view === 'momentum') await loadMomentum(r);
     else if (r.view === 'correlation') await loadCorrelation(r);
-    else if (r.view === 'factors') await loadFactors(r);
+    else if (r.view === 'factors')     await loadFactors(r);
+    else if (r.view === 'putcallratio') await loadPutCallRatio(r);
   } catch (e) {
     state.error = 'Navigation error: ' + e.message;
   }
@@ -629,20 +663,20 @@ async function loadShortInterest(r) {
   state.siActiveTab = r.siTab || (r.siTicker ? 'history' : 'latest');
   try {
     await loadMeta();
-    const [meta, signals] = await Promise.all([
+    // Batch all three calls in parallel instead of sequential
+    const [meta, signals, latestResp, tickerResp] = await Promise.all([
       api('/api/si/meta'),
       api('/api/si/signals'),
+      api('/api/si/latest', { min_short: state.siLatest.min_short, limit: state.siLatest.limit }),
+      r.siTicker ? api('/api/si/tickers/' + r.siTicker) : Promise.resolve(null),
     ]);
     state.siMeta = meta;
     state.siSignals = signals;
-    if (state.siActiveTab === 'latest' || state.siActiveTab === 'signals') {
-      const latestResp = await api('/api/si/latest', { min_short: state.siLatest.min_short, limit: state.siLatest.limit });
-      state.siLatest.rows = latestResp.rows || latestResp;
-      state.siLatest.total = state.siLatest.rows.length;
-    }
+    state.siLatest.rows = latestResp.rows || latestResp;
+    state.siLatest.total = state.siLatest.rows.length;
     if (r.siTicker) {
       state.siActiveTab = 'history';
-      state.siTicker = await api('/api/si/tickers/' + r.siTicker);
+      state.siTicker = tickerResp;
     }
   } catch (e) {
       state.error = e.message;
@@ -657,17 +691,24 @@ async function loadInsider(r) {
   state.insiderActiveTab = r.insiderTab || 'latest';
   try {
     await loadMeta();
-    const meta = await api('/api/insider/meta');
-    state.insiderMeta = meta;
+    // Batch meta + tab-specific data call in parallel
+    const metaPromise = api('/api/insider/meta');
+    let dataPromise = Promise.resolve(null);
     if (state.insiderActiveTab === 'latest') {
-      const resp = await api('/api/insider/latest', {
+      dataPromise = api('/api/insider/latest', {
         min_value: state.insiderLatest.min_value || undefined,
         limit: state.insiderLatest.limit,
       });
-      state.insiderLatest.rows = resp.rows || resp;
+    } else if (state.insiderActiveTab === 'signals') {
+      dataPromise = api('/api/insider/signals', { limit: 100 });
+    }
+    const [meta, data] = await Promise.all([metaPromise, dataPromise]);
+    state.insiderMeta = meta;
+    if (state.insiderActiveTab === 'latest') {
+      state.insiderLatest.rows = data.rows || data;
       state.insiderLatest.total = state.insiderLatest.rows.length;
     } else if (state.insiderActiveTab === 'signals') {
-      state.insiderSignals = await api('/api/insider/signals', { limit: 100 });
+      state.insiderSignals = data;
     }
     if (r.insiderTicker) {
       state.insiderActiveTab = 'ticker';
@@ -720,12 +761,18 @@ async function loadCorrelation(r) {
   state.corrActiveTab = r.corrPivot ? 'pivot' : 'matrix';
   try {
     await loadMeta();
-    const meta = await api('/api/correlation/meta');
+    // Batch meta + data call in parallel
+    const [meta, data] = await Promise.all([
+      api('/api/correlation/meta'),
+      r.corrPivot
+        ? api('/api/correlation/pivot/' + r.corrPivot)
+        : api('/api/correlation/matrix'),
+    ]);
     state.corrMeta = meta;
     if (r.corrPivot) {
-      state.corrPivotView = await api('/api/correlation/pivot/' + r.corrPivot);
+      state.corrPivotView = data;
     } else {
-      state.corrMatrix = await api('/api/correlation/matrix');
+      state.corrMatrix = data;
     }
   } catch (e) {
     state.error = e.message;
@@ -748,14 +795,16 @@ async function loadFactors(r) {
   try {
     await loadMeta();
     if (state.factorActiveTab === 'ticker') {
-      state.factorMeta = await api('/api/factors/meta');
-      try {
-        state.factorTicker = await api('/api/factors/tickers/' + r.factorTicker);
-      } catch (e) {
-        // 404 = ticker not classified → show "no factor data", not an error banner
-        if (!(e.message && e.message.includes('404'))) throw e;
-        state.factorTicker = null;
-      }
+      // Batch meta + ticker detail in parallel (404 on ticker is not an error)
+      const [meta, tickerData] = await Promise.all([
+        api('/api/factors/meta'),
+        api('/api/factors/tickers/' + r.factorTicker).catch(e => {
+          if (e.message && e.message.includes('404')) return null;
+          throw e;
+        }),
+      ]);
+      state.factorMeta = meta;
+      state.factorTicker = tickerData;
     } else {
       state.factorMeta = await api('/api/factors/meta');
     }
@@ -808,6 +857,29 @@ async function reloadFundTab(cik, tab) {
   render();
 }
 
+// ---------------- Put/Call Ratio loader ----------------
+async function loadPutCallRatio(r) {
+  state.pcrActiveTab = r.pcrTab || 'latest';
+  state.error = null;
+  state.loading = true;
+  try {
+    await loadMeta();
+    // Batch all three calls in parallel
+    const [meta, latest, signals] = await Promise.all([
+      api('/api/pcr/meta'),
+      api('/api/pcr/latest'),
+      api('/api/pcr/signals'),
+    ]);
+    state.pcrMeta = meta;
+    state.pcrLatest = latest;
+    state.pcrSignals = signals;
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+  }
+}
+
 // ---------------- render ----------------
 function render() {
   const root = document.getElementById('app');
@@ -832,6 +904,7 @@ function render() {
   else if (state.view === 'insider')   root.appendChild(renderInsider());
   else if (state.view === 'momentum')   root.appendChild(renderMomentum());
   else if (state.view === 'correlation') root.appendChild(renderCorrelation());
+  if (state.view === 'putcallratio') root.appendChild(renderPutCallRatio());
   if (state.view === 'factors')        root.appendChild(renderFactors());
 }
 
@@ -853,6 +926,8 @@ function renderMasthead() {
     title = 'Price Momentum';
   } else if (state.view === 'correlation') {
     title = 'Correlation Matrix';
+  } else if (state.view === 'putcallratio') {
+    title = 'Put/Call Ratio';
   } else if (state.view === 'factors') {
     title = 'Factor Exposure';
   } else if (state.view === 'fund') {
@@ -899,6 +974,7 @@ const NAV_GROUPS = [
       { view: 'momentum',      label: 'Price Momentum' },
       { view: 'correlation',   label: 'Correlation Matrix' },
       { view: 'factors',       label: 'Factor Exposure' },
+      { view: 'putcallratio',  label: 'Put/Call Ratio' },
     ],
   },
 ];
@@ -915,6 +991,7 @@ const NAV_ROUTES = {
   momentum:    '#/momentum',
   correlation: '#/correlation',
   factors:     '#/factors',
+  putcallratio: '#/put-call-ratio',
 };
 
 function navHref(item) {
@@ -1339,7 +1416,8 @@ function renderChangesTab(cik) {
 }
 
 // ---- Pie Chart helper ----
-  function renderPieChart(container, data, labels, options = {}) {
+  async function renderPieChart(container, data, labels, options = {}) {
+    await ensureChartJS();
     const canvas = el('canvas', { width: 300, height: 300 });
     container.appendChild(canvas);
     const ctx = canvas.getContext('2d');
@@ -3108,6 +3186,289 @@ function renderFactorTicker() {
     htable.appendChild(htbody);
     wrap.appendChild(htable);
   }
+  return wrap;
+}
+
+// ── Put/Call Ratio series labels ──
+const PCR_SERIES_LABELS = {
+  'TOTAL':   'Total Market',
+  'INDEX':   'Index Options',
+  'EQUITY':  'Equity Options',
+  'ETP':     'ETP Options',
+  'VIX':     'VIX Options',
+  'SPX_SPXW':'SPX+SPXW',
+  'OEX':     'OEX',
+  'MRUT':    'MRUT',
+};
+
+function pcrSignalClass(signal) {
+  if (signal === 'EXTREME_BULLISH' || signal === 'BULLISH') return 'green';
+  if (signal === 'EXTREME_BEARISH' || signal === 'BEARISH') return 'red';
+  return 'dim';
+}
+
+function pcrSignalLabel(signal) {
+  if (!signal) return '—';
+  const map = {
+    'EXTREME_BULLISH': 'Extreme Bullish',
+    'BULLISH':         'Bullish',
+    'BEARISH':         'Bearish',
+    'EXTREME_BEARISH': 'Extreme Bearish',
+    'NEUTRAL':         'Neutral',
+  };
+  return map[signal] || signal.replace(/_/g, ' ');
+}
+
+function renderPutCallRatio() {
+  const wrap = el('div', { class: 'section' });
+
+  if (!state.pcrLatest && !state.pcrMeta) {
+    wrap.appendChild(el('div', { class: 'empty' }, 'Loading put/call ratio data…'));
+    return wrap;
+  }
+
+  const latest = state.pcrLatest || { latest_date: '', rows: [] };
+  const m = state.pcrMeta || {};
+
+  // Stats row
+  const dateFmt = latest.latest_date
+    ? `${String(latest.latest_date).slice(5, 7)}/${String(latest.latest_date).slice(8, 10)}/${String(latest.latest_date).slice(0, 4)}`
+    : '—';
+  const stats = el('div', { class: 'stats' });
+  stats.appendChild(stat('As of', dateFmt));
+  stats.appendChild(stat('Series', m.series_count || latest.rows?.length || 0, 'brass'));
+  stats.appendChild(stat('Signals', m.extreme_count || 0));
+  if (m.last_update) {
+    const lu = `${String(m.last_update).slice(5, 7)}/${String(m.last_update).slice(8, 10)}/${String(m.last_update).slice(0, 4)}`;
+    stats.appendChild(stat('Last Update', lu, 'brass'));
+  }
+  wrap.appendChild(stats);
+
+  // Tabs
+  const tabs = el('div', { class: 'tabs' });
+  const tabLabels = [
+    { key: 'latest',   label: 'Latest' },
+    { key: 'signals',  label: 'Signals' },
+    { key: 'history',  label: 'History' },
+  ];
+  for (const t of tabLabels) {
+    tabs.appendChild(el('div', {
+      class: 'tab' + (state.pcrActiveTab === t.key ? ' active' : ''),
+      onclick: () => { state.pcrActiveTab = t.key; render(); },
+    }, t.label));
+  }
+  wrap.appendChild(tabs);
+
+  // Tab bodies
+  if (state.pcrActiveTab === 'latest') {
+    wrap.appendChild(renderPcrLatest());
+  } else if (state.pcrActiveTab === 'signals') {
+    wrap.appendChild(renderPcrSignals());
+  } else if (state.pcrActiveTab === 'history') {
+    wrap.appendChild(renderPcrHistory());
+  }
+
+  return wrap;
+}
+
+function renderPcrLatest() {
+  const rows = state.pcrLatest?.rows || [];
+  const wrap = el('div', { class: 'table-wrap' });
+
+  if (!rows.length) {
+    wrap.appendChild(el('div', { class: 'empty' }, 'No put/call ratio data available yet.'));
+    return wrap;
+  }
+
+  const table = el('table');
+  const thead = el('thead');
+  const trh = el('tr');
+  ['Series', 'P/C Ratio', '5-Day MA', '20-Day MA', 'Vol', 'Open Interest', 'Signal'].forEach((h, i) => {
+    const cls = (i >= 1 && i <= 3) ? 'num' : (i === 5 || i === 6) ? 'num' : '';
+    trh.appendChild(el('th', { class: cls }, h));
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = el('tbody');
+  for (const row of rows) {
+    const tr = el('tr');
+    tr.appendChild(el('td', {}, PCR_SERIES_LABELS[row.series] || row.series));
+
+    const ratioVal = row.ratio != null ? row.ratio.toFixed(3) : '—';
+    const ratioCls = row.ratio != null
+      ? (row.ratio > 1.0 ? 'num red' : row.ratio < 0.7 ? 'num green' : 'num')
+      : 'num';
+    tr.appendChild(el('td', { class: ratioCls }, ratioVal));
+
+    tr.appendChild(el('td', { class: 'num mut' }, row.ma5 != null ? row.ma5.toFixed(3) : '—'));
+    tr.appendChild(el('td', { class: 'num mut' }, row.ma20 != null ? row.ma20.toFixed(3) : '—'));
+
+    const vol = row.total_volume != null ? fmtNum(row.total_volume) : '—';
+    tr.appendChild(el('td', { class: 'num mut' }, vol));
+
+    const oi = row.total_oi != null ? fmtNum(row.total_oi) : '—';
+    tr.appendChild(el('td', { class: 'num mut' }, oi));
+
+    const signal = row.signal || 'NEUTRAL';
+    tr.appendChild(el('td', { class: 'num ' + pcrSignalClass(signal) }, pcrSignalLabel(signal)));
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+
+  // Interpretation legend
+  wrap.appendChild(el('div', { class: 'hint', style: { marginTop: '12px', fontSize: '12px' } },
+    'Interpretation: High ratio (>1.2) = bearish sentiment / contrarian buy · Low ratio (<0.6) = bullish complacency / contrarian sell · Equity PCR < 0.6 often coincides with market tops.'));
+
+  return wrap;
+}
+
+function renderPcrSignals() {
+  const s = state.pcrSignals || { latest_date: '', signals: [] };
+  const wrap = el('div', { class: 'table-wrap' });
+
+  if (!s.signals || !s.signals.length) {
+    wrap.appendChild(el('div', { class: 'empty' }, 'No extreme readings in the recent window.'));
+    return wrap;
+  }
+
+  const table = el('table');
+  const thead = el('thead');
+  const trh = el('tr');
+  ['Date', 'Series', 'Ratio', '5-Day MA', 'Z-Score', 'Signal'].forEach((h, i) => {
+    const cls = i >= 2 ? 'num' : '';
+    trh.appendChild(el('th', { class: cls }, h));
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = el('tbody');
+  for (const row of s.signals) {
+    const tr = el('tr');
+    tr.appendChild(el('td', { class: 'mono' }, fmtDateISO(row.date)));
+    tr.appendChild(el('td', {}, PCR_SERIES_LABELS[row.series] || row.series));
+
+    const ratioCls = row.ratio > 1.0 ? 'num red' : row.ratio < 0.7 ? 'num green' : 'num';
+    tr.appendChild(el('td', { class: ratioCls }, row.ratio.toFixed(3)));
+
+    tr.appendChild(el('td', { class: 'num mut' }, row.ma5 != null ? row.ma5.toFixed(3) : '—'));
+
+    const z = row.z_score != null ? (row.z_score > 0 ? '+' : '') + row.z_score.toFixed(2) : '—';
+    const zCls = row.z_score > 2 ? 'num red' : row.z_score < -2 ? 'num green' : 'num mut';
+    tr.appendChild(el('td', { class: zCls }, z));
+
+    tr.appendChild(el('td', { class: 'num ' + pcrSignalClass(row.signal) }, pcrSignalLabel(row.signal)));
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+
+  return wrap;
+}
+
+function renderPcrHistory() {
+  const h = state.pcrHistory;
+  const wrap = el('div', { class: 'section' });
+
+  if (!h || !h.rows || !h.rows.length) {
+    wrap.appendChild(el('div', { class: 'empty' }, 'No historical data available.'));
+    return wrap;
+  }
+
+  // Series selector
+  const selWrap = el('div', { class: 'filters' });
+  selWrap.appendChild(el('div', { class: 'filter-group' },
+    el('span', {}, 'Series:'),
+    el('select', {
+      onchange: (e) => {
+        state.pcrHistorySeries = e.target.value;
+        render();
+      },
+    }, ...['TOTAL', 'INDEX', 'EQUITY', 'ETP', 'VIX'].map(s =>
+      el('option', { value: s, selected: s === (state.pcrHistorySeries || 'TOTAL') }, PCR_SERIES_LABELS[s] || s)
+    ))));
+  wrap.appendChild(selWrap);
+
+  // Chart container
+  const chartWrap = el('div', { style: { flex: '1 1 600px', height: '400px', width: '100%' } });
+  chartWrap.appendChild(el('canvas', { id: 'pcr-history-chart' }));
+  wrap.appendChild(chartWrap);
+
+  // Render chart after DOM ready
+  setTimeout(() => {
+    const rows = h.rows;
+    const labels = rows.map(r => r.date ? `${String(r.date).slice(5, 7)}/${String(r.date).slice(8, 10)}` : '');
+    const ratios = rows.map(r => r.ratio);
+    const ma5 = rows.map(r => r.ma5);
+
+    const ctx = document.getElementById('pcr-history-chart');
+    if (charts['pcr-history-chart']) charts['pcr-history-chart'].destroy();
+    charts['pcr-history-chart'] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Put/Call Ratio',
+            data: ratios,
+            borderColor: '#3B82F6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: true,
+          },
+          {
+            label: '5-Day MA',
+            data: ma5,
+            borderColor: '#C9A24E',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            labels: { color: '#E8EBEF', font: { size: 10 } },
+          },
+          tooltip: {
+            backgroundColor: '#11161D',
+            titleColor: '#E8EBEF',
+            bodyColor: '#7E8A9A',
+            borderColor: '#1E2A38',
+            borderWidth: 1,
+            padding: 12,
+            callbacks: {
+              label: (ctx) => {
+                const idx = ctx.dataIndex;
+                const v = ctx.raw;
+                if (v === null || v === undefined) return `${ctx.dataset.label}: —`;
+                const band = v >= 1.0 ? '#C7564A' : v <= 0.6 ? '#2E9E6B' : '#C9A24E';
+                const label = ctx.dataset.label || '';
+                const cls = label.includes('MA') ? '' : (v > 1.0 ? 'Bearish' : v < 0.6 ? 'Bullish' : 'Neutral');
+                return `${label}: ${v.toFixed(3)} ${cls}`;
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            ticks: { color: '#7E8A9A', font: { size: 9 } },
+            grid: { color: '#1E2A38' },
+          },
+          y: {
+            ticks: { color: '#7E8A9A', font: { size: 9 } },
+            grid: { color: '#1E2A38' },
+          },
+        },
+      },
+    });
+  }, 0);
+
   return wrap;
 }
 

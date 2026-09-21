@@ -10,6 +10,7 @@ import logging
 import os
 from pathlib import Path
 
+import time as _time
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
@@ -19,6 +20,11 @@ from . import db
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("13f-web")
+
+# Server-side cache for /api/meta (changes only on quarterly ingestion)
+_meta_cache: dict | None = None
+_meta_cache_time: float = 0.0
+_META_CACHE_TTL = 300  # 5 minutes
 
 ROOT = Path(__file__).parent.parent
 STATIC_DIR = ROOT / "static"
@@ -101,7 +107,16 @@ def health():
 
 @app.get("/api/meta")
 def meta():
-    return db.get_meta()
+    """Site metadata (counts, quarters, last update). Cached for 5 min since
+    this only changes on quarterly ingestion runs."""
+    global _meta_cache, _meta_cache_time
+    now = _time.time()
+    if _meta_cache is not None and (now - _meta_cache_time) < _META_CACHE_TTL:
+        return _meta_cache
+    result = db.get_meta()
+    _meta_cache = result
+    _meta_cache_time = now
+    return result
 
 
 @app.get("/api/funds")
@@ -333,6 +348,43 @@ def econ_events(
 def econ_meta():
     """Metadata for the economic calendar tab: last refresh, categories, count."""
     return db.get_econ_meta()
+
+
+# ---------------------------------------------------------------------------
+# Put/Call Ratio (CBOE)
+# ---------------------------------------------------------------------------
+@app.get("/api/pcr/meta")
+def pcr_meta():
+    """Metadata: latest date, covered series, last ingestion."""
+    return db.get_pcr_meta()
+
+
+@app.get("/api/pcr/latest")
+def pcr_latest():
+    """Latest daily put/call ratios for all series (TOTAL, INDEX, EQUITY, ETP, VIX, etc.)."""
+    result = db.get_pcr_latest()
+    if not result["rows"]:
+        return {
+            "latest_date": None,
+            "rows": [],
+            "note": "No data yet — scanner ingests daily at 6 AM ET",
+        }
+    return result
+
+
+@app.get("/api/pcr/history/{series}")
+def pcr_history(
+    series: str,
+    days: int = Query(60, ge=5, le=365, description="Number of days to return"),
+):
+    """Historical put/call ratio for a single series (oldest → newest)."""
+    return db.get_pcr_history(series, days=days)
+
+
+@app.get("/api/pcr/signals")
+def pcr_signals():
+    """Extreme readings: where total/index/equity PCR is elevated or suppressed."""
+    return db.get_pcr_signals()
 
 
 # ---------------------------------------------------------------------------

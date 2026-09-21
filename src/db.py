@@ -79,6 +79,8 @@ def _db_has_new_tables(db_path: Path) -> bool:
         return False
 
 
+_db_validated_path: str | None = None
+
 def _download_db_if_needed(db_path: Path) -> Path:
     """Download DB from GitHub Release if it doesn't exist locally.
 
@@ -86,8 +88,15 @@ def _download_db_if_needed(db_path: Path) -> Path:
     download fast on Render's free tier. We decompress on the fly.
 
     Also re-downloads if the existing DB lacks the new tables (stale build).
+
+    Caches the validation result per-process so we don't re-open 4 SQLite
+    connections on every request just to verify the DB hasn't changed.
     """
+    global _db_validated_path
+    if _db_validated_path == str(db_path) and db_path.exists() and db_path.stat().st_size > 10_000_000:
+        return db_path
     if db_path.exists() and _db_has_new_tables(db_path):
+        _db_validated_path = str(db_path)
         return db_path
     logger.info(f"DB stale or missing at {db_path}, downloading fresh copy...")
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1070,6 +1079,110 @@ def get_si_signals() -> dict:
             "covering": covering,
             "new_shorts": new_shorts,
         }
+
+
+# ---------------------------------------------------------------------------
+# Put/Call Ratio (CBOE)
+# ---------------------------------------------------------------------------
+_PCRIES = ("put_call_ratio", "put_call_latest")
+
+
+def _pcr_table_exists(c) -> bool:
+    """Check whether the put_call_ratio table is present in this DB."""
+    return c.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='put_call_ratio'"
+    ).fetchone() is not None
+
+
+def get_pcr_meta() -> dict:
+    """Top-level PCR info: latest date, series coverage, ingestion log."""
+    with db_conn() as c:
+        if not _pcr_table_exists(c):
+            return {"latest_date": None, "periods": [], "series": [], "last_update": None}
+
+        latest = c.execute("SELECT MAX(date) FROM put_call_ratio").fetchone()[0]
+        periods = _row_dicts(c.execute(
+            "SELECT DISTINCT date FROM put_call_ratio ORDER BY date DESC LIMIT 30"
+        ))
+        series = [r[0] for r in c.execute(
+            "SELECT DISTINCT series FROM put_call_ratio ORDER BY series"
+        ).fetchall()]
+        last_log = c.execute(
+            "SELECT date, status, rows_inserted, started_at FROM ingestion_log_pcr "
+            "ORDER BY started_at DESC LIMIT 1"
+        ).fetchone()
+        return {
+            "latest_date": latest,
+            "periods": [p["date"] for p in periods],
+            "series": series,
+            "last_update": dict(last_log) if last_log else None,
+        }
+
+
+def get_pcr_latest() -> dict:
+    """Latest daily put/call ratio data for all series (from materialized table)."""
+    with db_conn() as c:
+        if not _pcr_table_exists(c):
+            return {"latest_date": None, "rows": []}
+        rows = _row_dicts(c.execute("""
+            SELECT series, date, ratio,
+                   call_volume, put_volume, total_volume,
+                   call_oi, put_oi, total_oi,
+                   ma5, ma20, ma50, z_score, signal
+            FROM put_call_latest
+            ORDER BY series
+        """))
+        latest_date = c.execute("SELECT MAX(date) FROM put_call_ratio").fetchone()[0]
+        return {"latest_date": latest_date, "rows": rows}
+
+
+def get_pcr_history(series: str, days: int = 60) -> dict:
+    """Historical put/call ratio for a single series.
+
+    MA5 is computed client-side from the raw daily ratios so the chart
+    can render a smoothed line without an extra materialized column.
+    """
+    with db_conn() as c:
+        if not _pcr_table_exists(c):
+            return {"series": series, "rows": []}
+        rows = _row_dicts(c.execute("""
+            SELECT date, ratio, call_volume, put_volume, total_volume,
+                   call_oi, put_oi, total_oi
+            FROM put_call_ratio
+            WHERE series = ?
+            ORDER BY date DESC
+            LIMIT ?
+        """, (series.upper(), days)))
+        rows.reverse()  # oldest first for charting
+
+        # Compute 5-day simple moving average on the fly
+        for i, r in enumerate(rows):
+            window = [rows[j]["ratio"] for j in range(max(0, i - 4), i + 1) if rows[j]["ratio"] is not None]
+            r["ma5"] = round(sum(window) / len(window), 3) if window else None
+
+        return {"series": series.upper(), "rows": rows}
+
+
+def get_pcr_signals() -> dict:
+    """Current extreme readings for all series."""
+    with db_conn() as c:
+        if not _pcr_table_exists(c):
+            return {"latest_date": None, "signals": []}
+        latest = c.execute("SELECT MAX(date) FROM put_call_ratio").fetchone()[0]
+        signals = _row_dicts(c.execute("""
+            SELECT series, date, ratio, ma5, ma20, ma50, z_score, signal
+            FROM put_call_latest
+            WHERE signal IN ('EXTREME_HIGH', 'EXTREME_LOW', 'HIGH', 'LOW')
+            ORDER BY
+                CASE signal
+                    WHEN 'EXTREME_HIGH' THEN 0
+                    WHEN 'EXTREME_LOW'   THEN 1
+                    WHEN 'HIGH'          THEN 2
+                    WHEN 'LOW'           THEN 3
+                END,
+                z_score DESC
+        """))
+        return {"latest_date": latest, "signals": signals}
 
 
 # ---------------------------------------------------------------------------
