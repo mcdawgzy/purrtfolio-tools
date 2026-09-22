@@ -617,3 +617,31 @@ tbody td.mut { color: var(--text-mut); font-size: 11px; }
   font-size: 12px;
   flex: 1;
 }
+
+/* ------- Page description (context callout) ------- */
+.page-description {
+  margin-bottom: 28px;
+  padding: 18px 20px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brass);
+  border-radius: 0 4px 4px 0;
+}
+.page-description-para {
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+.page-description-para.issues {
+  color: var(--text-dim);
+}
+.page-description-para.issues::before {
+  content: '⚠ ';
+  color: var(--amber);
+  font-weight: 700;
+}
+@media (max-width: 768px) {
+  .page-description { padding: 14px 16px; }
+  .page-description-para { font-size: 12px; }
+}

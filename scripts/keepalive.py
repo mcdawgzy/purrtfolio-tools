@@ -58,6 +58,9 @@ def main():
     # Check key API endpoints (warm up cold starts)
     check_endpoint(f'{RENDER_API}/api/meta', 'Render API /meta', timeout=60)
     check_endpoint(f'{RENDER_API}/api/funds', 'Render API /funds', timeout=30)
+    check_endpoint(f'{RENDER_API}/api/si/latest', 'Render API /si/latest', timeout=30)
+    check_endpoint(f'{RENDER_API}/api/snapshot/latest', 'Render API /snapshot/latest', timeout=30)
+    check_endpoint(f'{RENDER_API}/api/momentum/meta', 'Render API /momentum/meta', timeout=60)
     
     logger.info('=== Keep-Alive Check Complete ===')
     return 0
