@@ -74,7 +74,14 @@ const state = {
   pcrActiveTab: 'latest',  // 'latest' | 'signals' | 'history'
   pcrHistorySeries: 'TOTAL',
   pcrHistoryDays: 60,
-};
+  // News Sentiment
+  newsMeta: null,        // { latest_date, total_headlines, sources, ... }
+  newsHeadlines: null,   // { latest_date, headlines: [...] }
+  newsSignals: null,     // { latest_date, bullish: [...], bearish: [...] }
+  newsTickerDetail: null,// { ticker, history: [...], headlines: [...] }
+  newsActiveTab: 'headlines',  // 'headlines' | 'signals' | 'ticker'
+  newsTicker: null,
+  };
 
 // ---------------- helpers ----------------
 // Lazy-load Chart.js — only fetched when a chart view is first rendered,
@@ -242,8 +249,16 @@ function parseHash() {
   if (h === 'put-call-ratio' || h === 'put-call-ratio/') return { view: 'putcallratio' };
   if (h.startsWith('put-call-ratio/')) {
     const rest = h.slice('put-call-ratio/'.length);
-    if (rest === 'signals') return { view: 'putcallratio', pcrTab: 'signals' };
-    return { view: 'putcallratio', pcrTab: 'history', pcrTicker: rest.toUpperCase() };
+    if (rest === 'history') return { view: 'putcallratio', pcrTab: 'history' };
+    return { view: 'putcallratio', pcrTab: 'ticker', pcrTicker: rest.toUpperCase() };
+  }
+  if (h === 'news' || h === 'news/') return { view: 'news', newsTab: 'headlines' };
+  if (h.startsWith('news/')) {
+    const rest = h.slice('news/'.length);
+    if (rest === 'headlines') return { view: 'news', newsTab: 'headlines' };
+    if (rest === 'signals') return { view: 'news', newsTab: 'signals' };
+    if (rest === 'ticker') return { view: 'news', newsTab: 'ticker' };
+    return { view: 'news', newsTab: 'ticker', newsTicker: rest.toUpperCase() };
   }
   if (h.startsWith('fund/')) {
     const rest = h.slice(5);
@@ -524,6 +539,7 @@ async function handleRoute() {
     else if (r.view === 'correlation') await loadCorrelation(r);
     else if (r.view === 'factors')     await loadFactors(r);
     else if (r.view === 'putcallratio') await loadPutCallRatio(r);
+    else if (r.view === 'news')        await loadNews(r);
   } catch (e) {
     state.error = 'Navigation error: ' + e.message;
   }
@@ -908,6 +924,7 @@ function render() {
   else if (state.view === 'correlation') root.appendChild(renderCorrelation());
   if (state.view === 'putcallratio') root.appendChild(renderPutCallRatio());
   if (state.view === 'factors')        root.appendChild(renderFactors());
+  if (state.view === 'news')           root.appendChild(renderNews());
 }
 
 function renderMasthead() {
@@ -977,6 +994,7 @@ const NAV_GROUPS = [
       { view: 'correlation',   label: 'Correlation Matrix' },
       { view: 'factors',       label: 'Factor Exposure' },
       { view: 'putcallratio',  label: 'Put/Call Ratio' },
+      { view: 'news',          label: 'News Sentiment' },
     ],
   },
 ];
@@ -994,6 +1012,7 @@ const NAV_ROUTES = {
   correlation: '#/correlation',
   factors:     '#/factors',
   putcallratio: '#/put-call-ratio',
+  news:         '#/news',
 };
 
 // ---------------- Page descriptions ----------------
@@ -1051,6 +1070,10 @@ const PAGE_DESCRIPTIONS = {
   putcallratio: {
     intro: 'Daily put/call ratios from the Chicago Board Options Exchange (CBOE) across multiple series — Total Market, Index, Equity, ETP, VIX, SPX+SPXW, OEX, and MRUT. The Latest tab shows all series with their 5-day, 20-day, 50-day moving averages, z-scores, and current signal classification. The Signals tab highlights extreme readings. The History tab charts a single series over time. Data comes from CBOE daily data stored in the put_call_ratio and put_call_latest tables, refreshed daily by cron.',
     issues: 'Data is only available on trading days (no weekend or holiday bars). Signal classifications (Bullish/Bearish/Extreme) are based on z-scores relative to a 20-day moving average, which can whipsaw during volatile regimes. The ratio reflects all put and call volume including market-maker activity, index inclusion effects, and opening transactions — it is a sentiment indicator, not a direct price-direction prediction. VIX options have a different volatility regime than equity options, so cross-series comparison should be cautious.',
+  },
+  news: {
+    intro: 'Daily financial news sentiment for a curated watchlist of ~144 tickers. Headlines are fetched from 6 free RSS feeds (Yahoo Finance, Seeking Alpha, Benzinga, MarketWatch, Reddit r/investing), matched to tickers by symbol format ($TICKER, (TICKER)) and company name, then scored using VADER sentiment analysis enhanced with a financial lexicon (100+ domain-specific terms). The Headlines tab shows the latest stories with sentiment scores and matched tickers. The Signals tab highlights tickers with notable bullish or bearish sentiment (avg score ≥0.15 or ≤−0.15, min 2 headlines). Drill into any ticker for its daily sentiment history and associated headlines. Data is stored in the news_headlines and ticker_news_sentiment tables, refreshed daily by cron.',
+    issues: 'Headline-to-ticker matching uses company name matching which can produce occasional false positives (e.g. a surname like "Wells" matching Wells Fargo). RSS feeds are general market news — not every headline will mention a tracked ticker, so some tickers may have no recent sentiment data. VADER + financial lexicon is a rule-based approximation, not a transformer model; scores reflect headline tone only and do not capture sarcasm, irony, or complex multi-clause reasoning. Reddit r/investing is community discussion, not professional news — sentiment there may differ from institutional tone.',
   },
 };
 
@@ -3537,6 +3560,312 @@ function renderPcrHistory() {
       },
     });
   }, 0);
+
+  return wrap;
+}
+
+
+// ---------------- data loaders ----------------
+async function loadNews(r) {
+  state.newsActiveTab = r.newsTab || 'headlines';
+  state.newsTicker = r.newsTicker || null;
+  state.error = null;
+  state.loading = true;
+  try {
+    await loadMeta();
+    const [meta, headlines, signals] = await Promise.all([
+      api('/api/news/meta'),
+      api('/api/news/headlines'),
+      api('/api/news/signals'),
+    ]);
+    state.newsMeta = meta;
+    state.newsHeadlines = headlines;
+    state.newsSignals = signals;
+    if (state.newsActiveTab === 'ticker' && state.newsTicker) {
+      state.newsTickerDetail = await api(`/api/news/tickers/${state.newsTicker}`);
+    }
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+  }
+}
+
+// ---------------- render ----------------
+function renderNews() {
+  const wrap = el('div', { class: 'section' });
+
+  if (!state.newsMeta && !state.newsHeadlines) {
+    wrap.appendChild(el('div', { class: 'empty' }, 'Loading news sentiment data…'));
+    return wrap;
+  }
+
+  const m = state.newsMeta || {};
+  const headlines = state.newsHeadlines || { headlines: [] };
+  const signals = state.newsSignals || { bullish: [], bearish: [] };
+
+  // Stats row
+  const dateFmt = fmtDateISO(m.latest_date);
+  const sigDate = fmtDateISO(signals.latest_date);
+  const stats = el('div', { class: 'stats' });
+  stats.appendChild(stat('As of', dateFmt));
+  stats.appendChild(stat('Headlines', m.total_headlines || 0, 'brass'));
+  stats.appendChild(stat('Sources', m.sources ? m.sources.length : 0));
+  stats.appendChild(stat('Signals', sigDate, 'brass'));
+  const bullishN = (signals.bullish || []).length;
+  const bearishN = (signals.bearish || []).length;
+  stats.appendChild(stat('Bullish', bullishN, 'green'));
+  stats.appendChild(stat('Bearish', bearishN, 'red'));
+  if (m.last_ingestion) {
+    stats.appendChild(stat('Updated', fmtDateISO(m.last_ingestion.started_at), 'brass'));
+  }
+  wrap.appendChild(stats);
+
+  // Sources badge
+  if (m.sources && m.sources.length) {
+    const badgeWrap = el('div', { class: 'badge-row' });
+    for (const src of m.sources) {
+      badgeWrap.appendChild(el('span', { class: 'badge' }, src));
+    }
+    wrap.appendChild(badgeWrap);
+  }
+
+  // Tabs
+  const tabs = el('div', { class: 'tabs' });
+  const tabLabels = [
+    { key: 'headlines', label: 'Headlines' },
+    { key: 'signals',   label: 'Signals' },
+    { key: 'ticker',    label: state.newsTicker || 'Ticker' },
+  ];
+  for (const t of tabLabels) {
+    if (t.key === 'ticker' && !state.newsTicker) continue;
+    tabs.appendChild(el('div', {
+      class: 'tab' + (state.newsActiveTab === t.key ? ' active' : ''),
+      onclick: () => {
+        if (t.key === 'ticker' && !state.newsTicker) {
+          const tkr = prompt('Enter ticker symbol (e.g. AAPL):');
+          if (tkr) {
+            state.newsTicker = tkr.trim().toUpperCase();
+            state.newsActiveTab = 'ticker';
+            state.newsTickerDetail = null;
+            location.hash = '#/news/' + state.newsTicker;
+            return;
+          }
+          return;
+        }
+        state.newsActiveTab = t.key;
+        if (state.newsTicker) {
+          location.hash = '#/news/' + (t.key === 'ticker' ? state.newsTicker : t.key);
+        } else {
+          location.hash = '#/news/' + t.key;
+        }
+      },
+    }, t.label));
+  }
+  wrap.appendChild(tabs);
+
+  // Tab bodies
+  if (state.newsActiveTab === 'headlines') {
+    wrap.appendChild(renderNewsHeadlines());
+  } else if (state.newsActiveTab === 'signals') {
+    wrap.appendChild(renderNewsSignals());
+  } else if (state.newsActiveTab === 'ticker') {
+    wrap.appendChild(renderNewsTicker());
+  }
+
+  return wrap;
+}
+
+function renderNewsHeadlines() {
+  const h = state.newsHeadlines || { headlines: [] };
+  const rows = h.headlines || [];
+  const wrap = el('div', { class: 'table-wrap' });
+
+  if (!rows.length) {
+    wrap.appendChild(el('div', { class: 'empty' }, 'No headlines available yet.'));
+    return wrap;
+  }
+
+  const table = el('table');
+  const thead = el('thead');
+  const trh = el('tr');
+  ['Score', 'Source', 'Headline', 'Tickers'].forEach((hdr, i) => {
+    trh.appendChild(el('th', { class: i === 0 ? 'num' : '' }, hdr));
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = el('tbody');
+  const fmtTime = (s) => s ? String(s).slice(11, 16) : '—';
+  for (const row of rows) {
+    const tr = el('tr', { style: { '--hl-sentiment': row.sentiment_score } });
+    const scoreCls = row.sentiment_label === 'bullish' ? 'num green' :
+                     row.sentiment_label === 'bearish' ? 'num red' : 'num mut';
+    const arrow = row.sentiment_label === 'bullish' ? '↑' :
+                  row.sentiment_label === 'bearish' ? '↓' : '≈';
+    const score = row.sentiment_score != null ? row.sentiment_score.toFixed(2) : '0.00';
+    tr.appendChild(el('td', { class: scoreCls }, arrow + ' ' + score));
+    tr.appendChild(el('td', { class: 'sm mut' }, row.source || '—'));
+    const linkCell = el('td');
+    const link = el('a', {
+      href: row.url || '#',
+      target: '_blank',
+      class: 'link',
+      onclick: (e) => { e.preventDefault(); window.open(row.url || '#', '_blank'); },
+    }, row.title);
+    linkCell.appendChild(link);
+    if (row.tickers_mentioned) {
+      const chips = row.tickers_mentioned.split(',').map(t => el('span', { class: 'ticker-chip' }, t.trim()));
+      linkCell.appendChild(el('div', { class: 'ticker-chips' }, ...chips));
+    }
+    tr.appendChild(linkCell);
+    tr.appendChild(el('td', { class: 'mono sm mut' }, row.tickers_mentioned || '—'));
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+  return wrap;
+}
+
+function renderNewsSignals() {
+  const s = state.newsSignals || { latest_date: null, bullish: [], bearish: [] };
+  const wrap = el('div', { class: 'table-wrap' });
+
+  if (!s.bullish?.length && !s.bearish?.length) {
+    wrap.appendChild(el('div', { class: 'empty' },
+      'No significant sentiment signals. Tickers need ≥2 headlines with avg sentiment ≥0.15 (bullish) or ≤−0.15 (bearish).'));
+    return wrap;
+  }
+
+  const dateFmt = fmtDateISO(s.latest_date);
+  wrap.appendChild(el('div', { class: 'section-title' }, 'Signals as of ' + dateFmt));
+
+  function renderSignalTable(label, rows, signClass) {
+    if (!rows || !rows.length) return null;
+    const block = el('div', { class: 'signal-block' });
+    block.appendChild(el('h4', { class: 'signal-label ' + signClass }, label));
+    const table = el('table');
+    const thead = el('thead');
+    const trh = el('tr');
+    ['Ticker', 'Headlines', 'Avg', '↑ Bull', '↓ Bear'].forEach((h, i) => {
+      trh.appendChild(el('th', { class: i === 0 ? '' : 'num' }, h));
+    });
+    thead.appendChild(trh);
+    table.appendChild(thead);
+    const tbody = el('tbody');
+    for (const row of rows) {
+      const tr = el('tr');
+      const tickerLink = el('a', {
+        href: '#/news/' + row.ticker,
+        class: 'ticker-link',
+        onclick: (e) => {
+          e.preventDefault();
+          state.newsActiveTab = 'ticker';
+          state.newsTicker = row.ticker;
+          state.newsTickerDetail = null;
+          location.hash = '#/news/' + row.ticker;
+          render();
+        },
+      }, row.ticker);
+      tr.appendChild(el('td', {}, tickerLink));
+      tr.appendChild(el('td', { class: 'num' }, row.headline_count));
+      const avgCls = row.avg_sentiment > 0 ? 'num green' : 'num red';
+      tr.appendChild(el('td', { class: avgCls },
+        (row.avg_sentiment > 0 ? '+' : '') + (row.avg_sentiment || 0).toFixed(2)));
+      tr.appendChild(el('td', { class: 'num green' }, row.bullish_count || 0));
+      tr.appendChild(el('td', { class: 'num red' }, row.bearish_count || 0));
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    block.appendChild(table);
+    return block;
+  }
+
+  const b = renderSignalTable('Bullish', s.bullish, 'green');
+  if (b) wrap.appendChild(b);
+  const be = renderSignalTable('Bearish', s.bearish, 'red');
+  if (be) wrap.appendChild(be);
+
+  return wrap;
+}
+
+function renderNewsTicker() {
+  const d = state.newsTickerDetail;
+  const wrap = el('div', { class: 'table-wrap' });
+
+  if (!d) {
+    wrap.appendChild(el('div', { class: 'empty' }, 'Loading ticker data…'));
+    return wrap;
+  }
+
+  if (!d.history?.length && !d.headlines?.length) {
+    wrap.appendChild(el('div', { class: 'empty' },
+      `No news sentiment data for ${d.ticker} yet. Try another ticker.`));
+    return wrap;
+  }
+
+  // History table
+  if (d.history && d.history.length) {
+    wrap.appendChild(el('h4', { class: 'signal-label brass' }, d.ticker + ' — Daily Sentiment History'));
+    const table = el('table');
+    const thead = el('thead');
+    const trh = el('tr');
+    ['Date', 'Headlines', 'Avg Sentiment', '↑', '↓', '≈'].forEach((h, i) => {
+      trh.appendChild(el('th', { class: i === 0 ? 'mono' : 'num' }, h));
+    });
+    thead.appendChild(trh);
+    table.appendChild(thead);
+    const tbody = el('tbody');
+    for (const row of d.history.reverse()) {
+      const tr = el('tr');
+      tr.appendChild(el('td', { class: 'mono sm' }, fmtDateISO(row.date)));
+      tr.appendChild(el('td', { class: 'num' }, row.headline_count));
+      const avgCls = row.avg_sentiment > 0.15 ? 'num green' :
+                     row.avg_sentiment < -0.15 ? 'num red' : 'num mut';
+      tr.appendChild(el('td', { class: avgCls },
+        (row.avg_sentiment > 0 ? '+' : '') + (row.avg_sentiment || 0).toFixed(3)));
+      tr.appendChild(el('td', { class: 'num green' }, row.bullish_count || 0));
+      tr.appendChild(el('td', { class: 'num red' }, row.bearish_count || 0));
+      tr.appendChild(el('td', { class: 'num mut' }, row.neutral_count || 0));
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    d.history.reverse(); // restore
+  }
+
+  // Headlines table
+  if (d.headlines && d.headlines.length) {
+    wrap.appendChild(el('h4', { class: 'signal-label brass' }, d.ticker + ' — Recent Headlines'));
+    const table = el('table');
+    const thead = el('thead');
+    const trh = el('tr');
+    ['', 'Headline', 'Sentiment'].forEach((h, i) => {
+      trh.appendChild(el('th', { class: i === 0 ? 'sm mut' : i === 1 ? '' : 'num' }, h));
+    });
+    thead.appendChild(trh);
+    table.appendChild(thead);
+    const tbody = el('tbody');
+    for (const row of d.headlines) {
+      const tr = el('tr');
+      tr.appendChild(el('td', { class: 'sm mut' }, row.source || '—'));
+      const link = el('a', {
+        href: row.url || '#',
+        target: '_blank',
+        class: 'link',
+      }, row.title);
+      tr.appendChild(el('td', {}, link));
+      const scoreCls = row.sentiment_label === 'bullish' ? 'num green' :
+                       row.sentiment_label === 'bearish' ? 'num red' : 'num mut';
+      const arrow = row.sentiment_label === 'bullish' ? '↑' :
+                    row.sentiment_label === 'bearish' ? '↓' : '≈';
+      const score = row.sentiment_score != null ? row.sentiment_score.toFixed(2) : '0.00';
+      tr.appendChild(el('td', { class: scoreCls }, arrow + ' ' + score));
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+  }
 
   return wrap;
 }

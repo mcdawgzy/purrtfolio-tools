@@ -62,7 +62,7 @@ async def _ensure_db():
     _slim_gz = Path(str(_slim_db) + ".gz")
     if not _slim_db.exists() or _slim_db.stat().st_size < 100_000:
         log.info("Downloading slim momentum DB...")
-        _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-21/momentum_data.db.gz"
+        _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-22/momentum_data.db.gz"
         try:
             db._download_with_redirect(_url, str(_slim_gz))
             import gzip, shutil
@@ -419,6 +419,44 @@ def snapshot_detail(date_str: str):
 
 
 # ---------------------------------------------------------------------------
+# News Sentiment
+# ---------------------------------------------------------------------------
+@app.get("/api/news/meta")
+def news_meta():
+    """Metadata: latest date, sources, headline count, signal counts, ingestion log."""
+    return db.get_news_meta()
+
+
+@app.get("/api/news/headlines")
+def news_headlines(limit: int = Query(100, ge=1, le=500, description="Max headlines to return")):
+    """Latest headlines with sentiment scores (newest first)."""
+    rows = db.get_news_headlines(limit=limit)
+    if not rows:
+        return {"latest_date": None, "headlines": [],
+                "note": "No data yet — scanner ingests daily at 6 AM ET"}
+    latest = rows[0].get("retrieved_at") or rows[0].get("published_at")
+    if latest:
+        with db.db_conn() as c:
+            latest = c.execute("SELECT date(datetime(?, 'localtime'))", (latest,)).fetchone()[0]
+    return {"latest_date": latest, "headlines": rows}
+
+
+@app.get("/api/news/tickers/{ticker}")
+def news_ticker(ticker: str):
+    """News sentiment detail for a single ticker: historical aggregates + headlines."""
+    return db.get_news_ticker(ticker) or {
+        "ticker": ticker.upper(), "history": [], "headlines": [],
+        "note": "No news sentiment data for this ticker yet",
+    }
+
+
+@app.get("/api/news/signals")
+def news_signals():
+    """Current bullish / bearish ticker signals from aggregated sentiment."""
+    return db.get_news_signals()
+
+
+# ---------------------------------------------------------------------------
 # Price Momentum Scanner — on-demand via yfinance (DB cached if writable)
 # ---------------------------------------------------------------------------
 import sys as _sys, os as _os
@@ -546,7 +584,7 @@ def _ensure_momentum_db():
     if _slim_db.exists() and _slim_db.stat().st_size > 100_000:
         return  # Already present
     log.info("Momentum DB missing — downloading...")
-    _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-21/momentum_data.db.gz"
+    _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-22/momentum_data.db.gz"
     _gz = Path(str(_slim_db_path) + ".gz")
     try:
         db._download_with_redirect(_url, str(_gz))
