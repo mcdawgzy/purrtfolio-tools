@@ -53,7 +53,7 @@ button {
 button:hover { border-color: var(--brass); color: var(--brass); }
 button.active { border-color: var(--brass); color: var(--brass); }
 
-input[type=text], input[type=search], select {
+input[type=text], input[type=search], input[type=number], select {
   background: var(--panel);
   border: 1px solid var(--line-2);
   color: var(--text);
@@ -728,4 +728,80 @@ tbody td.mut { color: var(--text-mut); font-size: 11px; }
 .headline-link:hover { color: var(--brass); }
 
 .link { color: var(--text-dim); }
+
+/* ------- Position Sizing Calculator ------- */
+.calc-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-top: 20px;
+}
+@media (max-width: 768px) {
+  .calc-form { grid-template-columns: 1fr; }
+}
+.calc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.calc-field:last-child { margin-bottom: 0; }
+.calc-field label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-mut);
+}
+.calc-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.calc-input-row input { flex: 1; }
+.calc-input-row .unit {
+  font-size: 12px;
+  color: var(--text-dim);
+  font-family: var(--mono);
+}
+.calc-results h3 {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+.calc-result-group {
+  display: flex;
+  flex-direction: column;
+}
+.calc-stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  margin-bottom: 4px;
+}
+.calc-stat-label {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.calc-stat-value {
+  font-size: 16px;
+  font-family: var(--mono);
+  font-weight: 600;
+  color: var(--text);
+}
+.calc-stat-value.brass { color: var(--brass); }
+.calc-stat-value.green { color: var(--green); }
+.calc-stat-value.red { color: var(--red); }
+.calc-formula {
+  margin-top: 28px;
+  font-size: 11px;
+  color: var(--text-mut);
+  font-family: var(--mono);
+  text-align: center;
+}
 .link:hover { color: var(--brass); }
