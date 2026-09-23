@@ -253,6 +253,9 @@ input:focus, select:focus { border-color: var(--brass); }
   color: var(--text);
 }
 .stat .stat-value.brass { color: var(--brass); }
+.stat .stat-value.green { color: var(--green); }
+.stat .stat-value.red   { color: var(--red); }
+.stat .stat-value.amber { color: var(--amber); }
 
 /* ------- Tables ------- */
 .table-wrap {
@@ -803,5 +806,21 @@ tbody td.mut { color: var(--text-mut); font-size: 11px; }
   color: var(--text-mut);
   font-family: var(--mono);
   text-align: center;
+}
+
+/* ------- Drawdown Simulator ------- */
+.sim-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.sim-controls .calc-field {
+  flex: 1 1 120px;
+  margin-bottom: 0;
+}
+.sim-chart {
+  height: 350px;
+  width: 100%;
 }
 .link:hover { color: var(--brass); }
