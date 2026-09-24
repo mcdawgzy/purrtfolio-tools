@@ -824,3 +824,36 @@ tbody td.mut { color: var(--text-mut); font-size: 11px; }
   width: 100%;
 }
 .link:hover { color: var(--brass); }
+
+/* ------- Options Payoff Visualizer ------- */
+.legs-container { margin-bottom: 24px; }
+.leg-row {
+  display: grid;
+  grid-template-columns: 80px 80px 100px 100px auto;
+  gap: 10px;
+  align-items: end;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  margin-bottom: 8px;
+}
+.leg-row .calc-field { margin-bottom: 0; }
+.leg-row .calc-field label { font-size: 8px; }
+.leg-row input, .leg-row select { font-size: 13px; padding: 6px 8px; }
+.leg-remove {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: var(--red);
+  border-color: var(--red);
+}
+.leg-remove:hover { background: var(--red-bg); }
+.payoff-add-btn {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--brass);
+  padding: 6px 16px;
+  border: 1px solid var(--brass);
+  border-radius: 2px;
+  margin-bottom: 24px;
+  cursor: pointer;
+}
