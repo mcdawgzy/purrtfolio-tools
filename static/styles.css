@@ -857,3 +857,21 @@ tbody td.mut { color: var(--text-mut); font-size: 11px; }
   margin-bottom: 24px;
   cursor: pointer;
 }
+
+/* ------- Greeks Explainer ------- */
+.greeks-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.greeks-controls .calc-field {
+  flex: 1 1 120px;
+  margin-bottom: 0;
+}
+.greeks-chart {
+  height: 350px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
