@@ -388,6 +388,30 @@ def pcr_signals():
 
 
 # ---------------------------------------------------------------------------
+# IV Rank & IV Percentile
+# ---------------------------------------------------------------------------
+@app.get("/api/iv/meta")
+def iv_meta():
+    """Metadata: latest date, ticker count, signal counts."""
+    return db.get_iv_meta()
+
+
+@app.get("/api/iv/latest")
+def iv_latest():
+    """Latest IV Rank data for all tickers, sorted by IV Rank descending."""
+    return db.get_iv_latest()
+
+
+@app.get("/api/iv/history/{ticker}")
+def iv_history(
+    ticker: str,
+    days: int = Query(300, ge=10, le=500),
+):
+    """Historical IV + IV Rank for a single ticker (oldest → newest)."""
+    return db.get_iv_history(ticker, days=days)
+
+
+# ---------------------------------------------------------------------------
 # Market Snapshot
 # ---------------------------------------------------------------------------
 @app.get("/api/snapshot/latest")

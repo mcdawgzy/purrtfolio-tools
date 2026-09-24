@@ -1186,6 +1186,74 @@ def get_pcr_signals() -> dict:
 
 
 # ---------------------------------------------------------------------------
+# IV Rank & IV Percentile
+# ---------------------------------------------------------------------------
+def _iv_table_exists(c) -> bool:
+    return c.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='iv_rank'"
+    ).fetchone() is not None
+
+
+def get_iv_meta() -> dict:
+    """Metadata: latest date, ticker count, signal counts, last ingestion."""
+    with db_conn() as c:
+        if not _iv_table_exists(c):
+            return {"latest_date": None, "ticker_count": 0,
+                    "high_iv_count": 0, "low_iv_count": 0,
+                    "last_ingestion": None}
+        latest = c.execute("SELECT MAX(date) FROM iv_rank").fetchone()[0]
+        ticker_count = c.execute(
+            "SELECT COUNT(DISTINCT ticker) FROM iv_rank WHERE date = ?", (latest,)
+        ).fetchone()[0]
+        high_iv = c.execute(
+            "SELECT COUNT(*) FROM iv_rank WHERE date = ? AND signal = 'HIGH_IV'", (latest,)
+        ).fetchone()[0]
+        low_iv = c.execute(
+            "SELECT COUNT(*) FROM iv_rank WHERE date = ? AND signal = 'LOW_IV'", (latest,)
+        ).fetchone()[0]
+        last_log = c.execute(
+            "SELECT date, status, rows_inserted, started_at, completed_at "
+            "FROM ingestion_log_iv ORDER BY started_at DESC LIMIT 1"
+        ).fetchone()
+        return {
+            "latest_date": latest,
+            "ticker_count": ticker_count,
+            "high_iv_count": high_iv,
+            "low_iv_count": low_iv,
+            "last_ingestion": _row_dicts([last_log])[0] if last_log else None,
+        }
+
+
+def get_iv_latest() -> dict:
+    with db_conn() as c:
+        if not _iv_table_exists(c):
+            return {"latest_date": None, "rows": []}
+        latest = c.execute("SELECT MAX(date) FROM iv_rank").fetchone()[0]
+        rows = _row_dicts(c.execute("""
+            SELECT ticker, date, iv, iv_rank, iv_pctile, days_52w,
+                   iv_min_52w, iv_max_52w, iv_mean_52w, signal
+            FROM iv_rank
+            WHERE date = ?
+            ORDER BY iv_rank DESC NULLS LAST, ticker
+        """, (latest,)))
+        return {"latest_date": latest, "rows": rows}
+
+
+def get_iv_history(ticker: str, days: int = 300) -> dict:
+    with db_conn() as c:
+        if not _iv_table_exists(c):
+            return {"ticker": ticker.upper(), "rows": []}
+        rows = _row_dicts(c.execute("""
+            SELECT date, ticker, iv, iv_rank, iv_pctile, signal
+            FROM iv_rank
+            WHERE ticker = ?
+            ORDER BY date ASC
+            LIMIT ?
+        """, (ticker.upper(), days)))
+        return {"ticker": ticker.upper(), "rows": rows}
+
+
+# ---------------------------------------------------------------------------
 # Market Snapshot
 # ---------------------------------------------------------------------------
 def get_snapshot_dir() -> Path:

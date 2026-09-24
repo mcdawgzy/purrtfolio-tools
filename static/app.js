@@ -74,6 +74,13 @@ const state = {
   pcrActiveTab: 'latest',  // 'latest' | 'signals' | 'history'
   pcrHistorySeries: 'TOTAL',
   pcrHistoryDays: 60,
+  // IV Rank & IV Percentile
+  ivMeta: null,
+  ivLatest: { rows: [] },
+  ivHistory: null,
+  ivActiveTab: 'latest',
+  ivSelectedTicker: null,
+  ivHistoryDays: 300,
   // News Sentiment
   newsMeta: null,        // { latest_date, total_headlines, sources, ... }
   newsHeadlines: null,   // { latest_date, headlines: [...] }
@@ -251,6 +258,11 @@ function parseHash() {
     const rest = h.slice('put-call-ratio/'.length);
     if (rest === 'history') return { view: 'putcallratio', pcrTab: 'history' };
     return { view: 'putcallratio', pcrTab: 'ticker', pcrTicker: rest.toUpperCase() };
+  }
+  if (h === 'iv-rank' || h === 'iv-rank/') return { view: 'ivrank' };
+  if (h.startsWith('iv-rank/')) {
+    const rest = h.slice('iv-rank/'.length);
+    return { view: 'ivrank', ivTab: 'history', ivTicker: rest.toUpperCase() };
   }
   if (h === 'news' || h === 'news/') return { view: 'news', newsTab: 'headlines' };
   if (h.startsWith('news/')) {
@@ -528,6 +540,13 @@ async function handleRoute() {
     state.factorTicker = null;
     state.factorActiveTab = 'drift';
   }
+  if (r.view !== 'ivrank') {
+    state.ivMeta = null;
+    state.ivLatest = { rows: [] };
+    state.ivHistory = null;
+    state.ivActiveTab = 'latest';
+    state.ivSelectedTicker = null;
+  }
   try {
     if (r.view === 'funds')        await loadFunds();
     else if (r.view === 'fund')    await loadFund(r.cik, r.tab);
@@ -542,6 +561,7 @@ async function handleRoute() {
     else if (r.view === 'correlation') await loadCorrelation(r);
     else if (r.view === 'factors')     await loadFactors(r);
     else if (r.view === 'putcallratio') await loadPutCallRatio(r);
+    else if (r.view === 'ivrank')        await loadIVRank(r);
     else if (r.view === 'news')        await loadNews(r);
   } catch (e) {
     state.error = 'Navigation error: ' + e.message;
@@ -898,6 +918,31 @@ async function loadPutCallRatio(r) {
     state.loading = false;
   }
 }
+// ---------------- IV Rank loader ----------------
+async function loadIVRank(r) {
+  state.ivActiveTab = r.ivTab || 'latest';
+  state.ivSelectedTicker = r.ivTicker || null;
+  state.ivHistoryDays = r.ivHistoryDays || 300;
+  state.error = null;
+  state.loading = true;
+  try {
+    await loadMeta();
+    const [meta, latest] = await Promise.all([
+      api('/api/iv/meta'),
+      api('/api/iv/latest'),
+    ]);
+    state.ivMeta = meta;
+    state.ivLatest = latest;
+    if (state.ivSelectedTicker) {
+      state.ivHistory = await api(`/api/iv/history/${state.ivSelectedTicker}?days=${state.ivHistoryDays}`);
+      state.ivActiveTab = 'history';
+    }
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+  }
+}
 
 // ---------------- render ----------------
 function render() {
@@ -926,6 +971,7 @@ function render() {
   else if (state.view === 'momentum')   root.appendChild(renderMomentum());
   else if (state.view === 'correlation') root.appendChild(renderCorrelation());
   if (state.view === 'putcallratio') root.appendChild(renderPutCallRatio());
+  else if (state.view === 'ivrank') root.appendChild(renderIVRank());
   if (state.view === 'factors')        root.appendChild(renderFactors());
   if (state.view === 'news')           root.appendChild(renderNews());
   if (state.view === 'positioning')  root.appendChild(renderPositionSizing());
@@ -953,6 +999,8 @@ function renderMasthead() {
     title = 'Correlation Matrix';
   } else if (state.view === 'putcallratio') {
     title = 'Put/Call Ratio';
+  } else if (state.view === 'ivrank') {
+    title = 'IV Rank Tracker';
   } else if (state.view === 'factors') {
     title = 'Factor Exposure';
   } else if (state.view === 'positioning') {
@@ -1006,6 +1054,7 @@ const NAV_GROUPS = [
       { view: 'correlation',   label: 'Correlation Matrix' },
       { view: 'factors',       label: 'Factor Exposure' },
       { view: 'putcallratio',  label: 'Put/Call Ratio' },
+      { view: 'ivrank',        label: 'IV Rank Tracker' },
       { view: 'news',          label: 'News Sentiment' },
     ],
   },
@@ -1032,6 +1081,7 @@ const NAV_ROUTES = {
   correlation: '#/correlation',
   factors:     '#/factors',
   putcallratio: '#/put-call-ratio',
+  ivrank:       '#/iv-rank',
   news:         '#/news',
   positioning:  '#/position-sizing',
   drawdown:     '#/drawdown-simulator',
@@ -1092,7 +1142,11 @@ const PAGE_DESCRIPTIONS = {
   },
   putcallratio: {
     intro: 'Daily put/call ratios from the Chicago Board Options Exchange (CBOE) across multiple series — Total Market, Index, Equity, ETP, VIX, SPX+SPXW, OEX, and MRUT. The Latest tab shows all series with their 5-day, 20-day, 50-day moving averages, z-scores, and current signal classification. The Signals tab highlights extreme readings. The History tab charts a single series over time. Data comes from CBOE daily data stored in the put_call_ratio and put_call_latest tables, refreshed daily by cron.',
-    issues: 'Data is only available on trading days (no weekend or holiday bars). Signal classifications (Bullish/Bearish/Extreme) are based on z-scores relative to a 20-day moving average, which can whipsaw during volatile regimes. The ratio reflects all put and call volume including market-maker activity, index inclusion effects, and opening transactions — it is a sentiment indicator, not a direct price-direction prediction. VIX options have a different volatility regime than equity options, so cross-series comparison should be cautious.',
+    issues: 'Data is only available on trading days (no weekend or holiday bars). Signal classifications (Sell-Side/Buy-Side/Neutral) are based on z-scores relative to a 20-day moving average, which can whipsaw during volatile regimes. The ratio reflects all put and call volume including market-maker activity, index inclusion effects, and opening transactions — it is a sentiment indicator, not a direct price-direction prediction. VIX options have a different volatility regime than equity options, so cross-series comparison should be cautious.',
+  },
+  ivrank: {
+    intro: 'Daily ATM implied volatility for ~30 large-cap tickers with liquid options. IV Rank shows where current IV sits within its 52-week range (0 = lowest, 100 = highest). IV Percentile is the percentage of the past 252 trading days with IV below today — above 70% means options are historically expensive (sell premium); below 30% means cheap (buy premium). Data is fetched via yfinance options chains (nearest-expiry ATM call/put IV averaged), processed in Python via cron, and stored in the unified purrtfolio.db. The history chart for each ticker plots daily IV alongside IV Rank with 5-day and 20-day moving averages.',
+    issues: 'yfinance options chains sometimes return NaN for implied volatility — these are filtered out. The first ~10 days after a fresh ticker is added will show insufficient data for IV Rank until a lookback builds up. IV values are ATM-only (nearest expiry), not 30-day rolling IV — they can jump around more than a standardised index like VIX. Data ingestion runs daily at 6 AM UTC+10; the current day may not appear until ~6:05 AM after the cron completes.',
   },
   news: {
     intro: 'Daily financial news sentiment for a curated watchlist of ~144 tickers. Headlines are fetched from 6 free RSS feeds (Yahoo Finance, Seeking Alpha, Benzinga, MarketWatch, Reddit r/investing), matched to tickers by symbol format ($TICKER, (TICKER)) and company name, then scored using VADER sentiment analysis enhanced with a financial lexicon (100+ domain-specific terms). The Headlines tab shows the latest stories with sentiment scores and matched tickers. The Signals tab highlights tickers with notable bullish or bearish sentiment (avg score ≥0.15 or ≤−0.15, min 2 headlines). Drill into any ticker for its daily sentiment history and associated headlines. Data is stored in the news_headlines and ticker_news_sentiment tables, refreshed daily by cron.',
@@ -3588,6 +3642,252 @@ function renderPcrHistory() {
             grid: { color: '#1E2A38' },
           },
           y: {
+            ticks: { color: '#7E8A9A', font: { size: 9 } },
+            grid: { color: '#1E2A38' },
+          },
+        },
+      },
+    });
+  }, 0);
+
+  return wrap;
+}
+
+
+// ──────────────────────────────────────────────────────────────
+// IV Rank & IV Percentile renderers
+// ──────────────────────────────────────────────────────────────
+function renderIVRank() {
+  const wrap = el('div', { class: 'section' });
+
+  if (!state.ivMeta && !state.ivLatest) {
+    wrap.appendChild(el('div', { class: 'empty' }, 'Loading IV Rank data…'));
+    return wrap;
+  }
+
+  const m = state.ivMeta || {};
+  const latest = state.ivLatest || { rows: [] };
+  const rows = latest.rows || [];
+
+  // Stats row
+  if (m.latest_date) {
+    const stats = el('div', { class: 'stats' });
+    stats.appendChild(stat('As of', fmtDateISO(m.latest_date)));
+    stats.appendChild(stat('Tickers', m.ticker_count || 0, 'brass'));
+    stats.appendChild(stat('Sell-Side', m.high_iv_count || 0, 'green'));
+    stats.appendChild(stat('Buy-Side', m.low_iv_count || 0, 'red'));
+    if (m.last_ingestion) {
+      stats.appendChild(stat('Updated', fmtDateISO(m.last_ingestion.started_at), 'brass'));
+    }
+    wrap.appendChild(stats);
+  }
+
+  // Empty state
+  if (!rows.length) {
+    wrap.appendChild(el('div', { class: 'empty' },
+      m.latest_date
+        ? 'No IV data available for this date.'
+        : 'No IV data in database yet. Run the IV Rank cron to ingest.'));
+    return wrap;
+  }
+
+  // Tabs
+  const tabs = el('div', { class: 'tabs' });
+  tabs.appendChild(el('div', {
+    class: 'tab ' + (state.ivActiveTab === 'latest' ? 'active' : ''),
+    onclick: () => { state.ivActiveTab = 'latest'; render(); },
+  }, 'Latest'));
+  tabs.appendChild(el('div', {
+    class: 'tab ' + (state.ivActiveTab === 'history' ? 'active' : ''),
+    onclick: () => { state.ivActiveTab = 'history'; render(); },
+  }, 'History'));
+  wrap.appendChild(tabs);
+
+  if (state.ivActiveTab === 'history') {
+    wrap.appendChild(renderIVRankHistory());
+  } else {
+    wrap.appendChild(renderIVRankTable());
+  }
+
+  return wrap;
+}
+
+function renderIVRankTable() {
+  const rows = state.ivLatest?.rows || [];
+  const tableWrap = el('div', { class: 'table-wrap' });
+  const table = el('table');
+
+  const thead = el('thead');
+  const trh = el('tr');
+  ['Ticker', 'IV', 'IV Rank', 'IV %', 'Signal', '52w Range', 'Days'].forEach((h, i) => {
+    trh.appendChild(el('th', { class: i === 0 ? '' : 'num' }, h));
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = el('tbody');
+  for (const r of rows) {
+    const isHigh = r.signal === 'HIGH_IV';
+    const isLow = r.signal === 'LOW_IV';
+    const signalCls = isHigh ? 'green' : isLow ? 'red' : 'mut';
+    const signalLabel = isHigh ? 'Sell-Side' : isLow ? 'Buy-Side' : 'Neutral';
+
+    const tr = el('tr', {
+      style: { cursor: 'pointer' },
+      onclick: () => setHash('#/iv-rank/' + r.ticker),
+    });
+    tr.appendChild(el('td', { class: 'mono brass' }, r.ticker));
+    tr.appendChild(el('td', { class: 'num' }, r.iv ? r.iv.toFixed(1) + '%' : '—'));
+    tr.appendChild(el('td', { class: 'num' },
+      r.iv_rank != null ? r.iv_rank.toFixed(0) : '—'));
+    tr.appendChild(el('td', { class: 'num' },
+      r.iv_pctile != null ? r.iv_pctile.toFixed(0) + '%' : '—'));
+    tr.appendChild(el('td', { class: 'num ' + signalCls }, signalLabel));
+    const rangeStr = (r.iv_min_52w && r.iv_max_52w)
+      ? `${r.iv_min_52w.toFixed(1)}%–${r.iv_max_52w.toFixed(1)}%` : '—';
+    tr.appendChild(el('td', { class: 'num mut' }, rangeStr));
+    tr.appendChild(el('td', { class: 'num mut' }, r.days_52w || 0));
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  return tableWrap;
+}
+
+function renderIVRankHistory() {
+  const h = state.ivHistory;
+  const wrap = el('div', { class: 'section' });
+
+  if (!h || !h.rows || !h.rows.length) {
+    wrap.appendChild(el('div', { class: 'empty' },
+      'Select a ticker from the Latest tab to view its IV history.'));
+    return wrap;
+  }
+
+  // Drill header
+  const header = el('div', { class: 'drill-header' });
+  header.appendChild(el('a', {
+    class: 'back',
+    href: '#/iv-rank',
+    onclick: (e) => { e.preventDefault(); setHash('#/iv-rank'); },
+  }, '← Back'));
+  header.appendChild(el('h2', {}, `${h.ticker} — IV History`));
+  wrap.appendChild(header);
+
+  // Chart
+  const chartWrap = el('div', { style: { flex: '1 1 600px', height: '400px', width: '100%' } });
+  chartWrap.appendChild(el('canvas', { id: 'iv-history-chart' }));
+  wrap.appendChild(chartWrap);
+
+  setTimeout(async () => {
+    await ensureChartJS();
+    const rows = h.rows;
+    const labels = rows.map(r => r.date
+      ? `${String(r.date).slice(5, 7)}/${String(r.date).slice(8, 10)}/${String(r.date).slice(2, 4)}`
+      : '');
+    const ivs = rows.map(r => r.iv);
+    const ranks = rows.map(r => r.iv_rank);
+
+    // Moving averages
+    const ma5 = [], ma20 = [];
+    for (let i = 0; i < rows.length; i++) {
+      const w5 = ivs.slice(Math.max(0, i - 4), i + 1);
+      const w20 = ivs.slice(Math.max(0, i - 19), i + 1);
+      ma5.push(w5.reduce((a, b) => a + b, 0) / w5.length);
+      ma20.push(w20.reduce((a, b) => a + b, 0) / w20.length);
+    }
+
+    const ctx = document.getElementById('iv-history-chart');
+    if (!ctx) return;
+    if (charts['iv-history-chart']) charts['iv-history-chart'].destroy();
+    charts['iv-history-chart'] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'IV',
+            data: ivs,
+            borderColor: '#C9A24E',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: false,
+            yAxisID: 'y',
+          },
+          {
+            label: 'IV Rank',
+            data: ranks,
+            borderColor: '#3B82F6',
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false,
+            yAxisID: 'y1',
+          },
+          {
+            label: '5-Day MA',
+            data: ma5,
+            borderColor: '#C9A24E',
+            borderWidth: 1,
+            borderDash: [3, 3],
+            pointRadius: 0,
+            fill: false,
+            yAxisID: 'y',
+          },
+          {
+            label: '20-Day MA',
+            data: ma20,
+            borderColor: '#2E9E6B',
+            borderWidth: 1,
+            borderDash: [3, 3],
+            pointRadius: 0,
+            fill: false,
+            yAxisID: 'y',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#E8EBEF', font: { size: 10 } } },
+          tooltip: {
+            backgroundColor: '#11161D',
+            titleColor: '#E8EBEF',
+            bodyColor: '#7E8A9A',
+            borderColor: '#1E2A38',
+            borderWidth: 1,
+            padding: 12,
+            callbacks: {
+              label: (ctx) => {
+                const v = ctx.raw;
+                if (v === null || v === undefined) return `${ctx.dataset.label}: —`;
+                const lbl = ctx.dataset.label;
+                if (lbl === 'IV') return `IV: ${v.toFixed(1)}%`;
+                if (lbl === 'IV Rank') return `Rank: ${v.toFixed(0)}`;
+                return `${lbl}: ${v.toFixed(1)}`;
+              },
+            },
+          },
+        },
+        scales: {
+          y: {
+            type: 'linear',
+            position: 'left',
+            title: { display: true, text: 'IV %', color: '#7E8A9A', font: { size: 10 } },
+            ticks: { color: '#7E8A9A', font: { size: 9 } },
+            grid: { color: '#1E2A38' },
+          },
+          y1: {
+            type: 'linear',
+            position: 'right',
+            title: { display: true, text: 'IV Rank', color: '#7E8A9A', font: { size: 10 } },
+            ticks: { color: '#7E8A9A', font: { size: 9 } },
+            grid: { drawBorder: false, color: 'rgba(30,42,56,0.3)' },
+            min: 0,
+            max: 100,
+          },
+          x: {
             ticks: { color: '#7E8A9A', font: { size: 9 } },
             grid: { color: '#1E2A38' },
           },
