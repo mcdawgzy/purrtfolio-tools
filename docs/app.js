@@ -4980,7 +4980,6 @@ function renderGreeksExplainer() {
   }
 
   function readInputs() {
-    const spot = parseFloat(controls.querySelector('.g-input').value);
     const inputs = controls.querySelectorAll('.g-input');
     return {
       spot:  parseFloat(inputs[0].value),
