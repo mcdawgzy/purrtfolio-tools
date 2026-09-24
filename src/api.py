@@ -62,7 +62,7 @@ async def _ensure_db():
     _slim_gz = Path(str(_slim_db) + ".gz")
     if not _slim_db.exists() or _slim_db.stat().st_size < 100_000:
         log.info("Downloading slim momentum DB...")
-        _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-24/momentum_data.db.gz"
+        _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-25/momentum_data.db.gz"
         try:
             db._download_with_redirect(_url, str(_slim_gz))
             import gzip, shutil
@@ -412,6 +412,33 @@ def iv_history(
 
 
 # ---------------------------------------------------------------------------
+# Unusual Activity / Dark Pool
+# ---------------------------------------------------------------------------
+@app.get("/api/ua/meta")
+def ua_meta():
+    """Metadata: latest date, ticker count, signal counts."""
+    return db.get_ua_meta()
+
+@app.get("/api/ua/latest")
+def ua_latest():
+    """Latest unusual activity for all tickers, sorted by severity."""
+    return db.get_ua_latest()
+
+@app.get("/api/ua/signals")
+def ua_signals():
+    """HIGH / EXTREME signals only."""
+    return db.get_ua_signals()
+
+@app.get("/api/ua/history/{ticker}")
+def ua_history(
+    ticker: str,
+    limit: int = Query(100, ge=10, le=200),
+):
+    """Recent unusual activity for a single ticker (oldest → newest)."""
+    return db.get_ua_history(ticker, limit=limit)
+
+
+# ---------------------------------------------------------------------------
 # Market Snapshot
 # ---------------------------------------------------------------------------
 @app.get("/api/snapshot/latest")
@@ -608,7 +635,7 @@ def _ensure_momentum_db():
     if _slim_db.exists() and _slim_db.stat().st_size > 100_000:
         return  # Already present
     log.info("Momentum DB missing — downloading...")
-    _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-24/momentum_data.db.gz"
+    _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-25/momentum_data.db.gz"
     _gz = Path(str(_slim_db_path) + ".gz")
     try:
         db._download_with_redirect(_url, str(_gz))

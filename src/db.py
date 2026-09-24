@@ -22,7 +22,7 @@ from typing import Any, Iterator
 _DEFAULT_DB = Path.home() / "purrtfolio.db"
 
 # GitHub Release asset URL for production DB
-_RELEASE_ASSET = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-24/purrtfolio.db.gz"
+_RELEASE_ASSET = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-25/purrtfolio.db.gz"
 
 logger = logging.getLogger(__name__)
 
@@ -1253,8 +1253,87 @@ def get_iv_history(ticker: str, days: int = 300) -> dict:
         return {"ticker": ticker.upper(), "rows": rows}
 
 
-# ---------------------------------------------------------------------------
-# Market Snapshot
+def _ua_table_exists(c) -> bool:
+    return c.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='unusual_activity'"
+    ).fetchone() is not None
+
+
+def get_ua_meta() -> dict:
+    """Metadata: latest date, ticker count, signal counts, last ingestion."""
+    with db_conn() as c:
+        if not _ua_table_exists(c):
+            return {"latest_date": None, "ticker_count": 0,
+                    "extreme_count": 0, "high_count": 0,
+                    "last_ingestion": None}
+        latest = c.execute("SELECT MAX(date) FROM unusual_activity").fetchone()[0]
+        ticker_count = c.execute(
+            "SELECT COUNT(DISTINCT ticker) FROM unusual_activity WHERE date = ?", (latest,)
+        ).fetchone()[0]
+        ext = c.execute(
+            "SELECT COUNT(*) FROM unusual_activity WHERE date = ? AND signal = 'EXTREME'", (latest,)
+        ).fetchone()[0]
+        high = c.execute(
+            "SELECT COUNT(*) FROM unusual_activity WHERE date = ? AND signal IN ('EXTREME','HIGH')", (latest,)
+        ).fetchone()[0]
+        last_log = c.execute(
+            "SELECT date, status, rows_inserted, started_at, completed_at "
+            "FROM ingestion_log_ua ORDER BY started_at DESC LIMIT 1"
+        ).fetchone()
+        return {
+            "latest_date": latest,
+            "ticker_count": ticker_count,
+            "extreme_count": ext,
+            "high_count": high,
+            "last_ingestion": _row_dicts([last_log])[0] if last_log else None,
+        }
+
+
+def get_ua_latest() -> dict:
+    with db_conn() as c:
+        if not _ua_table_exists(c):
+            return {"latest_date": None, "rows": []}
+        latest = c.execute("SELECT MAX(date) FROM unusual_activity").fetchone()[0]
+        rows = _row_dicts(c.execute("""
+            SELECT date, ticker, activity_type, call_put, expiry, strike,
+                   volume, open_interest, voi_ratio, notional_usd, iv_pct,
+                   price, avg_vol_20d, vol_ratio, severity_score, signal
+            FROM unusual_activity
+            WHERE date = ?
+            ORDER BY severity_score DESC, ticker
+        """, (latest,)))
+        return {"latest_date": latest, "rows": rows}
+
+
+def get_ua_signals() -> dict:
+    with db_conn() as c:
+        if not _ua_table_exists(c):
+            return {"latest_date": None, "rows": []}
+        latest = c.execute("SELECT MAX(date) FROM unusual_activity").fetchone()[0]
+        rows = _row_dicts(c.execute("""
+            SELECT ticker, activity_type, call_put, expiry, strike,
+                   notional_usd, severity_score, signal
+            FROM unusual_activity
+            WHERE date = ? AND signal IN ('EXTREME', 'HIGH')
+            ORDER BY severity_score DESC
+        """, (latest,)))
+        return {"latest_date": latest, "rows": rows}
+
+
+def get_ua_history(ticker: str, limit: int = 100) -> dict:
+    with db_conn() as c:
+        if not _ua_table_exists(c):
+            return {"ticker": ticker.upper(), "rows": []}
+        rows = _row_dicts(c.execute("""
+            SELECT date, activity_type, call_put, expiry, strike,
+                   volume, voi_ratio, notional_usd, iv_pct, price,
+                   vol_ratio, severity_score, signal
+            FROM unusual_activity
+            WHERE ticker = ?
+            ORDER BY date ASC
+            LIMIT ?
+        """, (ticker.upper(), limit)))
+        return {"ticker": ticker.upper(), "rows": rows}
 # ---------------------------------------------------------------------------
 def get_snapshot_dir() -> Path:
     """Directory where the macro pipeline saves its output (PNG + JSON).

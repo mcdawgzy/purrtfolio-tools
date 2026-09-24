@@ -81,6 +81,12 @@ const state = {
   ivActiveTab: 'latest',
   ivSelectedTicker: null,
   ivHistoryDays: 300,
+  // Unusual Activity / Dark Pool
+  uaMeta: null,
+  uaLatest: { rows: [] },
+  uaHistory: null,
+  uaActiveTab: 'latest',   // 'latest' | 'history'
+  uaSelectedTicker: null,
   // News Sentiment
   newsMeta: null,        // { latest_date, total_headlines, sources, ... }
   newsHeadlines: null,   // { latest_date, headlines: [...] }
@@ -276,6 +282,11 @@ function parseHash() {
   if (h === 'position-sizing' || h === 'position-sizing/') return { view: 'positioning' };
   if (h === 'payoff-visualizer' || h === 'payoff-visualizer/') return { view: 'payoff' };
   if (h === 'greeks-explainer' || h === 'greeks-explainer/') return { view: 'greeks' };
+  if (h === 'unusual-activity' || h === 'unusual-activity/') return { view: 'unusualactivity' };
+  if (h.startsWith('unusual-activity/')) {
+    const rest = h.slice('unusual-activity/'.length);
+    return { view: 'unusualactivity', uaTab: 'history', uaTicker: rest.toUpperCase() };
+  }
   if (h.startsWith('fund/')) {
     const rest = h.slice(5);
     const [cik, qs] = rest.split('?');
@@ -548,6 +559,13 @@ async function handleRoute() {
     state.ivActiveTab = 'latest';
     state.ivSelectedTicker = null;
   }
+  if (r.view !== 'unusualactivity') {
+    state.uaMeta = null;
+    state.uaLatest = { rows: [] };
+    state.uaHistory = null;
+    state.uaActiveTab = 'latest';
+    state.uaSelectedTicker = null;
+  }
   try {
     if (r.view === 'funds')        await loadFunds();
     else if (r.view === 'fund')    await loadFund(r.cik, r.tab);
@@ -563,6 +581,7 @@ async function handleRoute() {
     else if (r.view === 'factors')     await loadFactors(r);
     else if (r.view === 'putcallratio') await loadPutCallRatio(r);
     else if (r.view === 'ivrank')        await loadIVRank(r);
+    else if (r.view === 'unusualactivity') await loadUnusualActivity(r);
     else if (r.view === 'news')        await loadNews(r);
   } catch (e) {
     state.error = 'Navigation error: ' + e.message;
@@ -945,6 +964,31 @@ async function loadIVRank(r) {
   }
 }
 
+// ---------------- Unusual Activity loader ----------------
+async function loadUnusualActivity(r) {
+  state.uaActiveTab = r.uaTab || 'latest';
+  state.uaSelectedTicker = r.uaTicker || null;
+  state.error = null;
+  state.loading = true;
+  try {
+    await loadMeta();
+    const [meta, latest] = await Promise.all([
+      api('/api/ua/meta'),
+      api('/api/ua/latest'),
+    ]);
+    state.uaMeta = meta;
+    state.uaLatest = latest;
+    if (state.uaSelectedTicker) {
+      state.uaHistory = await api(`/api/ua/history/${state.uaSelectedTicker}`);
+      state.uaActiveTab = 'history';
+    }
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+  }
+}
+
 // ---------------- render ----------------
 function render() {
   const root = document.getElementById('app');
@@ -979,6 +1023,7 @@ function render() {
   if (state.view === 'drawdown')     root.appendChild(renderDrawdownSimulator());
   if (state.view === 'payoff')       root.appendChild(renderPayoffVisualizer());
   if (state.view === 'greeks')       root.appendChild(renderGreeksExplainer());
+  if (state.view === 'unusualactivity') root.appendChild(renderUnusualActivity());
 }
 
 function renderMasthead() {
@@ -1013,6 +1058,8 @@ function renderMasthead() {
     title = 'Options Payoff';
   } else if (state.view === 'greeks') {
     title = 'Greeks Explainer';
+  } else if (state.view === 'unusualactivity') {
+    title = 'Unusual Activity';
   } else if (state.view === 'fund') {
     // Show fund name instead of generic title
     return el('div', { class: 'masthead' },
@@ -1092,6 +1139,7 @@ const NAV_ROUTES = {
   drawdown:     '#/drawdown-simulator',
   payoff:       '#/payoff-visualizer',
   greeks:        '#/greeks-explainer',
+  unusualactivity: '#/unusual-activity',
 };
 
 // ---------------- Page descriptions ----------------
@@ -1173,6 +1221,10 @@ const PAGE_DESCRIPTIONS = {
   greeks: {
     intro: 'Interactive Black-Scholes Greeks calculator for a single European option. Enter spot price, strike, implied volatility, time to expiry, interest rate, and dividend yield to compute Delta, Gamma, Theta, and Vega in real time. The Delta-vs-Spot chart plots how Delta changes across underlying prices — the steepness of that curve at any point is Gamma, the rate of Delta change. This is a client-side tool: no inputs are sent to any server or stored.',
     issues: 'Uses the Black-Scholes-Merton model with continuous dividend yield. These are theoretical values — actual options may trade at different prices due to discrete dividends, American exercise features, stochastic volatility, and transaction costs. Theta is shown as daily decay (1/365 of annualized). Vega is shown per 1% change in implied volatility. For multi-leg strategies, use the Options Payoff Visualizer alongside this tool.',
+  },
+  unusualactivity: {
+    intro: 'Daily unusual activity scan across ~24 large-cap tickers. Detects unusual options activity (high volume-to-open-interest ratios, large notional trades) and volume spikes (dark-pool / block-trade proxy — current volume vs 20-day average). Each flagged trade or spike is scored by severity (0-100) based on VOI ratio, notional dollar size, days-to-expiry proximity, and volume surge. Use the Latest tab to see flagged activity sorted by severity, or drill into any ticker for its history chart. Data is fetched from yfinance options chains and daily price/volume history, processed in Python via cron, and stored in the unified purrtfolio.db.',
+    issues: 'Options volume data from yfinance free tier can lag by up to 24 hours. The volume-spike detector is a proxy for dark-pool activity, not a direct feed of executed block trades — a volume spike can also be caused by news events or algorithmic trading. VOI ratio (volume/open-interest) is most meaningful for options with established open interest; freshly listed strikes can show inflated ratios. Notional values use mid-price (bid+ask)/2, which may differ from execution prices on wide spreads. Data ingestion runs daily at 7 AM UTC+10; the current day may not appear until ~7:10 AM after the cron completes.',
   },
 };
 
@@ -5119,6 +5171,236 @@ function renderGreeksExplainer() {
 
   // Initial render
   computeAndRender();
+
+  return wrap;
+}
+
+// ──────────────────────────────────────────────────────────────
+// Unusual Activity trackers
+// ──────────────────────────────────────────────────────────────
+function renderUnusualActivity() {
+  const wrap = el('div', { class: 'section' });
+
+  if (!state.uaMeta && !state.uaLatest) {
+    wrap.appendChild(el('div', { class: 'empty' }, 'Loading unusual activity data…'));
+    return wrap;
+  }
+
+  const m = state.uaMeta || {};
+  const latest = state.uaLatest || { rows: [] };
+  const rows = latest.rows || [];
+
+  // Stats row
+  if (m.latest_date) {
+    const stats = el('div', { class: 'stats' });
+    stats.appendChild(stat('As of', fmtDateISO(m.latest_date)));
+    stats.appendChild(stat('Tickers', m.ticker_count || 0, 'brass'));
+    stats.appendChild(stat('Extreme', m.extreme_count || 0, 'red'));
+    stats.appendChild(stat('High', m.high_count || 0, 'amber'));
+    if (m.last_ingestion) {
+      stats.appendChild(stat('Updated', fmtDateISO(m.last_ingestion.started_at), 'brass'));
+    }
+    wrap.appendChild(stats);
+  }
+
+  // Empty state
+  if (!rows.length) {
+    wrap.appendChild(el('div', { class: 'empty' },
+      m.latest_date
+        ? 'No flagged activity for this date.'
+        : 'No activity data in database yet. Run the Unusual Activity cron to ingest.'));
+    return wrap;
+  }
+
+  // Tabs
+  const tabs = el('div', { class: 'tabs' });
+  tabs.appendChild(el('div', {
+    class: 'tab ' + (state.uaActiveTab === 'latest' ? 'active' : ''),
+    onclick: () => { state.uaActiveTab = 'latest'; render(); },
+  }, 'Latest'));
+  tabs.appendChild(el('div', {
+    class: 'tab ' + (state.uaActiveTab === 'history' ? 'active' : ''),
+    onclick: () => { state.uaActiveTab = 'history'; render(); },
+  }, 'History'));
+  wrap.appendChild(tabs);
+
+  if (state.uaActiveTab === 'history') {
+    wrap.appendChild(renderUAHistory());
+  } else {
+    wrap.appendChild(renderUATable(rows));
+  }
+
+  return wrap;
+}
+
+function fmtNotional(n) {
+  if (n === null || n === undefined || Number.isNaN(n)) return '—';
+  const abs = Math.abs(n);
+  if (abs >= 1e9)  return '$' + (abs / 1e9).toFixed(1) + 'B';
+  if (abs >= 1e6)  return '$' + (abs / 1e6).toFixed(0) + 'M';
+  if (abs >= 1e3)  return '$' + (abs / 1e3).toFixed(0) + 'K';
+  return '$' + abs.toLocaleString();
+}
+
+function renderUATable(rows) {
+  const tableWrap = el('div', { class: 'table-wrap' });
+  const table = el('table');
+  const thead = el('thead');
+  const trh = el('tr');
+  ['Ticker', 'Type', 'CP', 'Expiry', 'Strike', 'Vol', 'OI', 'VOI', 'Notional', 'IV', 'Price', 'Vol Ratio', 'Severity', 'Signal'].forEach((h, i) => {
+    trh.appendChild(el('th', { class: i === 0 ? '' : 'num' }, h));
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = el('tbody');
+  for (const r of rows) {
+    const isExtreme = r.signal === 'EXTREME';
+    const isHigh = r.signal === 'HIGH';
+    const signalCls = isExtreme ? 'red' : isHigh ? 'amber' : 'mut';
+    const typeLabel = r.activity_type === 'options' ? 'Options' : 'Volume';
+    const cpLabel = r.call_put ? r.call_put.toUpperCase() : '—';
+    const expiryLabel = r.expiry || '—';
+    const strikeLabel = r.strike != null ? r.strike.toFixed(0) : '—';
+    const oiLabel = r.open_interest != null ? r.open_interest.toLocaleString() : '—';
+    const voiLabel = r.voi_ratio != null ? r.voi_ratio.toFixed(2) : '—';
+
+    const tr = el('tr', {
+      style: { cursor: 'pointer' },
+      onclick: () => setHash('#/unusual-activity/' + r.ticker),
+    });
+    tr.appendChild(el('td', { class: 'mono brass' }, r.ticker));
+    tr.appendChild(el('td', { class: 'num' }, typeLabel));
+    tr.appendChild(el('td', { class: 'num' }, cpLabel));
+    tr.appendChild(el('td', { class: 'num mut' }, expiryLabel));
+    tr.appendChild(el('td', { class: 'num' }, strikeLabel));
+    tr.appendChild(el('td', { class: 'num' }, r.volume ? r.volume.toLocaleString() : '—'));
+    tr.appendChild(el('td', { class: 'num mut' }, oiLabel));
+    tr.appendChild(el('td', { class: 'num mut' }, voiLabel));
+    tr.appendChild(el('td', { class: 'num' }, fmtNotional(r.notional_usd)));
+    tr.appendChild(el('td', { class: 'num' }, r.iv_pct != null ? r.iv_pct.toFixed(1) + '%' : '—'));
+    tr.appendChild(el('td', { class: 'num' }, r.price != null ? '$' + r.price.toFixed(1) : '—'));
+    tr.appendChild(el('td', { class: 'num mut' }, r.vol_ratio != null ? r.vol_ratio.toFixed(1) + 'x' : '—'));
+    tr.appendChild(el('td', { class: 'num' }, r.severity_score != null ? r.severity_score.toFixed(0) : '—'));
+    tr.appendChild(el('td', { class: 'num ' + signalCls }, r.signal));
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  return tableWrap;
+}
+
+function renderUAHistory() {
+  const h = state.uaHistory;
+  const wrap = el('div', { class: 'section' });
+
+  if (!h || !h.rows || !h.rows.length) {
+    wrap.appendChild(el('div', { class: 'empty' },
+      'Select a ticker from the Latest tab to view its activity history.'));
+    return wrap;
+  }
+
+  // Drill header
+  const header = el('div', { class: 'drill-header' });
+  header.appendChild(el('a', {
+    class: 'back',
+    href: '#/unusual-activity',
+    onclick: (e) => { e.preventDefault(); setHash('#/unusual-activity'); },
+  }, '← Back'));
+  header.appendChild(el('h2', {}, `${h.ticker} — Activity History`));
+  wrap.appendChild(header);
+
+  // Summary stats
+  const totalActivities = h.rows.length;
+  const activityTypes = h.rows.filter(r => r.activity_type === 'options').length;
+  const volumeTypes = h.rows.filter(r => r.activity_type === 'volume').length;
+  const extremeCount = h.rows.filter(r => r.signal === 'EXTREME').length;
+  const highCount = h.rows.filter(r => r.signal === 'HIGH').length;
+
+  const stats = el('div', { class: 'stats' });
+  stats.appendChild(stat('Total Events', totalActivities, 'brass'));
+  stats.appendChild(stat('Options', activityTypes, activityTypes > 0 ? 'amber' : 'mut'));
+  stats.appendChild(stat('Volume', volumeTypes, volumeTypes > 0 ? 'teal' : 'mut'));
+  stats.appendChild(stat('Extreme', extremeCount, 'red'));
+  stats.appendChild(stat('High', highCount, highCount > 0 ? 'amber' : 'mut'));
+  wrap.appendChild(stats);
+
+  // Activity table
+  wrap.appendChild(renderUATable(h.rows));
+
+  // Chart: Severity over time
+  const chartWrap = el('div', { style: { flex: '1 1 600px', height: '300px', width: '100%' } });
+  chartWrap.appendChild(el('canvas', { id: 'ua-history-chart' }));
+  wrap.appendChild(chartWrap);
+
+  setTimeout(async () => {
+    await ensureChartJS();
+    const canvas = document.getElementById('ua-history-chart');
+    if (!canvas) return;
+
+    const data = h.rows;
+    const labels = data.map(r => r.date
+      ? `${String(r.date).slice(5, 7)}/${String(r.date).slice(8, 10)}/${String(r.date).slice(2, 4)}`
+      : '');
+    const severities = data.map(r => r.severity_score || 0);
+    const colors = data.map(r =>
+      r.signal === 'EXTREME' ? CHART_COLORS.red :
+      r.signal === 'HIGH' ? CHART_COLORS.amber :
+      CHART_COLORS.blue
+    );
+
+    if (charts['ua-history-chart']) charts['ua-history-chart'].destroy();
+    charts['ua-history-chart'] = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Severity',
+          data: severities,
+          borderColor: CHART_COLORS.brass,
+          backgroundColor: colors.map(c => c + '20'),
+          borderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: colors,
+          fill: false,
+          tension: 0.1,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#11161D',
+            titleColor: '#E8EBEF',
+            bodyColor: '#7E8A9A',
+            borderColor: '#1E2A38',
+            borderWidth: 1,
+            padding: 8,
+            callbacks: {
+              label: (ctx) => `Severity: ${ctx.raw.toFixed(0)}`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Date', color: '#7E8A9A', font: { size: 10 } },
+            ticks: { color: '#7E8A9A', font: { size: 9 } },
+            grid: { color: '#1E2A38' },
+          },
+          y: {
+            title: { display: true, text: 'Severity (0–100)', color: '#7E8A9A', font: { size: 10 } },
+            ticks: { color: '#7E8A9A', font: { size: 9 } },
+            grid: { color: '#1E2A38' },
+            min: 0,
+            max: 100,
+          },
+        },
+      },
+    });
+  }, 0);
 
   return wrap;
 }

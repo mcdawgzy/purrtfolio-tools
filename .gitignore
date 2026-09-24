@@ -40,3 +40,4 @@ snapshots/macro/output/
 # Scraped data
 scanners/short-interest/data/
 scanners/economic-calendar/exports/
+mock_ua_server.py
