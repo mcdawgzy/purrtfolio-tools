@@ -64,7 +64,7 @@ def _db_has_new_tables(db_path: Path) -> bool:
         ).fetchall()
         conn.close()
         names = {t[0] for t in tables}
-        required = {"price_history", "price_momentum_signals", "corr_matrices"}
+        required = {"price_history", "price_momentum_signals", "corr_matrices", "earnings_revision_momentum"}
         if not required.issubset(names):
             return False
         # Verify the tables have data
