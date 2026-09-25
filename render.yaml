@@ -1,3 +1,5 @@
+# Trading Tools by Purrtfolio — free-tier web service (13F + macro + scanners)
+# Auto-deploys on push to master.
 services:
   - type: web
     name: 13f-tracker
