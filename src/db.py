@@ -2026,3 +2026,264 @@ def get_news_signals() -> dict:
             "bullish": bullish,
             "bearish": bearish,
         }
+
+
+# ---------------------------------------------------------------------------
+# Customizable Stock Screener
+# ---------------------------------------------------------------------------
+def get_screener_meta() -> dict:
+    """Metadata for the screener: available sectors + latest price date."""
+    with db_conn() as c:
+        sectors = [
+            r[0] for r in c.execute(
+                "SELECT DISTINCT sector FROM tickers "
+                "WHERE is_active = 1 AND sector IS NOT NULL AND sector != '' "
+                "ORDER BY sector"
+            ).fetchall()
+        ]
+        latest_price_date = c.execute(
+            "SELECT MAX(date) FROM price_history"
+        ).fetchone()[0]
+        ticker_count = c.execute(
+            "SELECT COUNT(DISTINCT ticker) FROM tickers WHERE is_active = 1"
+        ).fetchone()[0]
+    return {
+        "sectors": sectors,
+        "latest_price_date": latest_price_date,
+        "ticker_count": ticker_count,
+    }
+
+
+def get_screener_results(
+    sector: str = "",
+    min_price: float = 0,
+    max_price: float | None = None,
+    min_volume: int = 0,
+    min_market_cap: float = 0,
+    etf_only: bool = False,
+    stocks_only: bool = False,
+    sort_col: str = "market_cap",
+    sort_dir: str = "desc",
+    limit: int = 100,
+) -> list[dict]:
+    """Screen tickers by fundamental + price/volume criteria.
+
+    Filters against the latest price_history row per ticker joined to the
+    tickers dimension. Market cap is computed as close × shares_outstanding.
+    Sorting is done in Python for flexibility (dynamic sort column).
+    """
+    valid_sort_cols = {
+        "price", "volume", "market_cap", "ticker", "name", "sector",
+        "shares_outstanding", "pct_change",
+    }
+    if sort_col not in valid_sort_cols:
+        sort_col = "market_cap"
+
+    with db_conn() as c:
+        # Latest price + 5-day ROC via correlated subqueries
+        rows = _row_dicts(c.execute("""
+            SELECT
+                t.ticker, t.name, t.sector, t.industry, t.category,
+                t.is_etf, t.exchange,
+                lp.close AS price, lp.volume, lp.date AS price_date,
+                t.shares_outstanding, t.free_float_shares,
+                lp.close * COALESCE(t.shares_outstanding, 0) AS market_cap,
+                ((lp.close * 1.0 / p5.close) - 1.0) AS pct_change
+            FROM tickers t
+            JOIN (
+                SELECT ticker, close, volume, date
+                FROM price_history ph1
+                WHERE date = (SELECT MAX(date) FROM price_history ph2
+                              WHERE ph2.ticker = ph1.ticker)
+            ) lp ON lp.ticker = t.ticker
+            LEFT JOIN (
+                SELECT ticker, close
+                FROM price_history ph3
+                WHERE date = (
+                    SELECT date FROM price_history
+                    WHERE ticker = ph3.ticker
+                    ORDER BY date DESC LIMIT 1 OFFSET 4
+                )
+            ) p5 ON p5.ticker = t.ticker
+            WHERE t.is_active = 1
+              AND lp.close > 0
+              AND (:sector = '' OR t.sector = :sector)
+              AND lp.close >= :min_price
+              AND (:max_price IS NULL OR lp.close <= :max_price)
+              AND lp.volume >= :min_volume
+              AND (:min_mc = 0 OR (lp.close * COALESCE(t.shares_outstanding, 0)) >= :min_mc)
+              AND (:etf_only = 0 OR t.is_etf = 1)
+              AND (:stocks_only = 0 OR t.is_etf = 0)
+        """, {
+            "sector": sector,
+            "min_price": min_price,
+            "max_price": max_price if max_price is not None else None,
+            "min_volume": min_volume,
+            "min_mc": min_market_cap,
+            "etf_only": 1 if etf_only else 0,
+            "stocks_only": 1 if stocks_only else 0,
+        }))
+
+    # Sort in Python (dynamic column)
+    reverse = sort_dir == "desc"
+    rows.sort(key=lambda r: (r.get(sort_col) is None, r.get(sort_col) or 0), reverse=reverse)
+    # Clamp pct_change to sane floats
+    for r in rows:
+        pc = r.get("pct_change")
+        if pc is not None and (pc != pc or pc == float("inf") or pc == float("-inf")):
+            r["pct_change"] = None
+    return rows[:limit]
+
+
+# ---------------------------------------------------------------------------
+# Famous Trader Quotes
+# ---------------------------------------------------------------------------
+def init_trader_quotes() -> None:
+    """Create the trader_quotes table if it doesn't exist (writable)."""
+    path = get_db_path()
+    conn = sqlite3.connect(str(path))
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS trader_quotes (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            author        TEXT    NOT NULL,
+            quote         TEXT    NOT NULL,
+            category      TEXT,
+            source        TEXT,
+            created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_trader_quotes_category
+        ON trader_quotes(category)
+    """)
+    conn.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_trader_quotes_unique
+        ON trader_quotes(author, quote)
+    """)
+    conn.commit()
+    conn.close()
+
+
+def get_trader_quotes(category: str = "", limit: int = 100) -> list[dict]:
+    """Retrieve trader quotes, optionally filtered by category."""
+    with db_conn() as c:
+        if category:
+            rows = c.execute(
+                "SELECT author, quote, category, source "
+                "FROM trader_quotes WHERE category = ? "
+                "ORDER BY id",
+                (category,),
+            ).fetchall()
+        else:
+            rows = c.execute(
+                "SELECT author, quote, category, source "
+                "FROM trader_quotes ORDER BY id"
+            ).fetchall()
+    return [dict(r) for r in rows][:limit]
+
+
+def get_trader_quote_categories() -> list[str]:
+    """Return distinct categories used in the trader_quotes table."""
+    with db_conn() as c:
+        rows = c.execute(
+            "SELECT DISTINCT category FROM trader_quotes "
+            "WHERE category IS NOT NULL AND category != '' "
+            "ORDER BY category"
+        ).fetchall()
+    return [r[0] for r in rows]
+
+
+def get_random_trader_quote() -> dict | None:
+    """Return a single random quote."""
+    with db_conn() as c:
+        row = c.execute(
+            "SELECT author, quote, category, source "
+            "FROM trader_quotes ORDER BY RANDOM() LIMIT 1"
+        ).fetchone()
+    return dict(row) if row else None
+
+
+# ---------------------------------------------------------------------------
+# Earnings Revision Momentum
+# ---------------------------------------------------------------------------
+def init_earnings_revisions() -> None:
+    """Create earnings revision tables if they don't exist (writable)."""
+    path = get_db_path()
+    conn = sqlite3.connect(str(path))
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS earnings_revision_momentum (
+            ticker              TEXT PRIMARY KEY,
+            latest_report_date  DATE,
+            avg_revision_4q     REAL,    -- average pct revision over last 4 quarters
+            pct_positive        REAL,    -- % of positive surprises (0-1)
+            avg_surprise_pct    REAL,    -- average earnings surprise %
+            trend               TEXT,    -- 'improving' | 'deteriorating' | 'stable'
+            zscore              REAL,    -- standardized momentum score
+            created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS earnings_revision_history (
+            ticker              TEXT NOT NULL,
+            date                DATE NOT NULL,
+            avg_revision_4q     REAL,
+            pct_positive        REAL,
+            avg_surprise_pct    REAL,
+            trend               TEXT,
+            zscore              REAL,
+            PRIMARY KEY (ticker, date)
+        )
+    """)
+    conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_erm_date ON earnings_revision_momentum(created_at)
+    """)
+    conn.commit()
+    conn.close()
+
+
+def get_earnings_revision_momentum() -> list[dict]:
+    """Return all tickers with earnings revision momentum, sorted by zscore desc."""
+    with db_conn() as c:
+        rows = c.execute("""
+            SELECT ticker, latest_report_date, avg_revision_4q, pct_positive,
+                   avg_surprise_pct, trend, zscore, created_at
+            FROM earnings_revision_momentum
+            ORDER BY zscore DESC, pct_positive DESC
+        """).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_earnings_revision_history(ticker: str) -> list[dict]:
+    """Return historical momentum snapshots for a single ticker."""
+    with db_conn() as c:
+        rows = c.execute("""
+            SELECT date, avg_revision_4q, pct_positive, avg_surprise_pct,
+                   trend, zscore
+            FROM earnings_revision_history
+            WHERE ticker = ?
+            ORDER BY date DESC
+        """, (ticker.upper(),)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_earnings_revision_meta() -> dict:
+    """Metadata for the earnings revision page."""
+    with db_conn() as c:
+        latest = c.execute(
+            "SELECT MAX(created_at) FROM earnings_revision_momentum"
+        ).fetchone()[0]
+        total = c.execute(
+            "SELECT COUNT(*) FROM earnings_revision_momentum"
+        ).fetchone()[0]
+        improving = c.execute(
+            "SELECT COUNT(*) FROM earnings_revision_momentum WHERE trend = 'improving'"
+        ).fetchone()[0]
+        deteriorating = c.execute(
+            "SELECT COUNT(*) FROM earnings_revision_momentum WHERE trend = 'deteriorating'"
+        ).fetchone()[0]
+    return {
+        "latest_date": latest,
+        "ticker_count": total,
+        "improving": improving,
+        "deteriorating": deteriorating,
+    }

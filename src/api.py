@@ -439,6 +439,86 @@ def ua_history(
 
 
 # ---------------------------------------------------------------------------
+# Customizable Stock Screener
+# ---------------------------------------------------------------------------
+@app.get("/api/screener/meta")
+def screener_meta():
+    """Screener metadata: available sectors, latest price date, ticker count."""
+    return db.get_screener_meta()
+
+
+@app.get("/api/screener")
+def screener(
+    sector: str = Query("", description="GICS sector filter (empty = all)"),
+    min_price: float = Query(0, ge=0, description="Minimum current price"),
+    max_price: float = Query(0, ge=0, description="Maximum current price (0 = no cap)"),
+    min_volume: int = Query(0, ge=0, description="Minimum daily volume"),
+    min_market_cap: float = Query(0, ge=0, description="Minimum market cap in USD (0 = no floor)"),
+    etf_only: bool = Query(False, description="Only ETFs"),
+    stocks_only: bool = Query(False, description="Only stocks (excludes ETFs)"),
+    sort_col: str = Query("market_cap", description="Sort column"),
+    sort_dir: str = Query("desc", regex="^(asc|desc)$", description="Sort direction"),
+    limit: int = Query(100, ge=10, le=500, description="Max results"),
+):
+    """Screen the tickers universe by fundamental + price/volume criteria.
+
+    Joins the latest price_history row per ticker to the tickers dimension.
+    Market cap is computed as close × shares_outstanding. Returns pct_change
+    (5-day price return) where available."""
+    return db.get_screener_results(
+        sector=sector,
+        min_price=min_price,
+        max_price=max_price if max_price else None,
+        min_volume=min_volume,
+        min_market_cap=min_market_cap,
+        etf_only=etf_only,
+        stocks_only=stocks_only,
+        sort_col=sort_col,
+        sort_dir=sort_dir,
+        limit=limit,
+    )
+
+
+@app.get("/api/quotes")
+def trader_quotes(
+    category: str = Query("", description="Category filter (empty = all)"),
+    limit: int = Query(100, ge=1, le=500, description="Max results"),
+):
+    """Famous trader quotes. Optionally filter by category."""
+    return db.get_trader_quotes(category=category, limit=limit)
+
+
+@app.get("/api/quotes/meta")
+def trader_quote_meta():
+    """Available quote categories."""
+    return {"categories": db.get_trader_quote_categories()}
+
+
+@app.get("/api/quotes/random")
+def random_quote():
+    """A single random trader quote."""
+    return db.get_random_trader_quote()
+
+
+@app.get("/api/earnings-revisions")
+def earnings_revision_momentum():
+    """Earnings revision momentum across the watchlist universe."""
+    return db.get_earnings_revision_momentum()
+
+
+@app.get("/api/earnings-revisions/meta")
+def earnings_revision_meta():
+    """Metadata for the earnings revision page."""
+    return db.get_earnings_revision_meta()
+
+
+@app.get("/api/earnings-revisions/history/{ticker}")
+def earnings_revision_history(ticker: str):
+    """Historical momentum snapshots for a single ticker."""
+    return db.get_earnings_revision_history(ticker)
+
+
+# ---------------------------------------------------------------------------
 # Market Snapshot
 # ---------------------------------------------------------------------------
 @app.get("/api/snapshot/latest")

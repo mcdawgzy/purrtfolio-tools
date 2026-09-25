@@ -94,7 +94,23 @@ const state = {
   newsTickerDetail: null,// { ticker, history: [...], headlines: [...] }
   newsActiveTab: 'headlines',  // 'headlines' | 'signals' | 'ticker'
   newsTicker: null,
-  };
+  // Stock Screener
+  screenerMeta: null,
+  screenerResults: { rows: [], total: 0 },
+  screenerFilters: {
+    sector: '', min_price: '', max_price: '',
+    min_volume: '', min_market_cap: '',
+    etf_only: false, stocks_only: false,
+  },
+  screenerSort: { col: 'market_cap', dir: 'desc' },
+  // Famous Trader Quotes
+  quoteMeta: null,
+  quoteList: [],
+  quoteCategory: '',
+  // Earnings Revision Momentum
+  ermMeta: null,
+  ermRows: [],
+};
 
 // ---------------- helpers ----------------
 // Lazy-load Chart.js — only fetched when a chart view is first rendered,
@@ -282,7 +298,11 @@ function parseHash() {
   if (h === 'position-sizing' || h === 'position-sizing/') return { view: 'positioning' };
   if (h === 'payoff-visualizer' || h === 'payoff-visualizer/') return { view: 'payoff' };
   if (h === 'greeks-explainer' || h === 'greeks-explainer/') return { view: 'greeks' };
+  if (h === 'options-explainer' || h === 'options-explainer/') return { view: 'optionsexplainer' };
   if (h === 'unusual-activity' || h === 'unusual-activity/') return { view: 'unusualactivity' };
+  if (h === 'screener' || h === 'screener/') return { view: 'screener' };
+  if (h === 'quotes' || h === 'quotes/') return { view: 'quotes' };
+  if (h === 'earnings-revisions' || h === 'earnings-revisions/') return { view: 'earningsrevisions' };
   if (h.startsWith('unusual-activity/')) {
     const rest = h.slice('unusual-activity/'.length);
     return { view: 'unusualactivity', uaTab: 'history', uaTicker: rest.toUpperCase() };
@@ -582,7 +602,10 @@ async function handleRoute() {
     else if (r.view === 'putcallratio') await loadPutCallRatio(r);
     else if (r.view === 'ivrank')        await loadIVRank(r);
     else if (r.view === 'unusualactivity') await loadUnusualActivity(r);
+    else if (r.view === 'screener')       await loadScreener(r);
     else if (r.view === 'news')        await loadNews(r);
+    else if (r.view === 'quotes')      await loadQuotes(r);
+    else if (r.view === 'earningsrevisions') await loadEarningsRevisions(r);
   } catch (e) {
     state.error = 'Navigation error: ' + e.message;
   }
@@ -989,6 +1012,125 @@ async function loadUnusualActivity(r) {
   }
 }
 
+async function loadScreener(r) {
+  state.error = null;
+  state.loading = true;
+  try {
+    await loadMeta();
+    const f = state.screenerFilters;
+    const [meta, results] = await Promise.all([
+      api('/api/screener/meta'),
+      api('/api/screener', {
+        sector:     f.sector,
+        min_price:  f.min_price,
+        max_price:  f.max_price,
+        min_volume: f.min_volume,
+        min_market_cap: f.min_market_cap,
+        etf_only:   f.etf_only,
+        stocks_only: f.stocks_only,
+        sort_col:   state.screenerSort.col,
+        sort_dir:   state.screenerSort.dir,
+        limit:      100,
+      }),
+    ]);
+    state.screenerMeta = meta;
+    state.screenerResults = { rows: results, total: results.length };
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+  }
+}
+
+async function applyScreenerFilters() {
+  const f = state.screenerFilters;
+  try {
+    state.loading = true;
+    const results = await api('/api/screener', {
+      sector:      f.sector,
+      min_price:   f.min_price,
+      max_price:   f.max_price,
+      min_volume:  f.min_volume,
+      min_market_cap: f.min_market_cap,
+      etf_only:    f.etf_only,
+      stocks_only: f.stocks_only,
+      sort_col:    state.screenerSort.col,
+      sort_dir:    state.screenerSort.dir,
+      limit:       100,
+    });
+    state.screenerResults = { rows: results, total: results.length };
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
+async function setScreenerSort(col, dir) {
+  state.screenerSort = { col, dir };
+  await applyScreenerFilters();
+}
+
+async function loadQuotes(r) {
+  state.error = null;
+  state.loading = true;
+  try {
+    const cat = r && r.category ? r.category : state.quoteCategory || '';
+    state.quoteCategory = cat;
+    await loadMeta();
+    const [meta, quotes] = await Promise.all([
+      api('/api/quotes/meta'),
+      api('/api/quotes', { category: cat, limit: 50 }),
+    ]);
+    state.quoteMeta = meta;
+    state.quoteList = quotes;
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+  }
+}
+
+async function loadRandomQuote() {
+  try {
+    state.loading = true;
+    const q = await api('/api/quotes/random');
+    state.quoteList = q ? [q] : [];
+    if (!state.quoteMeta) {
+      state.quoteMeta = await api('/api/quotes/meta');
+    }
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+    render();
+  }
+}
+
+function changeQuoteCategory(cat) {
+  state.quoteCategory = cat;
+  loadQuotes({ category: cat });
+}
+
+async function loadEarningsRevisions(r) {
+  state.error = null;
+  state.loading = true;
+  try {
+    await loadMeta();
+    const [meta, rows] = await Promise.all([
+      api('/api/earnings-revisions/meta'),
+      api('/api/earnings-revisions'),
+    ]);
+    state.ermMeta = meta;
+    state.ermRows = rows;
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+  }
+}
+
 // ---------------- render ----------------
 function render() {
   const root = document.getElementById('app');
@@ -1023,7 +1165,11 @@ function render() {
   if (state.view === 'drawdown')     root.appendChild(renderDrawdownSimulator());
   if (state.view === 'payoff')       root.appendChild(renderPayoffVisualizer());
   if (state.view === 'greeks')       root.appendChild(renderGreeksExplainer());
+  if (state.view === 'optionsexplainer') root.appendChild(renderOptionsExplainer());
   if (state.view === 'unusualactivity') root.appendChild(renderUnusualActivity());
+  if (state.view === 'screener')        root.appendChild(renderScreener());
+  if (state.view === 'quotes')          root.appendChild(renderQuotes());
+  if (state.view === 'earningsrevisions') root.appendChild(renderEarningsRevisions());
 }
 
 function renderMasthead() {
@@ -1058,8 +1204,16 @@ function renderMasthead() {
     title = 'Options Payoff';
   } else if (state.view === 'greeks') {
     title = 'Greeks Explainer';
+  } else if (state.view === 'optionsexplainer') {
+    title = 'Options Explainer';
   } else if (state.view === 'unusualactivity') {
     title = 'Unusual Activity';
+  } else if (state.view === 'screener') {
+    title = 'Stock Screener';
+  } else if (state.view === 'quotes') {
+    title = 'Famous Trader Quotes';
+  } else if (state.view === 'earningsrevisions') {
+    title = 'Earnings Revision Momentum';
   } else if (state.view === 'fund') {
     // Show fund name instead of generic title
     return el('div', { class: 'masthead' },
@@ -1107,6 +1261,8 @@ const NAV_GROUPS = [
       { view: 'putcallratio',  label: 'Put/Call Ratio' },
       { view: 'ivrank',        label: 'IV Rank Tracker' },
       { view: 'news',          label: 'News Sentiment' },
+      { view: 'screener',      label: 'Stock Screener' },
+      { view: 'earningsrevisions', label: 'Earnings Revision' },
     ],
   },
   {
@@ -1115,7 +1271,9 @@ const NAV_GROUPS = [
       { view: 'positioning', label: 'Position Sizing' },
       { view: 'drawdown',    label: 'Drawdown Simulator' },
       { view: 'payoff',      label: 'Options Payoff' },
-  { view: 'greeks',      label: 'Greeks Explainer' },
+      { view: 'greeks',      label: 'Greeks Explainer' },
+      { view: 'optionsexplainer', label: 'Options Explainer' },
+      { view: 'quotes',           label: 'Famous Trader Quotes' },
     ],
   },
 ];
@@ -1139,7 +1297,11 @@ const NAV_ROUTES = {
   drawdown:     '#/drawdown-simulator',
   payoff:       '#/payoff-visualizer',
   greeks:        '#/greeks-explainer',
+  optionsexplainer: '#/options-explainer',
   unusualactivity: '#/unusual-activity',
+  screener:       '#/screener',
+  earningsrevisions: '#/earnings-revisions',
+  quotes:         '#/quotes',
 };
 
 // ---------------- Page descriptions ----------------
@@ -1222,9 +1384,25 @@ const PAGE_DESCRIPTIONS = {
     intro: 'Interactive Black-Scholes Greeks calculator for a single European option. Enter spot price, strike, implied volatility, time to expiry, interest rate, and dividend yield to compute Delta, Gamma, Theta, and Vega in real time. The Delta-vs-Spot chart plots how Delta changes across underlying prices — the steepness of that curve at any point is Gamma, the rate of Delta change. This is a client-side tool: no inputs are sent to any server or stored.',
     issues: 'Uses the Black-Scholes-Merton model with continuous dividend yield. These are theoretical values — actual options may trade at different prices due to discrete dividends, American exercise features, stochastic volatility, and transaction costs. Theta is shown as daily decay (1/365 of annualized). Vega is shown per 1% change in implied volatility. For multi-leg strategies, use the Options Payoff Visualizer alongside this tool.',
   },
+  optionsexplainer: {
+    intro: 'Educational guide to options trading: what calls and puts are, how premium, strike, and expiration work, moneyness (ITM/ATM/OTM), the Greeks at a glance, time decay (theta), implied volatility (vega), and common option strategies (spreads, straddles, condors, covered calls, protective puts). This is a conceptual primer — use the Greeks Explainer and Options Payoff Visualizer for interactive calculations, and the IV Rank Tracker for live implied volatility data.',
+    issues: 'This is a static educational reference, not trading advice. Options involve substantial risk, including the potential to lose significantly more than the initial investment for leveraged positions. Past performance of any strategy is not indicative of future results.',
+  },
   unusualactivity: {
     intro: 'Daily unusual activity scan across ~24 large-cap tickers. Detects unusual options activity (high volume-to-open-interest ratios, large notional trades) and volume spikes (dark-pool / block-trade proxy — current volume vs 20-day average). Each flagged trade or spike is scored by severity (0-100) based on VOI ratio, notional dollar size, days-to-expiry proximity, and volume surge. Use the Latest tab to see flagged activity sorted by severity, or drill into any ticker for its history chart. Data is fetched from yfinance options chains and daily price/volume history, processed in Python via cron, and stored in the unified purrtfolio.db.',
     issues: 'Options volume data from yfinance free tier can lag by up to 24 hours. The volume-spike detector is a proxy for dark-pool activity, not a direct feed of executed block trades — a volume spike can also be caused by news events or algorithmic trading. VOI ratio (volume/open-interest) is most meaningful for options with established open interest; freshly listed strikes can show inflated ratios. Notional values use mid-price (bid+ask)/2, which may differ from execution prices on wide spreads. Data ingestion runs daily at 7 AM UTC+10; the current day may not appear until ~7:10 AM after the cron completes.',
+  },
+  screener: {
+    intro: 'Customizable stock screener over the full tickers universe (~11,800 securities from SEC EDGAR 13F holdings). Filter by GICS sector, price range, daily volume, market cap, or ETF vs stock. Sort by market cap, price, volume, 5-day price change, or ticker. Market cap is computed as latest close × shares_outstanding (from price_history joined to tickers). Results update live as you adjust filters — no page reload needed. Data is read from the unified purrtfolio.db SQLite database, refreshed daily by cron.',
+    issues: 'Market cap uses diluted shares_outstanding from 13F filings, not real-time float — it may not reflect post-IPO activity or recent buybacks. The 5-day price change compares today&rsquo;s close to the close 5 trading days ago; gaps from halted/suspended tickers can produce misleading returns. Index tickers (e.g. ^GSPC, ^NDX) are excluded since they lack fundamental data in the tickers dimension. ETF filtering relies on the is_etf flag from EDGAR classification, which may miss newer or non-US-listed ETFs.',
+  },
+  quotes: {
+    intro: 'A curated collection of ~50 famous trader and investor quotes, organized by category (Investing, Trading, Risk Management, Psychology, Markets). New quotes can be added by extending the seed file and re-running the daily cron. Each quote is attributed to its author with source documentation. Use the category filter to browse by theme, or click "Random" for a daily dose of wisdom.',
+    issues: 'Quotes are curated from public interviews, books, and annual reports. Some attributions are debated by scholars — treat as folklore rather than verified transcripts. Categories are assigned by keyword clustering, not by the speakers themselves. The collection is seeded once and grown manually; it is not scraped from social media in real-time.',
+  },
+  earningsrevisions: {
+    intro: 'Tracks earnings revision momentum across the watchlist universe (~24 large-cap tickers). For each ticker, the scanner fetches yfinance\u2019s earnings_history (actual vs estimate for the last 4 reported quarters), computes a mean revision percentage, fraction of positive surprises, and a z-scored momentum rank. Ticklers are classified as improving / deteriorating / stable based on whether recent-quarter revisions are accelerating or decelerating. Data is fetched daily at 5:30 AM UTC+10 via cron and stored in the unified purrtfolio.db. The z-score compares each ticker\u2019s revision magnitude to the cross-sectional mean and standard deviation — higher scores indicate stronger positive earnings surprises relative to peers.',
+    issues: 'yfinance earnings_history availability is inconsistent — ETFs (SPY, QQQ, IWM) and some foreign tickers return 404 and are silently skipped. The 4-quarter window means tickers with fewer reported quarters are excluded entirely, which can bias the universe toward larger, more consistent reporters. Revision pct uses (actual - estimate) / |estimate|, so small or negative estimates can produce extreme values; the z-score dampens this but outliers like BA can still dominate the ranking. The trend classification threshold (\u00b12% recent-vs-older delta) is a heuristic — a \u201cstable\u201d reading may still reflect meaningful acceleration below the threshold. Data lags real-time by 1-2 days during earnings season.',
   },
 };
 
@@ -5171,6 +5349,367 @@ function renderGreeksExplainer() {
 
   // Initial render
   computeAndRender();
+
+  return wrap;
+}
+
+// ──────────────────────────────────────────────────────────────
+// Stock Screener
+// ──────────────────────────────────────────────────────────────
+function renderScreener() {
+  const wrap = el('div', { class: 'section' });
+
+  wrap.appendChild(el('div', { class: 'section-header' },
+    el('h2', {}, 'Stock Screener'),
+    el('div', { class: 'hint brass' }, 'Filter · Sort · Scan (~' + ((state.screenerMeta && state.screenerMeta.ticker_count) || '—') + ' securities)')));
+
+  const _desc = renderPageDescription('screener');
+  if (_desc) wrap.appendChild(_desc);
+
+  if (state.loading) {
+    wrap.appendChild(el('div', { class: 'loading' }, 'SCANNING UNIVERSE…'));
+    return wrap;
+  }
+
+  const m = state.screenerMeta || {};
+  const rows = (state.screenerResults || { rows: [] }).rows;
+
+  // ── Filter controls ──
+  const controls = el('div', { class: 'screener-controls' });
+  const f = { ...state.screenerFilters };
+  const sortCol = state.screenerSort.col;
+  const sortDir = state.screenerSort.dir;
+
+  function numInput(placeholder, field, min, max) {
+    const input = el('input', {
+      type: 'number', class: 's-input', step: 'any', min, max,
+      placeholder, value: f[field] != null ? f[field] : '',
+    });
+    input.addEventListener('change', (e) => {
+      const v = e.target.value;
+      f[field] = v === '' ? '' : Number(v);
+      state.screenerFilters = f;
+      applyScreenerFilters();
+    });
+    return input;
+  }
+
+  function sectorSelect() {
+    const opts = m.sectors || [];
+    const sel = el('select', { class: 's-select' });
+    sel.appendChild(el('option', { value: '' }, 'All Sectors'));
+    opts.forEach(s => sel.appendChild(el('option', { value: s, selected: f.sector === s }, s)));
+    sel.addEventListener('change', (e) => {
+      f.sector = e.target.value;
+      state.screenerFilters = f;
+      applyScreenerFilters();
+    });
+    return sel;
+  }
+
+  function checkbox(label, field) {
+    const id = 'scr-' + field;
+    const cb = el('input', { type: 'checkbox', id, checked: !!f[field] });
+    cb.addEventListener('change', (e) => {
+      f[field] = e.target.checked;
+      state.screenerFilters = f;
+      applyScreenerFilters();
+    });
+    return el('label', { class: 's-check', for: id }, cb, el('span', {}, label));
+  }
+
+  controls.appendChild(sectorSelect());
+  controls.appendChild(numInput('Min $', 'min_price', 0));
+  controls.appendChild(numInput('Max $', 'max_price', 0));
+  controls.appendChild(numInput('Min Volume', 'min_volume', 0));
+  controls.appendChild(numInput('Min Market Cap ($B)', 'min_market_cap', 0));
+  controls.appendChild(checkbox('ETF only', 'etf_only'));
+  controls.appendChild(checkbox('Stocks only', 'stocks_only'));
+  wrap.appendChild(controls);
+
+  // ── Sort chips ──
+  const chips = el('div', { class: 's-sort-chips' });
+  const sortCols = [
+    ['market_cap', 'Market Cap'],
+    ['price', 'Price'],
+    ['volume', 'Volume'],
+    ['pct_change', '% Change'],
+    ['ticker', 'Ticker'],
+  ];
+  sortCols.forEach(([col, label]) => {
+    const active = sortCol === col;
+    const dir = active ? sortDir : 'desc';
+    const cls = 's-chip ' + (active ? (dir === 'desc' ? 's-chip-down' : 's-chip-up') : '');
+    const chip = el('div', { class: cls, title: 'Sort by ' + label },
+      label, el('span', { class: 's-arrow' }, active ? (dir === 'desc' ? '▼' : '▲') : ''));
+    if (active) {
+      chip.addEventListener('click', (e) => {
+        e.preventDefault();
+        setScreenerSort(col, dir === 'desc' ? 'asc' : 'desc');
+      });
+    }
+    chips.appendChild(chip);
+  });
+  wrap.appendChild(chips);
+
+  // ── Stats row ──
+  if (m.latest_date) {
+    const stats = el('div', { class: 'stats' });
+    stats.appendChild(stat('As of', fmtDateISO(m.latest_date)));
+    stats.appendChild(stat('Results', rows.length));
+    wrap.appendChild(stats);
+  }
+
+  // ── Results table ──
+  if (rows.length === 0) {
+    wrap.appendChild(el('div', { class: 'empty' }, 'No tickers match the current filters.'));
+    return wrap;
+  }
+
+  const table = el('table', { class: 's-table' });
+  const hdr = el('thead', {},
+    el('tr', {},
+      th('Ticker'), th('Name'), th('Sector'), th('Price'), th('% Chg'), th('Volume'), th('Mkt Cap')));
+  table.appendChild(hdr);
+
+  const tbody = el('tbody', {});
+  rows.forEach(r => {
+    const chgClass = r.pct_change > 0 ? 'num pos' : (r.pct_change < 0 ? 'num neg' : 'num');
+    tbody.appendChild(el('tr', {},
+      el('td', { class: 's-ticker' }, r.ticker),
+      el('td', {}, r.name),
+      el('td', {}, r.sector || '—'),
+      el('td', { class: 'num' }, fmtUSD(r.price, { compact: false })),
+      el('td', { class: chgClass }, fmtPct(r.pct_change)),
+      el('td', { class: 'num' }, fmtNum(r.volume)),
+      el('td', { class: 'num' }, (r.market_cap / 1e9).toFixed(1) + 'B'),
+    ));
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+
+  return wrap;
+}
+
+function th(label) {
+  return el('th', {}, label);
+}
+
+// ──────────────────────────────────────────────────────────────
+// Famous Trader Quotes
+// ──────────────────────────────────────────────────────────────
+function renderQuotes() {
+  const wrap = el('div', { class: 'section' });
+
+  wrap.appendChild(el('div', { class: 'section-header' },
+    el('h2', {}, 'Famous Trader Quotes'),
+    el('div', { class: 'hint brass' }, 'Curated · ' + ((state.quoteMeta && state.quoteMeta.categories) ? state.quoteMeta.categories.length : 0) + ' categories')));
+
+  const _desc = renderPageDescription('quotes');
+  if (_desc) wrap.appendChild(_desc);
+
+  // ── Controls ──
+  const controls = el('div', { class: 'q-controls' });
+
+  // Category filter
+  const cats = (state.quoteMeta && state.quoteMeta.categories) || [];
+  const sel = el('select', { class: 'q-select' });
+  sel.appendChild(el('option', { value: '', selected: !state.quoteCategory }, 'All Categories'));
+  cats.forEach(c => sel.appendChild(el('option', { value: c, selected: state.quoteCategory === c }, c)));
+  sel.addEventListener('change', () => changeQuoteCategory(sel.value));
+  controls.appendChild(sel);
+
+  // Random button
+  const randBtn = el('button', { class: 'btn btn-ghost btn-sm', type: 'button' }, '🎲 Random');
+  randBtn.addEventListener('click', loadRandomQuote);
+  controls.appendChild(randBtn);
+
+  if (state.quoteList.length > 0 || state.loading) {
+    controls.appendChild(el('span', { class: 'q-count hint' },
+      state.loading ? 'Loading…' : state.quoteList.length + ' quote' + (state.quoteList.length === 1 ? '' : 's')));
+  }
+  wrap.appendChild(controls);
+
+  if (state.loading) {
+    wrap.appendChild(el('div', { class: 'loading' }, 'FETCHING WISDOM…'));
+    return wrap;
+  }
+
+  const rows = state.quoteList;
+  if (rows.length === 0) {
+    wrap.appendChild(el('div', { class: 'empty' }, 'No quotes match the current filter.'));
+    return wrap;
+  }
+
+  // ── Quote grid ──
+  const grid = el('div', { class: 'q-grid' });
+  rows.forEach(q => {
+    grid.appendChild(el('div', { class: 'q-card' },
+      el('div', { class: 'q-mark' }, '"'),
+      el('div', { class: 'q-text' }, q.quote),
+      el('div', { class: 'q-author-row' },
+        el('span', { class: 'q-author' }, q.author),
+        q.category ? el('span', { class: 'q-badge' }, q.category) : null,
+      ),
+      q.source ? el('div', { class: 'q-source' }, q.source) : null,
+    ));
+  });
+  wrap.appendChild(grid);
+
+  return wrap;
+}
+
+// ──────────────────────────────────────────────────────────────
+// Earnings Revision Momentum
+// ──────────────────────────────────────────────────────────────
+function renderEarningsRevisions() {
+  const wrap = el('div', { class: 'section' });
+
+  wrap.appendChild(el('div', { class: 'section-header' },
+    el('h2', {}, 'Earnings Revision Momentum'),
+    el('div', { class: 'hint brass' }, 'Earnings surprise trend across '
+      + ((state.ermMeta && state.ermMeta.ticker_count) || '…') + ' tickers')));
+
+  const _desc = renderPageDescription('earningsrevisions');
+  if (_desc) wrap.appendChild(_desc);
+
+  if (state.loading) {
+    wrap.appendChild(el('div', { class: 'loading' }, 'SCANNING EARNINGS REVISIONS…'));
+    return wrap;
+  }
+
+  const m = state.ermMeta || {};
+  const rows = state.ermRows || [];
+
+  // ── Stats row ──
+  if (m.latest_date) {
+    const stats = el('div', { class: 'stats' });
+    stats.appendChild(stat('Last updated', fmtDateISO(m.latest_date)));
+    stats.appendChild(stat('Tickers', rows.length));
+    stats.appendChild(stat('Improving', m.improving || 0));
+    stats.appendChild(stat('Deteriorating', m.deteriorating || 0));
+    wrap.appendChild(stats);
+  }
+
+  if (rows.length === 0) {
+    wrap.appendChild(el('div', { class: 'empty' },
+      'No earnings revision data yet. The cron runs daily at 5:30 AM UTC+10.'));
+    return wrap;
+  }
+
+  // ── Results table ──
+  const table = el('table', { class: 'erm-table' });
+  const hdr = el('thead', {}, el('tr', {},
+    th('Ticker'), th('Report'), th('Avg Revision'),
+    th('% Positive'), th('Avg Surprise'), th('Trend'), th('Z-Score')));
+  table.appendChild(hdr);
+
+  const tbody = el('tbody', {});
+  rows.forEach(r => {
+    const trendClass = r.trend === 'improving' ? 'pos'
+      : r.trend === 'deteriorating' ? 'neg' : 'dim';
+    const zClass = (r.zscore || 0) > 0 ? 'pos'
+      : (r.zscore || 0) < 0 ? 'neg' : 'dim';
+    tbody.appendChild(el('tr', {},
+      el('td', { class: 's-ticker' }, r.ticker),
+      el('td', {}, fmtDateISO(r.latest_report_date)),
+      el('td', { class: 'num' }, fmtPct(r.avg_revision_4q * 100)),
+      el('td', { class: 'num' }, fmtPct(r.pct_positive * 100)),
+      el('td', { class: 'num' }, fmtPct(r.avg_surprise_pct)),
+      el('td', { class: trendClass }, r.trend),
+      el('td', { class: 'num ' + zClass }, (r.zscore || 0).toFixed(2)),
+    ));
+  });
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+
+  return wrap;
+}
+
+// ──────────────────────────────────────────────────────────────
+// Options Explainer (educational reference)
+// ──────────────────────────────────────────────────────────────
+function renderOptionsExplainer() {
+  destroyAllCharts();
+  const wrap = el('div', { class: 'section' });
+  wrap.appendChild(el('div', { class: 'section-header' },
+    el('h2', {}, 'Options Explainer'),
+    el('div', { class: 'hint brass' }, 'Concepts · Strategies · Risks · Client-side')));
+
+  const _desc = renderPageDescription('optionsexplainer');
+  if (_desc) wrap.appendChild(_desc);
+
+  function section(title, html) {
+    const s = el('div', { class: 'options-section' });
+    s.appendChild(el('h3', { class: 'options-section-title' }, title));
+    s.appendChild(el('div', { class: 'options-section-body', html }));
+    return s;
+  }
+
+  function termRow(term, def) {
+    return el('div', { class: 'options-term-row' },
+      el('span', { class: 'options-term' }, term),
+      el('span', { class: 'options-def' }, def));
+  }
+
+  function stratCard(name, desc, pnl) {
+    const c = el('div', { class: 'options-strat' });
+    c.appendChild(el('div', { class: 'options-strat-name' }, name));
+    c.appendChild(el('div', { class: 'options-strat-desc' }, desc));
+    c.appendChild(el('div', { class: 'options-strat-pnl' }, pnl));
+    return c;
+  }
+
+  wrap.appendChild(section('What Are Options?',
+    '<p>An <strong>option</strong> is a contract giving the buyer the <em>right</em> (not the obligation) to buy or sell an underlying asset at a set price before a set date. The <strong>seller</strong> of an option has the <em>obligation</em> if the buyer exercises.</p>' +
+    '<ul><li><strong>Call option</strong> — right to <em>buy</em> (go long) at the strike.</li>' +
+    '<li><strong>Put option</strong> — right to <em>sell</em> (go long) at the strike.</li>' +
+    '<li><strong>Premium</strong> — the price of the option contract (quoted per share; 1 contract = 100 shares).</li></ul>'));
+
+  const terms = el('div', { class: 'options-terms' });
+  terms.appendChild(el('h3', { class: 'options-section-title' }, 'Key Concepts'));
+  terms.appendChild(termRow('Strike Price', 'The price at which the underlying can be bought/sold if the option is exercised.'));
+  terms.appendChild(termRow('Expiration', 'The last day the option can be exercised. After expiry it becomes worthless.'));
+  terms.appendChild(termRow('Moneyness', 'An option is <strong>ITM</strong> (in-the-money) if it has intrinsic value, <strong>OTM</strong> (out-of-the-money) if it has no intrinsic value, and <strong>ATM</strong> (at-the-money) if the strike ≈ spot.'));
+  terms.appendChild(termRow('Intrinsic Value', 'Spot − Strike (calls) or Strike − Spot (puts). This is the immediate exercise value.'));
+  terms.appendChild(termRow('Time Value', 'Premium − Intrinsic Value. It reflects the probability of ending up ITM before expiry.'));
+  terms.appendChild(termRow('American vs European', '<strong>American</strong> can be exercised any time before expiry; <strong>European</strong> only at expiry.'));
+  wrap.appendChild(terms);
+
+  wrap.appendChild(section('The Greeks at a Glance',
+    '<p>The Greeks measure how an option&rsquo;s price responds to changes in its inputs. Each Greek is the partial derivative of the option price:</p>' +
+    '<ul><li><strong>Delta (Δ)</strong> — sensitivity to the underlying&rsquo;s price. Calls: 0→1; Puts: −1→0.</li>' +
+    '<li><strong>Gamma (Γ)</strong> — rate of change of Delta. Highest near ATM, at expiry.</li>' +
+    '<li><strong>Theta (Θ)</strong> — time decay per day. Options lose value as expiry approaches.</li>' +
+    '<li><strong>Vega (ν)</strong> — sensitivity to implied volatility. Long options benefit from rising IV.</li>' +
+    '<li><strong>Rho (ρ)</strong> — sensitivity to interest rates (minor for short-dated options).</li></ul>' +
+    '<p><a href="#/greeks-explainer">Interactive Greeks Calculator &rarr;</a> · ' +
+    '<a href="#/iv-rank">IV Rank & Percentile Tracker</a></p>'));
+
+  wrap.appendChild(section('Time Decay & Volatility',
+    '<p><strong>Theta</strong> accelerates non-linearly near expiry — the last 30 days can erase more time value than the first 90. Long option holders are negatively exposed to theta; short sellers (writers) collect it as income.</p>' +
+    '<p><strong>Implied Volatility (IV)</strong> is the market&rsquo;s consensus forecast of future volatility, backed out of the option price. When IV is <em>high</em> (IV Rank > 50%), options are expensive to buy — consider selling premium. When IV is <em>low</em> (IV Rank < 30%), options are cheap to buy.</p>'));
+
+  const stratGrid = el('div', { class: 'options-strats' });
+  const strats = [
+    ['Covered Call', 'Own the stock, sell a call against it. Generates income but caps upside.', 'Max profit = premium + (strike − stock cost), capped upside'],
+    ['Protective Put', 'Own the stock, buy a put for downside insurance. Costs premium for protection.', 'Max loss = put premium + (stock cost − strike), downside limited'],
+    ['Long Straddle', 'Buy a call + put at the same strike. Profits from big moves either direction.', 'Max loss = total premium paid, unlimited profit'],
+    ['Long Strangle', 'Buy an OTM call + OTM put (lower strike). Cheaper but needs bigger move.', 'Max loss = total premium paid, wider breakeven range needed'],
+    ['Vertical Spread', 'Sell an OTM option against a further-OTM or ITM option in the same class.', 'Defined risk, income strategy — direction and volatility neutral'],
+    ['Iron Condor', 'Sell an OTM strangle, buy further OTM strangle. Income from range-bound action.', 'Max loss = width − credit received, max profit = net credit'],
+  ];
+  strats.forEach(s => stratGrid.appendChild(stratCard(...s)));
+  wrap.appendChild(el('h3', { class: 'options-section-title' }, 'Common Strategies'));
+  wrap.appendChild(stratGrid);
+
+  wrap.appendChild(section('Before You Trade',
+    '<p><strong>Risk checklist:</strong></p>' +
+    '<ul><li>Options can expire worthless — 60–90% of contracts expire out of the money.</li>' +
+    '<li>Selling options has <em>unlimited</em> risk on short calls; defined risk on short puts.</li>' +
+    '<li>Position size matters: never risk more than 1–2% of capital on a single options trade.</li>' +
+    '<li>Consider the <a href="#/position-sizing">Position Sizing Calculator</a> for Kelly-based sizing.</li>' +
+    '<li>Check <a href="#/payoff-visualizer">Options Payoff Visualizer</a> to model multi-leg P/L before entry.</li></ul>'));
 
   return wrap;
 }
