@@ -114,11 +114,10 @@ def _download_db_if_needed(db_path: Path) -> Path:
     os.remove(gz_path)
     logger.info(f"Decompressed DB ({os.path.getsize(tmp_db) / 1e6:.1f}MB)")
 
-    # Replace the old DB atomically
+    # Replace the old DB atomically (os.replace is atomic on Linux/Windows)
     if db_path.exists():
         os.chmod(db_path, 0o644)  # ensure writable
-        os.remove(db_path)
-    os.rename(tmp_db, db_path)
+    os.replace(tmp_db, db_path)
     logger.info(f"DB swapped to {db_path}")
     return db_path
 
