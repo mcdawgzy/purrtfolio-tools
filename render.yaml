@@ -11,7 +11,7 @@ services:
           # that was causing keepalive health checks to timeout.
           mkdir -p /opt/render
           curl -fSL -o /opt/render/purrtfolio.db.gz \
-            https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-25/purrtfolio.db.gz
+            https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-26/purrtfolio.db.gz
           python3 -c "import gzip, shutil; shutil.copyfileobj(gzip.open('''/opt/render/purrtfolio.db.gz''', '''rb'''), open('''/opt/render/purrtfolio.db''', '''wb'''))"
           rm -f /opt/render/purrtfolio.db.gz
     startCommand: uvicorn "src.api:app" --host 0.0.0.0 --port $PORT
