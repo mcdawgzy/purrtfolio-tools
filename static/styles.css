@@ -466,6 +466,11 @@ tbody td.mut { color: var(--text-mut); font-size: 11px; }
 .status-CLOSED     { background: var(--red-bg);    color: var(--red);   border: 1px solid var(--red); }
 .status-UNCHANGED  { background: transparent;       color: var(--text-mut); border: 1px solid var(--line-2); }
 
+/* Signal pills — used by the Crowded Trades scanner page */
+.signal-high     { background: var(--red-bg);   color: var(--red);   border: 1px solid var(--red); }
+.signal-medium   { background: var(--brass-dim); color: var(--brass); border: 1px solid var(--brass); }
+.signal-neutral  { background: transparent;       color: var(--text-mut); border: 1px solid var(--line-2); }
+
 /* ------- Consensus buy/sell cards ------- */
 .consensus-grid {
   display: grid;
