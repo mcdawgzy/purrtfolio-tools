@@ -110,6 +110,9 @@ const state = {
   // Earnings Revision Momentum
   ermMeta: null,
   ermRows: [],
+  // Crowded Trades Scanner
+  ctMeta: null,
+  ctLatest: null,
 };
 
 // ---------------- helpers ----------------
@@ -303,6 +306,7 @@ function parseHash() {
   if (h === 'screener' || h === 'screener/') return { view: 'screener' };
   if (h === 'quotes' || h === 'quotes/') return { view: 'quotes' };
   if (h === 'earnings-revisions' || h === 'earnings-revisions/') return { view: 'earningsrevisions' };
+  if (h === 'crowded-trades' || h === 'crowded-trades/') return { view: 'crowdedtrades' };
   if (h.startsWith('unusual-activity/')) {
     const rest = h.slice('unusual-activity/'.length);
     return { view: 'unusualactivity', uaTab: 'history', uaTicker: rest.toUpperCase() };
@@ -586,6 +590,10 @@ async function handleRoute() {
     state.uaActiveTab = 'latest';
     state.uaSelectedTicker = null;
   }
+  if (r.view !== 'crowdedtrades') {
+    state.ctMeta = null;
+    state.ctLatest = null;
+  }
   try {
     if (r.view === 'funds')        await loadFunds();
     else if (r.view === 'fund')    await loadFund(r.cik, r.tab);
@@ -606,6 +614,7 @@ async function handleRoute() {
     else if (r.view === 'news')        await loadNews(r);
     else if (r.view === 'quotes')      await loadQuotes(r);
     else if (r.view === 'earningsrevisions') await loadEarningsRevisions(r);
+    else if (r.view === 'crowdedtrades') await loadCrowdedTrades(r);
   } catch (e) {
     state.error = 'Navigation error: ' + e.message;
   }
@@ -1131,6 +1140,25 @@ async function loadEarningsRevisions(r) {
   }
 }
 
+// ---------------- Crowded Trades loader ----------------
+async function loadCrowdedTrades(r) {
+  state.error = null;
+  state.loading = true;
+  try {
+    await loadMeta();
+    const [meta, latest] = await Promise.all([
+      api('/api/ct/meta'),
+      api('/api/ct/latest'),
+    ]);
+    state.ctMeta = meta;
+    state.ctLatest = latest;
+  } catch (e) {
+    state.error = e.message;
+  } finally {
+    state.loading = false;
+  }
+}
+
 // ---------------- render ----------------
 function render() {
   const root = document.getElementById('app');
@@ -1170,6 +1198,7 @@ function render() {
   if (state.view === 'screener')        root.appendChild(renderScreener());
   if (state.view === 'quotes')          root.appendChild(renderQuotes());
   if (state.view === 'earningsrevisions') root.appendChild(renderEarningsRevisions());
+  if (state.view === 'crowdedtrades') root.appendChild(renderCrowdedTradesPage());
 }
 
 function renderMasthead() {
@@ -1214,6 +1243,8 @@ function renderMasthead() {
     title = 'Famous Trader Quotes';
   } else if (state.view === 'earningsrevisions') {
     title = 'Earnings Revision Momentum';
+  } else if (state.view === 'crowdedtrades') {
+    title = 'Crowded Trades';
   } else if (state.view === 'fund') {
     // Show fund name instead of generic title
     return el('div', { class: 'masthead' },
@@ -1263,6 +1294,7 @@ const NAV_GROUPS = [
       { view: 'news',          label: 'News Sentiment' },
       { view: 'screener',      label: 'Stock Screener' },
       { view: 'earningsrevisions', label: 'Earnings Revision' },
+      { view: 'crowdedtrades', label: 'Crowded Trades' },
     ],
   },
   {
@@ -1301,6 +1333,7 @@ const NAV_ROUTES = {
   unusualactivity: '#/unusual-activity',
   screener:       '#/screener',
   earningsrevisions: '#/earnings-revisions',
+  crowdedtrades: '#/crowded-trades',
   quotes:         '#/quotes',
 };
 
@@ -1401,8 +1434,12 @@ const PAGE_DESCRIPTIONS = {
     issues: 'Quotes are curated from public interviews, books, and annual reports. Some attributions are debated by scholars — treat as folklore rather than verified transcripts. Categories are assigned by keyword clustering, not by the speakers themselves. The collection is seeded once and grown manually; it is not scraped from social media in real-time.',
   },
   earningsrevisions: {
-    intro: 'Tracks earnings revision momentum across the watchlist universe (~24 large-cap tickers). For each ticker, the scanner fetches yfinance\u2019s earnings_history (actual vs estimate for the last 4 reported quarters), computes a mean revision percentage, fraction of positive surprises, and a z-scored momentum rank. Ticklers are classified as improving / deteriorating / stable based on whether recent-quarter revisions are accelerating or decelerating. Data is fetched daily at 5:30 AM UTC+10 via cron and stored in the unified purrtfolio.db. The z-score compares each ticker\u2019s revision magnitude to the cross-sectional mean and standard deviation — higher scores indicate stronger positive earnings surprises relative to peers.',
-    issues: 'yfinance earnings_history availability is inconsistent — ETFs (SPY, QQQ, IWM) and some foreign tickers return 404 and are silently skipped. The 4-quarter window means tickers with fewer reported quarters are excluded entirely, which can bias the universe toward larger, more consistent reporters. Revision pct uses (actual - estimate) / |estimate|, so small or negative estimates can produce extreme values; the z-score dampens this but outliers like BA can still dominate the ranking. The trend classification threshold (\u00b12% recent-vs-older delta) is a heuristic — a \u201cstable\u201d reading may still reflect meaningful acceleration below the threshold. Data lags real-time by 1-2 days during earnings season.',
+    intro: 'Tracks earnings revision momentum across the watchlist universe (~24 large-cap tickers). For each ticker, the scanner fetches yfinance\u2019s earnings_history (actual vs estimate for the last 4 reported quarters), computes a mean revision percentage, fraction of positive surprises, and a z-scored momentum rank. Ticklers are classified as improving / deteriorating / stable based on whether recent-quarter revisions are accelerating or decelerating. Data is fetched daily at 5:30 AM UTC+10 via cron and stored in the unified purrtfolio.db. The z-score compares each ticker\u2019s revision magnitude to the cross-sectional mean and standard deviation \u2014 higher scores indicate stronger positive earnings surprises relative to peers.',
+    issues: 'yfinance earnings_history availability is inconsistent \u2014 ETFs (SPY, QQQ, IWM) and some foreign tickers return 404 and are silently skipped. The 4-quarter window means tickers with fewer reported quarters are excluded entirely, which can bias the universe toward larger, more consistent reporters. Revision pct uses (actual - estimate) / |estimate|, so small or negative estimates can produce extreme values; the z-score dampens this but outliers like BA can still dominate the ranking. The trend classification threshold (\u00b12% recent-vs-older delta) is a heuristic \u2014 a \\u201cstable\u201d reading may still reflect meaningful acceleration below the threshold. Data lags real-time by 1-2 days during earnings season.',
+  },
+  crowdedtrades: {
+    intro: 'Multi-signal crowdedness scanner for a curated watchlist of ~157 tickers. Aggregates six independent signals into a 0\u2013100 score: (1) short interest (SIR + DTC + change), (2) options flow (call/put volume-to-open-interest), (3) IV rank (peer-relative IV percentile), (4) price momentum (20-day ROC rank), (5) put/call ratio extremes, and (6) cross-asset correlation to market pivots. Signals are classified as NEUTRAL, MEDIUM, or HIGH based on configurable thresholds. Updated daily after the 6:30 AM UTC+10 cron ingest. Data comes from FINRA short interest, CBOE put/call ratios, yfinance options chains, and price data \u2014 all stored in the unified purrtfolio.db.',
+    issues: 'Short interest is aggregate per ticker (not per-fund) and settles twice monthly with a ~2-week lag. Options data from yfinance free tier can lag by up to 24 hours. The peer-relative IV percentile fallback computes rank within the same sector+asset-type group (min 5 peers); tickers with fewer peers fall back to universe-wide percentile. The put/call ratio signal classifies extreme readings as bullish-complacency (low PCR) or bearish-complacency (high PCR). Not all tickers will have all six signals populated on every scan \u2014 component scores default to 0 when upstream data is unavailable. Signals are point-in-time snapshots at daily close; intra-day moves are not reflected.',
   },
 };
 
@@ -1556,6 +1593,109 @@ function stat(label, value, cls = '') {
   return el('div', { class: 'stat' },
     el('div', { class: 'stat-label' }, label),
     el('div', { class: 'stat-value ' + cls }, value));
+}
+
+// ---- Crowded Trades Scanner view ----
+const CT_COLS = ['Ticker', 'Score', 'Signal', 'Direction', 'Short', 'Options', 'IV', 'Momentum', 'PCR', 'Corr'];
+const CT_BAND_COLORS = { HIGH: 'red', MEDIUM: 'orange', NEUTRAL: 'mut' };
+
+function signalPill(signal) {
+  const cls = CT_BAND_COLORS[signal] || 'mut';
+  return el('span', { class: 'status-pill signal-' + signal.toLowerCase() }, signal);
+}
+
+function signalColor(score) {
+  if (score >= 80) return 'green';
+  if (score <= 30) return 'red';
+  return '';
+}
+
+function renderCrowdedTradesPage() {
+  const wrap = el('div', { class: 'section' });
+
+  if (!state.ctMeta) {
+    wrap.appendChild(el('div', { class: 'empty' }, 'No recent scan data available. Run the daily cron job to populate the crowded_trades table.'));
+    return wrap;
+  }
+
+  const meta = state.ctMeta;
+  const scanDate = meta.latest_date || '—';
+  const counts = meta.signal_counts || {};
+  const total = meta.total_tickers || 0;
+
+  // Top stats
+  const stats = el('div', { class: 'stats' });
+  stats.appendChild(stat('Scan Date', fmtDateISO(scanDate)));
+  stats.appendChild(stat('Tickers', total));
+  const highEl = el('span', { class: 'red' }, (counts.HIGH || 0).toString());
+  const medEl = el('span', { class: 'brass' }, (counts.MEDIUM || 0).toString());
+  const neutEl = el('span', { class: 'mut' }, (counts.NEUTRAL || 0).toString());
+  stats.appendChild(stat('Signals', el('span', {}, [highEl, ' HIGH · ', medEl, ' MED · ', neutEl, ' NEUTRAL'])));
+  wrap.appendChild(stats);
+
+  // Table
+  const rows = (state.ctLatest && state.ctLatest.rows) || [];
+  const tableWrap = el('div', { class: 'table-wrap' });
+  const table = el('table');
+  const thead = el('thead');
+  const trh = el('tr');
+  CT_COLS.forEach((h, i) => {
+    trh.appendChild(el('th', { class: i === 0 ? '' : 'num' }, h));
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
+
+  const tbody = el('tbody');
+  for (const r of rows) {
+    const tr = el('tr', {
+      style: { cursor: 'pointer' },
+      onclick: () => setHash('#/ticker/' + r.ticker),
+    });
+
+    // Ticker — brass, clickable
+    tr.appendChild(el('td', { class: 'mono brass' }, r.ticker || '—'));
+
+    // Total Score — bold with color
+    const scoreCls = signalColor(r.total_score);
+    tr.appendChild(el('td', { class: 'num ' + scoreCls }, r.total_score?.toFixed(1) || '—'));
+
+    // Signal
+    tr.appendChild(el('td', { class: 'num' }, signalPill(r.signal || 'NEUTRAL')));
+
+    // Direction
+    const dirCls = r.direction === 'bilateral' ? 'brass'
+                 : r.direction === 'net-long' ? 'green'
+                 : r.direction === 'net-short' ? 'red' : 'mut';
+    tr.appendChild(el('td', { class: 'num ' + dirCls }, r.direction || '—'));
+
+    // Component scores (each out of their component max)
+    const components = [
+      { key: 'short_crowd',     label: 'Short' },
+      { key: 'options_crowd',   label: 'Options' },
+      { key: 'iv_crowd',        label: 'IV' },
+      { key: 'momentum_crowd',  label: 'Momentum' },
+      { key: 'pcr_crowd',       label: 'PCR' },
+      { key: 'corr_crowd',      label: 'Corr' },
+    ];
+    // We only show 6 of the 6 components in the table (corr replaces the last slot)
+    const shown = components.slice(0, 5); // Short, Options, IV, Momentum, PCR
+    shown.forEach(c => {
+      const val = r[c.key];
+      const cls = val > 0 ? 'num green' : val < 0 ? 'num red' : 'num mut';
+      tr.appendChild(el('td', { class: cls }, val != null ? val.toFixed(1) : '—'));
+    });
+    // Correlation (6th component, replaces the last column)
+    const corrVal = r.corr_crowd;
+    const corrCls = corrVal > 0 ? 'num green' : corrVal < 0 ? 'num red' : 'num mut';
+    tr.appendChild(el('td', { class: corrCls }, corrVal != null ? corrVal.toFixed(1) : '—'));
+
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  wrap.appendChild(tableWrap);
+
+  return wrap;
 }
 
 // ---- Fund detail view ----
