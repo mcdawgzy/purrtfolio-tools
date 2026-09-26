@@ -4595,10 +4595,6 @@ function renderPositionSizing() {
     el('h2', {}, 'Position Sizing Calculator'),
     el('div', { class: 'hint' }, 'Kelly Criterion · Full · Half · Quarter')));
 
-  // ---- Explainer ----
-  wrap.appendChild(el('p', { class: 'page-description-para' },
-    'The Kelly Criterion determines the fraction of your capital to risk on each trade to maximise long-term compound growth. Given your edge — expressed as a win rate and reward-to-risk ratio — Kelly gives the theoretically optimal bet size. Most traders use Half or Quarter Kelly to reduce volatility and overshoot risk.'));
-
   // ---- Calculator ----
   const form = el('div', { class: 'calc-form' });
 
@@ -4737,10 +4733,6 @@ function renderDrawdownSimulator() {
   wrap.appendChild(el('div', { class: 'section-header' },
     el('h2', {}, 'Drawdown Simulator'),
     el('div', { class: 'hint' }, 'Monte Carlo · Kelly-compatible')));
-
-  // ---- Explainer ----
-  wrap.appendChild(el('p', { class: 'page-description-para' },
-    'Monte Carlo drawdown simulator. Simulate hundreds of possible trade sequences to see how your edge — win rate, reward-to-risk ratio, and risk per trade — translates into real-world outcomes. The equity curve shows multiple simulation paths plus the median; statistics summarise the distribution of final values and drawdowns.'));
 
   // ---- Inputs ----
   const ctrl = el('div', { class: 'sim-controls' });
@@ -4977,9 +4969,6 @@ function renderPayoffVisualizer() {
   wrap.appendChild(el('div', { class: 'section-header' },
     el('h2', {}, 'Options Payoff Visualizer'),
     el('div', { class: 'hint brass' }, 'Multi-leg builder · P&L at expiration · Client-side')));
-
-  const _desc = renderPageDescription('payoff');
-  if (_desc) wrap.appendChild(_desc);
 
   // ---- Legs container ----
   const legsContainer = el('div', { class: 'legs-container' });
@@ -5288,9 +5277,6 @@ function renderGreeksExplainer() {
     el('h2', {}, 'Greeks Explainer'),
     el('div', { class: 'hint brass' }, 'Black-Scholes-Merton · Live Greeks · Client-side')));
 
-  const _desc = renderPageDescription('greeks');
-  if (_desc) wrap.appendChild(_desc);
-
   // ---- Controls ----
   const defaults = { spot: 100, strike: 100, vol: 20, rate: 2, div: 1, days: 30, type: 'call' };
 
@@ -5503,9 +5489,6 @@ function renderScreener() {
     el('h2', {}, 'Stock Screener'),
     el('div', { class: 'hint brass' }, 'Filter · Sort · Scan (~' + ((state.screenerMeta && state.screenerMeta.ticker_count) || '—') + ' securities)')));
 
-  const _desc = renderPageDescription('screener');
-  if (_desc) wrap.appendChild(_desc);
-
   if (state.loading) {
     wrap.appendChild(el('div', { class: 'loading' }, 'SCANNING UNIVERSE…'));
     return wrap;
@@ -5645,9 +5628,6 @@ function renderQuotes() {
     el('h2', {}, 'Famous Trader Quotes'),
     el('div', { class: 'hint brass' }, 'Curated · ' + ((state.quoteMeta && state.quoteMeta.categories) ? state.quoteMeta.categories.length : 0) + ' categories')));
 
-  const _desc = renderPageDescription('quotes');
-  if (_desc) wrap.appendChild(_desc);
-
   // ── Controls ──
   const controls = el('div', { class: 'q-controls' });
 
@@ -5709,9 +5689,6 @@ function renderEarningsRevisions() {
     el('h2', {}, 'Earnings Revision Momentum'),
     el('div', { class: 'hint brass' }, 'Earnings surprise trend across '
       + ((state.ermMeta && state.ermMeta.ticker_count) || '…') + ' tickers')));
-
-  const _desc = renderPageDescription('earningsrevisions');
-  if (_desc) wrap.appendChild(_desc);
 
   if (state.loading) {
     wrap.appendChild(el('div', { class: 'loading' }, 'SCANNING EARNINGS REVISIONS…'));
@@ -5775,9 +5752,6 @@ function renderOptionsExplainer() {
   wrap.appendChild(el('div', { class: 'section-header' },
     el('h2', {}, 'Options Explainer'),
     el('div', { class: 'hint brass' }, 'Concepts · Strategies · Risks · Client-side')));
-
-  const _desc = renderPageDescription('optionsexplainer');
-  if (_desc) wrap.appendChild(_desc);
 
   function section(title, html) {
     const s = el('div', { class: 'options-section' });
