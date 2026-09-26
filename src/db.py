@@ -773,22 +773,26 @@ def get_factor_exposure(quarter: str | None = None) -> dict:
                     "holders": len(bucket_ciks.get(b, set())),
                 })
 
-            # by strategy
+            # by strategy - single query per dimension (not one per strategy x dimension)
+            strat_bucket_rows = c.execute(f"""
+                WITH hold AS ({strat_sql})
+                SELECT h.strategy, tf.{col} AS bucket,
+                       SUM(h.mv) AS value_usd,
+                       COUNT(DISTINCT h.cik) AS holders
+                FROM hold h
+                JOIN ticker_factors tf ON h.ticker = tf.ticker
+                GROUP BY h.strategy, tf.{col}
+            """, (quarter,)).fetchall()
+            strat_buckets: dict = {}
+            for _s, _b, _v, _h in strat_bucket_rows:
+                strat_buckets.setdefault(_s, {})[_b] = (_v, _h)
             by_strat: list[dict] = []
             for strat in sorted(strat_totals):
                 stot = strat_totals[strat]
-                rows = c.execute(f"""
-                    WITH hold AS ({strat_sql})
-                    SELECT tf.{col} AS bucket, SUM(h.mv) AS value_usd,
-                           COUNT(DISTINCT h.cik) AS holders
-                    FROM hold h
-                    JOIN ticker_factors tf ON h.ticker = tf.ticker
-                    WHERE h.strategy = ?
-                    GROUP BY tf.{col}
-                """, (quarter, strat)).fetchall()
                 breakdown = {b: 0 for b in order}
-                for r in rows:
-                    breakdown[r[0]] = round(r[1] / stot * 100, 1) if stot else 0
+                for b in order:
+                    val, _holders = strat_buckets.get(strat, {}).get(b, (0, 0))
+                    breakdown[b] = round(val / stot * 100, 1) if stot else 0
                 by_strat.append({"strategy": strat, "aum_usd": stot, "breakdown": breakdown})
 
             dimensions.append({
