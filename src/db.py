@@ -22,7 +22,7 @@ from typing import Any, Iterator
 _DEFAULT_DB = Path.home() / "purrtfolio.db"
 
 # GitHub Release asset URL for production DB
-_RELEASE_ASSET = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-26/purrtfolio.db.gz"
+_RELEASE_ASSET = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-27/purrtfolio.db.gz"
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +64,8 @@ def _db_has_new_tables(db_path: Path) -> bool:
         ).fetchall()
         conn.close()
         names = {t[0] for t in tables}
-        # crowded_trades is NOT in the required set — the release DB may not
-        # have it yet; the API endpoint degrades gracefully via _ct_table_exists.
-        required = {"price_history", "price_momentum_signals", "corr_matrices", "earnings_revision_momentum"}
+        required = {"price_history", "price_momentum_signals", "corr_matrices",
+                    "earnings_revision_momentum", "crowded_trades"}
         if not required.issubset(names):
             return False
         # Verify the tables have data
