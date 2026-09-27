@@ -5,8 +5,10 @@ import json
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import os
+from pathlib import Path
 
-DB = "C:/Users/cho_i/purrtfolio.db"
+DB = os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db"))
 OUT_HTML = "scanners/13f/charts_audited.html"
 
 # GICS sectors only (filter out ETF providers)

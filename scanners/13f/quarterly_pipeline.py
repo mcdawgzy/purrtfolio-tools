@@ -7,6 +7,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+import os
 # Add project to path
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -36,7 +37,7 @@ def get_latest_quarter_end():
     import os
 
     candidates = [
-        Path(r"C:\Users\cho_i\purrtfolio.db"),
+        Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db")),
         Path(__file__).parent / "13f_scanner.db",
     ]
     db_path = next((p for p in candidates if p.exists() and p.stat().st_size > 0), candidates[0])
@@ -89,7 +90,7 @@ def main():
     
     # All steps target the unified purrtfolio.db explicitly.
     # argparse in main.py expects --db BEFORE the subcommand, so it lives there.
-    db_flag = '--db "C:/Users/cho_i/purrtfolio.db"'
+    db_flag = '--db os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db"))'
 
     # Step 1: Ingest
     if not run_cmd(
@@ -114,7 +115,7 @@ def main():
 
     # Step 4: Enrich sectors (for sector rotation view on web dashboard)
     run_cmd(
-        f'python enrich_sectors.py --db "C:/Users/cho_i/purrtfolio.db" --limit 500',
+        f'python enrich_sectors.py --db os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db")) --limit 500',
         "Enrich tickers with GICS sector data"
     )
 

@@ -26,7 +26,6 @@ sys.path.insert(0, str(SCANNER_DIR))
 from form4_insider_trading.main import run
 
 if __name__ == "__main__":
-    # DB path — can be overridden by cron engine via --db
-    db_path = os.environ.get("PURRTFOLIO_DB", os.path.expanduser("c:\\Users\\cho_i\\purrtfolio.db"))
+    # DB path comes from PURRTFOLIO_DB (default ~/purrtfolio.db) via config
     result = run()
     print(json.dumps(result, indent=2, default=str))

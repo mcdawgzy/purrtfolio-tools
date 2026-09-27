@@ -23,7 +23,7 @@ else:
         DB_PATH = Path.home() / "momentum_data.db"
     else:
         # Local dev
-        DB_PATH = Path("C:/Users/cho_i/purrtfolio.db")
+        DB_PATH = Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db"))
 
 # ─── Correlation windows (trading days) ──────────────────────────────
 # 20d ≈ 1 month, 60d ≈ 3 months, 120d ≈ 6 months, 252d ≈ 1 year

@@ -15,6 +15,7 @@ import sys
 import json
 import sqlite3
 from pathlib import Path
+import os
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
@@ -24,7 +25,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Form 4 Insider Trading Scanner — SEC Forms 3/4/5 tracker"
     )
-    parser.add_argument("--db", default="C:/Users/cho_i/purrtfolio.db",
+    parser.add_argument("--db", default=os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db")),
                         help="SQLite database path (defaults to unified purrtfolio.db)")
 
     subparsers = parser.add_subparsers(dest="command", required=True)

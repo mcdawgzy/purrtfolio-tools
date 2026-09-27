@@ -20,8 +20,9 @@ from export import ExcelExporter
 from compare import ChangeComparator
 from ingest import EdgartoolsIngestor
 from db_init import init_database, get_tracked_funds
+import os
 
-DB_PATH = Path(r"C:\Users\cho_i\purrtfolio.db")
+DB_PATH = Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db"))
 
 
 class ScannerBot:

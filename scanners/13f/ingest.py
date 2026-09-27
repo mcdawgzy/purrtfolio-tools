@@ -13,6 +13,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent))
 
 from edgar import Company, set_identity, get_filings, Filing
+import os
 
 
 class EdgartoolsIngestor:
@@ -276,7 +277,7 @@ def run_ingestion(db_path: str, identity_email: str = None, max_filings: int = 4
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Ingest 13F filings via edgartools")
-    parser.add_argument("--db", default="C:/Users/cho_i/purrtfolio.db", help="SQLite database path")
+    parser.add_argument("--db", default=os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db")), help="SQLite database path")
     parser.add_argument("--email", default="13f-scanner@example.com", help="SEC identity email")
     parser.add_argument("--max-filings", type=int, default=4, help="Max filings per fund")
     parser.add_argument("--fund", help="Single fund CIK to ingest (optional)")

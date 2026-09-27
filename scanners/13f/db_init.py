@@ -6,6 +6,7 @@ import sqlite3
 import json
 from pathlib import Path
 from datetime import date
+import os
 
 
 SCHEMA_SQL = """
@@ -184,7 +185,7 @@ def get_latest_filing_periods(conn: sqlite3.Connection, limit: int = 8) -> list:
 
 if __name__ == "__main__":
     import sys
-    db_path = sys.argv[1] if len(sys.argv) > 1 else "C:/Users/cho_i/purrtfolio.db"
+    db_path = sys.argv[1] if len(sys.argv) > 1 else os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db"))
     seed_path = sys.argv[2] if len(sys.argv) > 2 else "funds_seed.json"
     
     conn = init_database(db_path, seed_path)

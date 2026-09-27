@@ -17,6 +17,7 @@ from compare import run_comparison, ChangeComparator
 from export import run_export, ExcelExporter
 from bot import run_bot, setup_bot_commands, create_bot
 import asyncio
+import os
 
 
 def cmd_init(args):
@@ -127,7 +128,7 @@ def cmd_list_funds(args):
 
 def main():
     parser = argparse.ArgumentParser(description="13F Scanner - Institutional Holdings Tracker")
-    parser.add_argument("--db", default="C:/Users/cho_i/purrtfolio.db", help="SQLite database path (defaults to unified purrtfolio.db)")
+    parser.add_argument("--db", default=os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db")), help="SQLite database path (defaults to unified purrtfolio.db)")
     subparsers = parser.add_subparsers(dest="command", required=True)
     
     # init

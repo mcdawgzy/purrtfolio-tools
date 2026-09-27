@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import List, Dict, Optional, Any
 import sys
 import shutil
+import os
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -692,7 +693,7 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description="Export 13F analysis to Excel")
-    parser.add_argument("--db", default="C:/Users/cho_i/purrtfolio.db", help="SQLite database path")
+    parser.add_argument("--db", default=os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db")), help="SQLite database path")
     parser.add_argument("--quarter", help="Quarter end date YYYY-MM-DD")
     parser.add_argument("--fund", help="Fund name or CIK (for fund-specific exports)")
     parser.add_argument("--package", action="store_true", help="Generate full quarterly package (zip)")

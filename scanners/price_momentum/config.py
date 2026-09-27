@@ -30,7 +30,7 @@ else:
         DB_PATH = Path.home() / "momentum_data.db"
     else:
         # Local dev
-        DB_PATH = Path("C:/Users/cho_i/purrtfolio.db")
+        DB_PATH = Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db"))
 
 # ─── Watchlist ─────────────────────────────────────────────────────
 # Curated from the macro snapshot tickers + the SI watchlist overlap.
