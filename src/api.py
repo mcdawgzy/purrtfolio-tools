@@ -961,11 +961,10 @@ def _compute_corr_on_demand(
     cols = df.columns
     # Get close prices aligned by date
     if isinstance(cols, _pd2.MultiIndex):
-        closes = {}
-        for tk in all_tickers:
-            if tk in cols.get_level_values(1):
-                closes[tk] = df[tk]["Close"].dropna()
-        price_df = _pd2.DataFrame(closes).dropna()
+        # yfinance columns are (field, ticker)
+        if "Close" not in cols.get_level_values(0):
+            return {}
+        price_df = df["Close"].dropna(axis=1, how="all").dropna()
     else:
         price_df = df["Close"].dropna().to_frame("price")
         # Single ticker — can't compute matrix
@@ -1024,6 +1023,13 @@ def correlation_matrix(
     corr_data = _compute_corr_on_demand(targets, pivots, window)
     if not corr_data:
         return {"date": None, "window": window, "tickers": [], "pivots": [], "matrix": {}}
+    return {
+        "date": None,
+        "window": window,
+        "tickers": list(corr_data),
+        "pivots": [p for p in pivots if any(p in row for row in corr_data.values())],
+        "matrix": corr_data,
+    }
 
 
 @app.get("/api/correlation/ticker/{ticker}")
@@ -1061,12 +1067,14 @@ def correlation_pivot(
     # Fallback: on-demand
     targets = _corr_watchlist()
     corr = _compute_corr_on_demand(targets, [pivot.upper()], window)
-    rows = []
-    for tk, pdict in corr.items():
-        for p, v in pdict.items():
-            if abs(v) >= min_abs:
-                rows.append({"target": tk, "pivot": p, "correlation": v})
-    rows.sort(key=lambda r: abs(r["correlation"]), reverse=True)
+    # Same row shape as cm_db.get_corr_to_pivot so the frontend renders both
+    rows = [
+        {"ticker": tk, "name": None, "category": None, "corr": v}
+        for tk, pdict in corr.items()
+        for v in pdict.values()
+        if abs(v) >= min_abs and tk != pivot.upper()
+    ]
+    rows.sort(key=lambda r: abs(r["corr"]), reverse=True)
     return rows[:limit]
 
 
