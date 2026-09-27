@@ -694,7 +694,9 @@ def _ensure_momentum_db():
     """Download the slim momentum DB (price_history + corr_matrices) from the
     GitHub Release if it's missing. Called on startup and lazily from endpoints
     when bar_count() returns 0."""
-    slim_db = Path(os.environ.get("MOMENTUM_DB", "/opt/render/momentum_data.db"))
+    # Same path the scanner modules read from (MOMENTUM_DB > sibling of PURRTFOLIO_DB > ...)
+    slim_db = Path(pm_db.DB_PATH) if _SCANNERS_OK else Path(
+        os.environ.get("MOMENTUM_DB", "/opt/render/momentum_data.db"))
     if slim_db.exists() and slim_db.stat().st_size > 100_000:
         return
     log.info("Momentum DB missing — downloading...")
