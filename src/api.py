@@ -11,7 +11,9 @@ import os
 from pathlib import Path
 
 import time as _time
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import Path as PathParam
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -46,32 +48,10 @@ app.add_middleware(
 
 
 @app.on_event("startup")
-async def _ensure_db():
-    """Ensure the slim momentum DB is ready on startup.
-
-    On Render free tier, each cold-start runs this once. We download the
-    slim momentum DB (price_history + corr_matrices, ~0.3MB compressed)
-    from the GitHub Release. This is fast (<5s) and doesn't block the
-    cold-start window.
-
-    Note: yfinance on-demand fallback is NOT used on Render — data comes
-    from the cron-populated DB which is refreshed daily.
-    """
-    _slim_db_path = os.environ.get("MOMENTUM_DB", "/opt/render/momentum_data.db")
-    _slim_db = Path(_slim_db_path)
-    _slim_gz = Path(str(_slim_db) + ".gz")
-    if not _slim_db.exists() or _slim_db.stat().st_size < 100_000:
-        log.info("Downloading slim momentum DB...")
-        _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-28/momentum_data.db.gz"
-        try:
-            db._download_with_redirect(_url, str(_slim_gz))
-            import gzip, shutil
-            with gzip.open(str(_slim_gz), "rb") as f_in, open(str(_slim_db), "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
-            os.remove(str(_slim_gz))
-            log.info(f"Slim momentum DB ready ({_slim_db.stat().st_size / 1e6:.1f}MB)")
-        except Exception as e:
-            log.error(f"Slim momentum DB download failed: {e}")
+def _ensure_db():
+    """Fetch the slim momentum DB (~0.3MB) on cold start so the first
+    momentum/correlation request doesn't have to."""
+    _ensure_momentum_db()
 
 
 # ---------------------------------------------------------------------------
@@ -85,15 +65,30 @@ async def http_exc_handler(_, exc: HTTPException):
     )
 
 
+@app.exception_handler(RequestValidationError)
+async def validation_exc_handler(_, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content={"error": "Invalid request parameters", "detail": exc.errors(), "status": 422},
+    )
+
+
 @app.exception_handler(FileNotFoundError)
 async def db_missing_handler(_, exc: FileNotFoundError):
+    # Log the path server-side; don't leak filesystem layout to clients
+    log.error(f"Database unavailable: {exc}")
     return JSONResponse(
         status_code=503,
-        content={
-            "error": "Database unavailable",
-            "detail": str(exc),
-            "status": 503,
-        },
+        content={"error": "Database unavailable", "status": 503},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exc_handler(request: Request, exc: Exception):
+    log.exception(f"Unhandled error on {request.url.path}")
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "status": 500},
     )
 
 
@@ -136,7 +131,7 @@ def fund_detail(cik: str):
 def fund_holdings(
     cik: str,
     quarter: str | None = Query(None, description="YYYY-MM-DD; defaults to latest"),
-    sort_by: str = Query("value", pattern="^(value|shares|ticker|change|cusip)$"),
+    sort_by: str = Query("value", pattern="^(value|shares|ticker|cusip)$"),
     sort_dir: str = Query("desc", pattern="^(asc|desc)$"),
     limit: int = Query(500, ge=1, le=5000),
     offset: int = Query(0, ge=0),
@@ -457,7 +452,7 @@ def screener(
     etf_only: bool = Query(False, description="Only ETFs"),
     stocks_only: bool = Query(False, description="Only stocks (excludes ETFs)"),
     sort_col: str = Query("market_cap", description="Sort column"),
-    sort_dir: str = Query("desc", regex="^(asc|desc)$", description="Sort direction"),
+    sort_dir: str = Query("desc", pattern="^(asc|desc)$", description="Sort direction"),
     limit: int = Query(100, ge=10, le=500, description="Max results"),
 ):
     """Screen the tickers universe by fundamental + price/volume criteria.
@@ -538,7 +533,7 @@ def snapshot_latest():
 
 
 @app.get("/api/snapshot/{date_str}")
-def snapshot_detail(date_str: str):
+def snapshot_detail(date_str: str = PathParam(..., pattern=r"^\d{8}$")):
     """Specific snapshot by date (YYYYMMDD)."""
     return db.get_snapshot_by_date(date_str) or {
         "date_str": date_str,
@@ -611,13 +606,6 @@ try:
 except Exception:
     _YF_OK = False
     _pd = None
-# yfinance is installed via buildCommand — used for on-demand fallback
-try:
-    import yfinance as _yf
-    import pandas as _pd
-    _YF_OK = True
-except Exception:
-    _YF_OK = False
 
 
 def _mom_watchlist():
@@ -667,7 +655,7 @@ def _fetch_ohlcv(tickers: list[str], days: int = 25) -> dict:
                 tickers=" ".join(batch),
                 period=period,
                 interval="1d",
-                group_actions=False,
+                group_by="ticker",
                 auto_adjust=False,
                 progress=False,
             )
@@ -676,7 +664,8 @@ def _fetch_ohlcv(tickers: list[str], days: int = 25) -> dict:
             cols = df.columns
             if isinstance(cols, _pd.MultiIndex):
                 for ticker in batch:
-                    if ticker not in cols.get_level_values(1):
+                    # group_by="ticker" -> columns are (ticker, field)
+                    if ticker not in cols.get_level_values(0):
                         continue
                     sub = df[ticker].dropna(how="all")
                     if sub.empty:
@@ -692,7 +681,7 @@ def _fetch_ohlcv(tickers: list[str], days: int = 25) -> dict:
                 for field in ("Open", "High", "Low", "Close", "Volume"):
                     if field in df.columns:
                         s = df[field].dropna()
-                        result.setdefault("_single", {})[field] = {
+                        result.setdefault(batch[0], {})[field] = {
                             d.strftime("%Y-%m-%d"): float(v) for d, v in s.items()
                         }
         except Exception as e:
@@ -702,29 +691,22 @@ def _fetch_ohlcv(tickers: list[str], days: int = 25) -> dict:
 
 
 def _ensure_momentum_db():
-    """Lazily download the slim momentum DB if it's missing or stale.
-
-    Called from endpoints when bar_count() returns 0 (DB not yet downloaded).
-    Downloads the 0.3MB compressed DB from GitHub Release — fast enough
-    for a single cold-start request.
-    """
-    _slim_db_path = os.environ.get("MOMENTUM_DB")
-    if not _slim_db_path:
-        _slim_db_path = "/opt/render/momentum_data.db"
-    _slim_db = Path(_slim_db_path)
-    if _slim_db.exists() and _slim_db.stat().st_size > 100_000:
-        return  # Already present
+    """Download the slim momentum DB (price_history + corr_matrices) from the
+    GitHub Release if it's missing. Called on startup and lazily from endpoints
+    when bar_count() returns 0."""
+    slim_db = Path(os.environ.get("MOMENTUM_DB", "/opt/render/momentum_data.db"))
+    if slim_db.exists() and slim_db.stat().st_size > 100_000:
+        return
     log.info("Momentum DB missing — downloading...")
-    _url = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-28/momentum_data.db.gz"
-    _gz = Path(str(_slim_db_path) + ".gz")
+    gz = Path(str(slim_db) + ".gz")
     try:
-        db._download_with_redirect(_url, str(_gz))
         import gzip, shutil
-        _slim_db.parent.mkdir(parents=True, exist_ok=True)
-        with gzip.open(str(_gz), "rb") as f_in, open(str(_slim_db), "wb") as f_out:
+        slim_db.parent.mkdir(parents=True, exist_ok=True)
+        db._download_with_redirect(db.MOMENTUM_RELEASE_ASSET, str(gz))
+        with gzip.open(gz, "rb") as f_in, open(slim_db, "wb") as f_out:
             shutil.copyfileobj(f_in, f_out)
-        os.remove(str(_gz))
-        log.info(f"Momentum DB downloaded ({_slim_db.stat().st_size / 1e6:.1f}MB)")
+        gz.unlink()
+        log.info(f"Momentum DB ready ({slim_db.stat().st_size / 1e6:.1f}MB)")
     except Exception as e:
         log.error(f"Momentum DB download failed: {e}")
 
@@ -769,7 +751,7 @@ def momentum_rankings(
             continue
         roc20 = (prices[-1] / prices[-21] - 1) if len(prices) >= 21 else 0
         vol = fields.get("Volume", {})
-        vol_vals = sorted(vol.values())[-10:]
+        vol_vals = [v for _, v in sorted(vol.items())][-10:]
         vol_ema10 = sum(vol_vals) / max(len(vol_vals), 1)
         rows.append({
             "ticker": tkr,
@@ -777,7 +759,7 @@ def momentum_rankings(
             "sma20": round(sma20, 2),
             "roc20": round(roc20 * 100, 2),
             "vol_vs_ema10": round(vol_vals[-1] / vol_ema10 * 100, 0) if vol_ema10 else 100,
-            "signal": "strong_momentum" if roc20 > 0.1 else ("weak_momentum" if roc20 > 0 else "weak_momentum"),
+            "signal": "strong_momentum" if roc20 > 0.1 else ("weak_momentum" if roc20 > 0 else "negative_momentum"),
         })
     rows.sort(key=lambda r: r["roc20"], reverse=True)
     return rows[:limit]
@@ -799,7 +781,7 @@ def momentum_volume_spikes(limit: int = Query(30, ge=1, le=100)):
         vol = fields.get("Volume", {})
         if len(vol) < 11:
             continue
-        vol_vals = sorted(vol.values())
+        vol_vals = [v for _, v in sorted(vol.items())]
         vol_ema10 = sum(vol_vals[-10:]) / 10
         latest_vol = vol_vals[-1]
         if vol_ema10 > 0 and latest_vol / vol_ema10 > 2:
@@ -1139,10 +1121,7 @@ def ct_latest(
     gets a 0–100 total score with HIGH/MEDIUM/NEUTRAL severity and
     bilateral/directional crowd classification.
     """
-    result = db.get_crowded_trades_latest(limit=limit)
-    if signal:
-        result["rows"] = [r for r in result["rows"] if r.get("signal") == signal]
-    return result
+    return db.get_crowded_trades_latest(limit=limit, signal=signal)
 
 
 # ---------------------------------------------------------------------------
