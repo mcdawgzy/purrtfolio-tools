@@ -16,52 +16,76 @@ purrtfolio-tools/
 ├── static/               # Frontend source (HTML / CSS / JS)
 ├── docs/                 # GitHub Pages build output (copy of static/)
 ├── scripts/              # Cron shims + sync helpers
-├── scanners/             # Data ingestion scanners
-│   ├── 13f/              # 13F scanner (ingest, compare, export, bot)
-│   └── short-interest/   # FINRA short interest scanner
+├── scanners/             # Data ingestion (each writes to purrtfolio.db)
+│   ├── 13f/                  # 13F filings (ingest, compare, export, Discord bot)
+│   ├── short_interest_scanner/  # FINRA short interest
+│   ├── form4_insider_trading/   # SEC Form 4 insider trades
+│   ├── economic-calendar/    # FOMC / CPI / NFP / central-bank events
+│   ├── put_call_ratio/       # CBOE put/call ratios
+│   ├── implied_volatility/   # IV rank
+│   ├── unusual_activity/     # Unusual options activity
+│   ├── news_sentiment/       # RSS headlines + VADER sentiment
+│   ├── price_momentum/       # Price history + momentum signals (slim DB)
+│   ├── correlation_matrix/   # Rolling correlations vs pivot assets (slim DB)
+│   ├── earnings_revisions/   # Earnings revision momentum
+│   ├── crowded_trades/       # Multi-signal crowdedness score
+│   └── trader_quotes/        # Seed data for the quotes page
 ├── snapshots/            # Market snapshot renderers
 │   ├── market/           # Compact 16:9 market snapshot PNG (X/Twitter)
 │   └── macro/            # Editorial-style macro market update PNG (Discord)
+├── tests/                # API smoke tests (need a local purrtfolio.db)
 ├── render.yaml           # Render free-tier deploy config
-├── requirements.txt
+├── requirements.txt      # API deps (scanner deps: see "Scanners")
 └── README.md
 ```
 
 ## Run the dashboard locally
 
 ```bash
-cd C:/Users/cho_i/13f-scanner-web
 pip install -r requirements.txt
-python -m uvicorn src.api:app --host 0.0.0.0 --port 8000
+python -m uvicorn src.api:app --port 8000
 ```
 
-Then visit `http://127.0.0.1:8000/api/health` to confirm.
+Then open `http://127.0.0.1:8000/` (the frontend talks to the local API
+automatically) or `http://127.0.0.1:8000/api/health`.
 
-The DB path defaults to `C:/Users/cho_i/purrtfolio.db`. Override with
-`PURRTFOLIO_DB` env var (used in production for read-only file mounts).
+The DB path defaults to `~/purrtfolio.db` for the API **and** all scanners.
+Override with the `PURRTFOLIO_DB` env var. The slim momentum/correlation DB
+lives at `MOMENTUM_DB` (default: next to `PURRTFOLIO_DB`) and is downloaded
+from the latest DB release on startup if missing.
+
+To point the hosted frontend at a local or preview API, add
+`?api=http://localhost:8000` to the page URL.
+
+### Tests
+
+```bash
+pip install pytest httpx
+python -m pytest tests -q     # hits every GET route against your local DB
+```
+
+CI (`.github/workflows/ci.yml`) compiles all Python, imports the API, and
+syntax-checks `static/app.js` on every PR.
 
 ## API endpoints
 
-| Endpoint | Purpose |
-|---|---|
-| `GET /api/health` | DB connectivity check |
-| `GET /api/meta` | Row counts, available quarters, last update |
-| `GET /api/funds` | List funds + strategy + latest quarter AUM |
-| `GET /api/funds/{cik}` | Fund detail + filings history |
-| `GET /api/funds/{cik}/holdings` | Holdings for a fund (paginated, sortable) |
-| `GET /api/funds/{cik}/changes` | QoQ changes for a fund |
-| `GET /api/tickers/{ticker}` | Cross-fund holders of a ticker |
-| `GET /api/consensus` | Tickers with cross-fund momentum |
-| `GET /api/sectors` | Sector aggregation (limited — see note) |
-| `GET /api/snapshot/latest` | Latest macro market snapshot (PNG + top movers) |
-| `GET /api/econ/events` | Upcoming economic calendar events |
-| `GET /api/econ/meta` | Economic calendar metadata |
+The full, always-current list (with parameters) is at `/docs` (Swagger UI)
+on any running instance. Route groups: `/api/funds`, `/api/tickers`,
+`/api/consensus`, `/api/sectors`, `/api/si`, `/api/insider`, `/api/econ`,
+`/api/pcr`, `/api/iv`, `/api/ua`, `/api/screener`, `/api/quotes`,
+`/api/earnings-revisions`, `/api/snapshot`, `/api/news`, `/api/momentum`,
+`/api/correlation`, `/api/factors`, `/api/ct` (crowded trades).
 
-All endpoints return JSON. Errors come back as `{"error": "...", "status": NNN}`
-with appropriate HTTP status (404 for missing funds, 422 for bad input, 503 if DB
-file is missing).
+All endpoints return JSON. Errors (including validation errors and unexpected
+500s) come back as `{"error": "...", "status": NNN}` — 404 for missing funds,
+422 for bad input, 503 if the DB file is missing.
 
 ## Scanners
+
+Scanners run on the Hermes cron host (see job IDs below), not on Render. Most
+are packages run from inside `scanners/`, e.g. `python -m put_call_ratio`.
+Beyond `requirements.txt` they need `apscheduler`, `httpx`, `nltk` and (13F)
+`edgartools` — see each scanner's own requirements file where present.
 
 ### 13F Scanner (`scanners/13f/`)
 
@@ -71,24 +95,28 @@ activist, and macro strategies.
 
 ```bash
 cd scanners/13f
-python main.py --db C:/Users/cho_i/purrtfolio.db ingest --email "bot@example.com" --max-filings 3
-python main.py --db C:/Users/cho_i/purrtfolio.db compare --backfill
-python main.py --db C:/Users/cho_i/purrtfolio.db export --quarter 2026-06-30 --package
+python main.py ingest --email "bot@example.com" --max-filings 3
+python main.py compare --backfill
+python main.py export --quarter 2026-06-30 --package
 ```
 
-Cron: quarterly pipeline (`job id d55765979399`, runs `0 6 15 2,5,8,11 *`).
+Cron: quarterly pipeline (`job id d55765979399`, runs `0 6 15 2,5,8,11 *` —
+see Hermes `jobs.json`; `cronjob.yaml` is an older copy).
 
-### Short Interest Scanner (`scanners/short-interest/`)
+### Short Interest Scanner (`scanners/short_interest_scanner/`)
 
 Daily ingestion of FINRA short interest data for a curated watchlist of
 ~50 large-cap tickers. Data is aggregate per ticker (not per-fund).
 
 ```bash
-cd scanners/short-interest
-python main.py ingest     # fetch latest settlement date
-python main.py analyze    # generate signal reports
-python main.py export     # export CSV/JSON signals
+cd scanners
+python -m short_interest_scanner ingest     # fetch latest settlement date
+python -m short_interest_scanner analyze    # generate signal reports
+python -m short_interest_scanner export     # export CSV/JSON signals
 ```
+
+A fresh DB needs `short_interest_scanner/fix_unified_schema.py` once to create
+the short-interest tables.
 
 Cron: daily ingestion (`job id 3563943d0bcb`, runs `0 6 * * *`).
 
@@ -104,8 +132,8 @@ trading markets. Uses free data sources only — no paid API keys required:
 ```bash
 cd scanners/economic-calendar
 python main.py ingest        # fetch upcoming events (next 30 days) and upsert into DB
-python main.py backfill      # ingest historical events (last 90 days)
-python main.py clean         # remove past events from DB
+python main.py stats         # show DB stats
+python main.py export        # export to CSV
 ```
 
 Cron: daily ingestion (`job id 9e82fa1a9f04`, runs `0 5 * * *`).
@@ -137,14 +165,22 @@ Editorial-style macro market update PNG posted to Discord at 7 AM UTC+10:
 ## Production deployment
 
 **GitHub Pages** (frontend) + **Render free tier** (API):
-- Frontend served from `docs/` (CI copies `static/` → `docs/` on push)
-- API deployed via `render.yaml` with read-only DB mount
-- DB synced quarterly via cron (`scripts/sync_db.py`)
+- Frontend served from `docs/` (CI copies `static/` → `docs/` on push to master)
+- API deployed via `render.yaml`
+- DB published daily as a GitHub Release (`db-vYYYY-MM-DD`) by the Hermes
+  "DB Release Auto-Publish" job, which bumps the tag in `src/db.py`,
+  `render.yaml` and `scripts/download_db.sh` and pushes (triggering a redeploy)
 - Keep-alive via GitHub Actions (`.github/workflows/keepalive.yml`)
 
-**Render cold-start:** Free tier spins down after 15min idle. First request
-takes 30-60s (container spin-up + DB download). Keep-alive workflows ping
-`/api/health` every 10 min to prevent this.
+**Render cold-start:** Free tier spins down after 15min idle. Keep-alive pings
+every 10 min to prevent this.
+
+> **Known issue:** Render runs `preDeployCommand` only on paid plans, and even
+> there its filesystem changes are not kept. On the free plan the main DB is
+> therefore downloaded lazily by the first API request after each deploy
+> (`src/db.py:_download_db_if_needed`), which is what makes that request slow.
+> Fix: download in `buildCommand` into the project directory (build output
+> under `/opt/render/project/src` is kept) and point `PURRTFOLIO_DB` there.
 
 ## Sectors endpoint
 
