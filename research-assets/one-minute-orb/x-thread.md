@@ -3,14 +3,14 @@
 Not deployed: research-assets/ is outside static/. Attach the images named on each post.
 Page: https://mcdawgzy.github.io/purrtfolio-tools/research/one-minute-orb/
 
-**1/** (image: 1-how-it-works.png)
+**1/** (image: 0-poster.png)
 A Reddit post says you can scalp the first 1-minute range at the open, fixed 3:1, and win 34–36% of the time.
 
 I tested it on real tick data: 544 trades.
 
 It won 26.1%. That's what a coin flip gives a 3:1 trade. 🧵
 
-**2/**
+**2/** (image: 1-how-it-works.png)
 The rules:
 • Mark the high/low of 09:30–09:31 ET
 • Enter on a break between 09:31 and 09:35
@@ -44,5 +44,6 @@ At 0.5% risk per trade, that's a 16.4% drawdown. Most prop firms cut you off at 
 **7/** (image: 3-lesson.png)
 The lesson: before you believe a win rate on a fixed R:R trade, compare it with 1/(1+R:R).
 
-Full breakdown, with the chart and every variant I tested:
-https://mcdawgzy.github.io/purrtfolio-tools/research/one-minute-orb/
+The break direction is real, it's just thinner than the spread. What would you change to make it pay? Reply and I'll test the best ideas.
+
+Full breakdown: https://mcdawgzy.github.io/purrtfolio-tools/research/one-minute-orb/
