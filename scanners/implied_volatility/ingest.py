@@ -123,7 +123,11 @@ def compute_iv_metrics(conn, ticker: str, current_iv: float):
     historical_ivs = [r["iv"] for r in rows]
     days = len(historical_ivs)
 
-    if days < 10:
+    # Require at least 2 prior data points (3 total with current) for a meaningful
+    # min/max range. Previously required 10, but a newly-started scanner needs 10+ days
+    # before any values appeared — leaving IV Rank / IV % / 52w Range blank. With 2+ points
+    # the range is computable; values stabilize as the lookback fills toward 252.
+    if days < 2:
         return (None, None, days, None, None, None, None, None)
 
     all_ivs = historical_ivs + [current_iv]
