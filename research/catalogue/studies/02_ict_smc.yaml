@@ -1,0 +1,224 @@
+# ICT / smart-money concepts. Edit here; run scripts/build_strategy_catalogue.py.
+- id: S024
+  slug: user-ict-setups-highfreq-cycle
+  title: Five user-supplied ICT setups (Asian-range sweep, Silver Bullet, OR failed-break, S/D flip, EMA ribbon)
+  public_title: "Five ICT setups (Asian-range sweep, Silver Bullet, OR failed-break, S/D flip, EMA ribbon)"
+  family: ict-smc
+  mechanism: intraday-mean-reversion
+  source: {type: user, name: "User-supplied ICT setups"}
+  public_source: "ICT setups I wanted tested"
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1m–15m intraday
+  data: FTMO index CFD 1m
+  tested: 2026-06-22
+  closed: 2026-06-22
+  verdict: REJECT
+  headline: All rejected — continuation or random direction matched or beat each setup, and none cleared the cost wall.
+  why: The results are stop/target geometry, not a directional signal.
+  variants:
+    - {name: "London Asian-range sweep", verdict: REJECT, result: "Direction-null geometry."}
+    - {name: "ICT Silver Bullet (10–11am displacement)", verdict: REJECT, result: "Direction-null geometry."}
+    - {name: "5m-OR failed breakout", verdict: REJECT, result: "Direction-null geometry (later re-classified as sub-spread — see S043)."}
+    - {name: "15m supply/demand flip", verdict: REJECT, result: "Direction-null geometry."}
+    - {name: "EMA ribbon", verdict: NOT_TESTED, result: "Not specified precisely enough to test."}
+  refs: {scripts: [scripts/eda_user_strategies.py]}
+  visibility: public
+  public_summary: >-
+    Four popular ICT intraday setups, including the Silver Bullet and the Asian-range sweep, showed no
+    directional edge on index CFDs: trading them in reverse or at random did as well.
+
+- id: S025
+  slug: liquidity-sweep-reversal
+  title: Liquidity-sweep reversal — fade false breaks of PDH/PDL/ORH/ORL
+  family: ict-smc
+  mechanism: intraday-mean-reversion
+  source: {type: internal, name: "High-frequency intraday research cycle"}
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1m intraday
+  data: FTMO index CFD 1m
+  tested: 2026-06-22
+  closed: 2026-06-22
+  verdict: REJECT
+  headline: Continuation and random direction matched or beat the fade; net negative after costs.
+  why: The apparent reversal is stop/target geometry, not information in the sweep.
+  refs: {scripts: [scripts/eda_liquidity_sweep.py]}
+  visibility: public
+  public_summary: >-
+    Fading false breaks of the prior-day and opening-range highs and lows did no better than trading
+    them the other way or at random, and lost money after spreads.
+
+- id: S026
+  slug: ict-turtle-soup
+  title: ICT Turtle Soup — MSS-confirmed, EMA-filtered false-break fade
+  family: ict-smc
+  mechanism: intraday-mean-reversion
+  source: {type: social, name: "ICT / community setup"}
+  public_source: "ICT community setup"
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1m intraday
+  data: FTMO index CFD 1m
+  tested: 2026-06-27
+  closed: 2026-06-27
+  verdict: REJECT
+  headline: 0/3 pass. Continuation (the opposite side) beat the reversal with 98–99% win rates — a stop-geometry artefact.
+  why: The high win rates belong to whichever side has the far stop, not to the ICT signal.
+  refs: {scripts: [scripts/eda_turtle_soup_screen.py], prs: [104, 105]}
+  visibility: public
+  public_summary: >-
+    ICT's Turtle Soup setup showed no edge: trading the opposite direction won more often, and the
+    near-100% win rates on both sides came from where the stops sit.
+
+- id: S027
+  slug: holo-h1-open-fade
+  title: HOLO — fade false breaks of the day's highest/lowest H1 open (ForexFactory)
+  public_title: "HOLO — fade false breaks of the day's highest/lowest H1 open"
+  family: ict-smc
+  mechanism: intraday-mean-reversion
+  source: {type: social, name: "ForexFactory thread 590623"}
+  public_source: "A long-running FX forum thread"
+  paper: P019
+  instruments: [EURUSD, GBPUSD, XAUUSD]
+  products: [CFD]
+  timeframe: H1 levels, M15 confirm, 1m execution
+  data: FTMO 1m, 26 months (~525 trades/instrument)
+  tested: 2026-07-04
+  closed: 2026-07-04
+  verdict: REJECT
+  headline: >-
+    Fade direction is right but sub-cost — EURUSD gross +$13.65 vs a $13.00 round trip (net t=+0.03);
+    GBPUSD net −$10.59. The thread's own management falls to 28–47% win rate, t=−8.2 / −7.5 / −3.4.
+  why: A real but tiny fade premium at intraday levels is smaller than the FX spread; the thread's BE/trail rules make it worse.
+  refs: {scripts: [scripts/eda_holo_screen.py], prs: [118]}
+  visibility: public
+  public_summary: "A long-running FX forum's \"Highest Open / Lowest Open\" fade points the right way, but the edge is smaller than the spread. Managed the way the thread describes, it loses heavily."
+
+- id: S028
+  slug: ict-smt-fvg-confluence
+  title: ICT SMT divergence + FVG confluence (Reddit)
+  family: ict-smc
+  mechanism: intraday-momentum
+  source: {type: social, name: "Reddit r/Daytrading"}
+  public_source: "A Reddit day-trading post"
+  paper: P020
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1h / 1d, 1m execution
+  data: FTMO CFD 1m, 27 months
+  tested: 2026-07-04
+  closed: 2026-07-04
+  verdict: REJECT
+  headline: >-
+    SMT divergence alone carries no information (US100 −$18.50/trade, opposite +$15.56). The full
+    four-condition stack leaves 7 / 3 / 3 trades in 27 months, all net negative.
+  why: The untested ingredient (SMT) is noise, and stacking conditions makes the setup too rare to evaluate.
+  refs: {scripts: [scripts/eda_ict_smt_fvg_screen.py], prs: [120]}
+  visibility: public
+  public_summary: >-
+    SMT divergence between the Nasdaq and S&P carried no directional information. The full ICT stack
+    produced only 13 trades in 27 months across three indices, all losing.
+
+- id: S029
+  slug: erl-irl-sweep-fvg-refill
+  title: ERL → IRL liquidity sweep + FVG refill (Reddit "market cycle")
+  family: ict-smc
+  mechanism: intraday-mean-reversion
+  source: {type: social, name: "Reddit — 'Strategy Mechanics Breakdown' post"}
+  public_source: "A Reddit 'strategy mechanics' post"
+  paper: P022
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1m intraday
+  data: FTMO CFD 1m 2024-05→2026-07, ~10k trades per instrument
+  tested: 2026-07-06
+  closed: 2026-07-06
+  verdict: REJECT
+  headline: Gross ≈0 on all three (US100 −0.32pt, US500 +0.01, US30 −0.11); net t=−7.8 / −9.9 / −6.9. Random matched or beat the rule.
+  why: Swapping the fixed-R target for an FVG-refill target changes nothing; direction carries no information.
+  refs: {scripts: [scripts/eda_erl_irl_sweep_fvg_screen.py], prs: [123]}
+  visibility: public
+  public_summary: >-
+    Sweeping external liquidity and targeting the nearest fair-value gap made nothing before costs on
+    ~30,000 trades, and random entries did as well.
+
+- id: S030
+  slug: nq-sweep-mss-fvg-framework
+  title: The AW Model — PDH/PDL sweep → MSS → FVG entry (awtrades.co)
+  public_title: "NQ sweep → market-structure shift → FVG framework"
+  family: ict-smc
+  mechanism: intraday-mean-reversion
+  source: {type: vendor, name: "awtrades.co (free NQ framework)"}
+  public_source: "A free NQ framework from a trading-education site"
+  instruments: [QQQ, SPY, US100, US500, US30]
+  products: [ETF, CFD, futures cost model]
+  timeframe: 3m RTH
+  data: QQQ/SPY 2022-11→2026-08; FTMO CFD 2024-05→2026-07 (1,837 trades)
+  tested: 2026-09-23
+  closed: 2026-09-23
+  verdict: REJECT
+  headline: >-
+    Pooled gross +0.033R (t=+0.65) even at zero cost. On resolved trades it hit target 18.7% vs a
+    22.3% random-walk baseline (z=−3.25); US100 −0.24R, t=−2.53.
+  why: It reaches its own structural target less often than a coin flip; the break-even look comes from trades timing out at the close.
+  lesson: A time-stopped bracket must be scored on resolved trades only — the naive test read z=+8.42, a false pass.
+  variants:
+    - {name: "09:00–10:30 CT 'kill zone'", verdict: REJECT, result: "Worse than all-day (−0.011R)."}
+    - {name: "50% consequent-encroachment entry", verdict: REJECT, result: "−0.0985R, worse than first touch."}
+    - {name: "premium/discount gate", verdict: REJECT, result: "No change."}
+    - {name: "move stop to break-even", verdict: REJECT, result: "+0.015R, t=+0.57."}
+    - {name: "NQ futures cost", verdict: REJECT, result: "Flat before any cost — a cheaper venue cannot help."}
+  refs: {scripts: [scripts/eda_aw_model_screen.py, scripts/orb_fade_venue_breakeven.py], prs: [225, 226]}
+  visibility: public
+  public_summary: "A free sweep → market-structure shift → FVG framework reached its target less often than a coin flip would. It was flat even before costs, so trading it on cheaper futures would not help."
+
+- id: S031
+  slug: nested-4h-15m-fvg
+  title: Nested 4H → 15m FVG continuation (X post)
+  family: ict-smc
+  mechanism: intraday-momentum
+  source: {type: social, name: "X @atifhussainog", url: "https://x.com/atifhussainog/status/2094787361460904215"}
+  public_source: "A popular X trading account"
+  instruments: [US100, US500, US30, XAUUSD, EURUSD, GBPUSD, BTCUSD]
+  products: [CFD]
+  timeframe: 4H zones, 15m displacement + FVG, 1m execution
+  data: FTMO CFD 1m 2024-05→2026-07
+  tested: 2026-09-03
+  closed: 2026-09-26
+  verdict: REJECT
+  headline: >-
+    2R arm: US100 −$10.88/trade (t=−0.19), US500 −$39.04 (t=−1.35); the opposite and random
+    directions beat the rule on both primaries. 12 of 14 instrument × target cells REJECT_DIRECTION.
+  why: The nested FVG entry has no directional information; the only positive cells (3R on EURUSD, BTCUSD) are thin and best-of-2.
+  refs:
+    prereg: [docs/prereg/2026-09-03_x_nested_4h_15m_fvg.md]
+    scripts: [scripts/eda_nested_fvg_4h_15m_screen.py]
+    prs: [213]
+  visibility: public
+  public_summary: >-
+    Entering on a 15-minute FVG after price reacts from a 4-hour FVG lost money on the Nasdaq and
+    S&P, and trading the opposite direction or at random did better.
+
+- id: S032
+  slug: wickless-candle-retest
+  title: Wickless-candle liquidity-zone retest
+  family: ict-smc
+  mechanism: liquidity-zone-persistence
+  source: {type: social, name: "Community liquidity-zone setup"}
+  public_source: "A community liquidity-zone setup"
+  strategies: [wickless_candle]
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1m intraday
+  data: FTMO index CFD 1m
+  tested: 2026-06-26
+  closed: 2026-06-26
+  verdict: REJECT
+  headline: PRIMARY failed on all three — OOS Sharpe US100 −1.73 (win 29.7%), US500 −0.37, US30 −4.14 (win 26%).
+  why: Every configuration in the grid was cost-negative.
+  refs: {scripts: [scripts/backtest_wf_wickless_candle.py]}
+  visibility: public
+  public_summary: >-
+    Trading retests of "wickless" candles as liquidity zones lost money on all three US indices at
+    every setting we tried.

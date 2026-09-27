@@ -1,0 +1,192 @@
+# Trend following & moving averages. Edit here; run scripts/build_strategy_catalogue.py.
+- id: S090
+  slug: reddit-210-ema-trend-reversal
+  title: Reddit "210 EMA" always-in-market trend reversal
+  family: trend-following
+  mechanism: trend-following-ema-reversal
+  source: {type: social, name: "Reddit r/Daytrading"}
+  public_source: "A Reddit day-trading post"
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: H1 / H4 / D1
+  data: FTMO 1m resampled (26 months) + 15y deep daily
+  tested: 2026-07-06
+  closed: 2026-07-06
+  verdict: REJECT
+  headline: >-
+    H1/H4 net-negative and pure geometry. D1 passed PRIMARY (OOS Sharpe +0.142, 3/3) and the drawdown
+    cap, but DSR 0.706 and the single best trade was 80.5% of all OOS profit.
+  why: The daily "edge" is one lucky 2022–2026 trend segment.
+  variants:
+    - {name: "H1 / H4", verdict: REJECT, result: "Net-negative; fade/random capture ≥50% of the rule."}
+    - {name: "D1, ATR stop k=1.5 (selected from 1.0–4.0)", verdict: REJECT, result: "OOS Sharpe +0.142, DSR 0.706, top trade 80.5% of profit."}
+  refs: {scripts: [scripts/eda_ema210_trend_reddit.py, scripts/backtest_wf_ema210_trend.py], prs: [124]}
+  visibility: public
+  public_summary: >-
+    A Reddit "one EMA, cut losers, let winners run" system lost on hourly charts. On daily charts it
+    looked profitable, but 80% of the out-of-sample profit came from a single trade.
+
+- id: S091
+  slug: ema-20-50-rsi-pullback
+  title: EMA 20/50 flip + RSI(14) > 50 pullback to the 20 EMA
+  family: trend-following
+  mechanism: trend-following-ema-reversal
+  source: {type: user, name: "User-supplied discretionary rule"}
+  public_source: "A rule I was sent"
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: H1 / H4 / D1
+  data: FTMO CFD 1m resampled + deep daily
+  tested: 2026-09-03
+  closed: 2026-09-26
+  verdict: REJECT
+  headline: >-
+    Pooled t=0.46 (H1), 0.47 (H4), 0.61 (D1), and no better than simply being long for the same time
+    (duration-matched null t=0.00 / −0.33 / −0.95). RSI>50 is true on 80% of bars where EMA20>EMA50.
+  why: The rule is a long filter on rising markets, and the RSI condition is almost redundant with the EMA condition.
+  variants:
+    - {name: "exit on close below 50 EMA (as stated)", verdict: REJECT, result: "Pooled D1 +$21.83/trade, t=0.61."}
+    - {name: "exit only on EMA cross-back", verdict: REJECT, result: "D1 +$215.95/trade, t=1.60 — better, still insignificant."}
+    - {name: "3× spread", verdict: REJECT, result: "D1 +$19.22, t=0.54."}
+  refs: {scripts: [scripts/eda_ema2050_rsi_pullback.py], prs: [214]}
+  visibility: public
+  public_summary: >-
+    The popular "20 EMA above 50 EMA, RSI above 50, buy the pullback" rule did no better than simply
+    being long the index for the same amount of time, on any timeframe. The RSI filter adds almost
+    nothing the EMAs have not already said.
+
+- id: S092
+  slug: ema-200-4h-break-stock-swing
+  title: 4-hour 200 EMA break / retest on single stocks (~2-month hold)
+  family: trend-following
+  mechanism: equity-trend-breakout-swing
+  source: {type: user, name: "User-supplied discretionary options setup (equity leg only)"}
+  public_source: "A discretionary options setup (equity leg tested)"
+  instruments: [US single stocks (52)]
+  products: [stock]
+  timeframe: 4H bars, ~2-month hold
+  data: IBKR 4H 2020-08→2026-08, every 5th name of the discovery universe
+  tested: 2026-08-15
+  closed: 2026-08-15
+  verdict: LEAD
+  headline: >-
+    Calls: +2.69%/trade but no better than holding the same stocks at random (t=+0.17 vs baseline).
+    Puts: +1.18%/trade, t=+4.21 vs blind shorting — but two-thirds of trades are in the 2022 bear.
+  why: The long side just re-selects stocks already going up; the short side shows real selectivity, mostly in one bear market.
+  variants:
+    - {name: "calls, clean break", verdict: REJECT, result: "Indistinguishable from random holding."}
+    - {name: "puts, clean break", verdict: LEAD, result: "+1.18%/trade, t=+4.21 vs own null; bear-concentrated."}
+    - {name: "puts, retest entry", verdict: LEAD, result: "+2.02%/trade."}
+    - {name: "exit on EMA reclaim", verdict: REJECT, result: "Halves expectancy everywhere."}
+  refs: {scripts: [scripts/download_ibkr_stock_4h.py, scripts/eda_ema200_4h_breakout.py]}
+  visibility: public
+  public_summary: >-
+    Buying stocks when they reclaim the 4-hour 200 EMA did no better than buying them at random. The
+    short side was genuinely selective — but mostly during the 2022 bear market.
+
+- id: S093
+  slug: etf-quality-pullback-reclaim
+  title: Quality-ETF pullback + 4H 200-EMA reclaim (LEAP swing blueprint, ETF leg)
+  family: dip-buying
+  mechanism: etf-quality-pullback-reclaim
+  source: {type: user, name: "User-supplied research blueprint"}
+  public_source: "A research blueprint I was sent"
+  instruments: [SPY, QQQ, IWM, DIA, sector SPDRs, SMH, SOXX, IGV, GLD, SLV, TLT, HYG, LQD]
+  products: [ETF]
+  timeframe: 4H bars
+  data: IBKR 4H 2010-08→2026-08 (21 ETFs); options layer blocked — no IBKR option history
+  tested: 2026-08-22
+  closed: 2026-08-22
+  verdict: LEAD
+  headline: >-
+    Technical-exit version flat vs its duration-matched null (t=+0.13). A fixed 3-month hold: n=50,
+    +7.39%/trade, t=+2.35 vs its own null, 82% win, DSR 1.000 over the 4 hold lengths.
+  why: A coherent front-loaded shape (6/9/12-month holds decay), but it was found after 20+ exploratory looks — needs its own pre-registration.
+  lesson: Compare each holding period with a null of the same length; a single 252-day baseline hid this and mis-judged every short hold.
+  variants:
+    - {name: "technical exit (~18-day hold)", verdict: REJECT, result: "+0.82%/trade, t=+0.13 vs matched null; DSR 0.860."}
+    - {name: "fixed 3-month hold", verdict: LEAD, result: "+7.39%/trade, t=+2.35 vs matched null."}
+    - {name: "6 / 9 / 12-month holds", verdict: REJECT, result: "t=+0.98 / +0.54 / −0.36 vs matched nulls."}
+    - {name: "SPY regime filter", verdict: REJECT, result: "Counterproductive — dropping it raises expectancy to 1.73%."}
+    - {name: "'buy extreme fear' (VIX > 30)", verdict: REJECT, result: "Worst bucket, −1.62%/trade."}
+  refs: {scripts: [scripts/download_ibkr_options_chain_probe.py, scripts/eda_etf_quality_pullback_reclaim.py], prs: [201]}
+  visibility: public
+  public_summary: >-
+    Buying quality ETFs after a pullback and a 200-EMA reclaim, then simply holding three months, is our
+    most interesting swing lead: +7.4% per trade and clearly better than random. It came out of an
+    exploratory search, so it still needs a clean pre-registered test.
+
+- id: S094
+  slug: multi-asset-tsmom-book
+  title: Multi-asset daily trend (time-series momentum) book as a diversifier
+  family: trend-following
+  mechanism: unclassified
+  source: {type: paper, name: "Moskowitz, Ooi & Pedersen 2012"}
+  instruments: [XAUUSD, EURUSD, GBPUSD, BTCUSD]
+  products: [CFD]
+  timeframe: 1d, always in market
+  data: 22–25y daily (Yahoo, cross-checked vs MT5); BTC Binance
+  tested: 2026-06-05
+  closed: 2026-06-05
+  verdict: REJECT
+  headline: >-
+    OOS book Sharpe +0.60 (4/4 legs) but drawdown 9.9% > 5% cap and DSR 0.755. Adding it to the
+    existing book cut FTMO pass probability from 75.6% to 22–31%.
+  why: An always-on sleeve dilutes the per-day mean and adds its own drawdown; for a prop challenge, fewer high-conviction days beat many always-on ones.
+  variants:
+    - {name: "gold trend (25y)", verdict: REJECT, result: "Below buy-and-hold; the 2-year strength was a bull artefact."}
+    - {name: "FX trend (22y)", verdict: REJECT, result: "Dead since 2008."}
+    - {name: "BTC trend", verdict: REJECT, result: "Robust alone (+0.79, 9/10 years) but carries the whole book."}
+  visibility: public
+  public_summary: >-
+    A classic trend-following book on gold, FX and Bitcoin looked like a good diversifier on paper,
+    but adding it would have cut the chance of passing a prop challenge from ~76% to ~25–30%.
+
+- id: S095
+  slug: futures-trend-momentum-flat-daily
+  title: Trend & momentum rules on futures for a flat-by-close prop account (paper battery)
+  family: trend-following
+  mechanism: unclassified
+  source: {type: paper, name: "User's 478-file paper library"}
+  instruments: [index, commodity and FX futures (ETF proxies)]
+  products: [futures, ETF]
+  timeframe: 1d signals, flat every day by 16:10 ET
+  data: ETF proxies 2010–2026
+  tested: 2026-09-26
+  closed: 2026-09-26
+  verdict: REJECT
+  headline: TSMOM12 gross t=+1.87 → prop-net t=−4.36. RAMOM, IMOM, MA200 L/S, EMA-180, up-day ratio, XS/commodity/FX momentum all net t ≤ −2.
+  why: A flat-by-close rule forces a round trip every held day, which destroys any multi-day trend premium.
+  variants:
+    - {name: "TSMOM12", verdict: REJECT, result: "Gross t=+1.87, net t=−4.36."}
+    - {name: "RAMOM, IMOM, MA200 L/S, EMA-180, up-day ratio", verdict: REJECT, result: "Net t ≤ −2."}
+    - {name: "cross-sectional, commodity and FX momentum", verdict: REJECT, result: "Net t ≤ −2."}
+  refs:
+    prereg: [docs/prereg/2026-09-26_paper_library_futures_battery.md]
+    scripts: [scripts/battery_daily_2026_09_26.py, scripts/battery_verdict_2026_09_26.py]
+    prs: [231]
+  visibility: public
+  public_summary: >-
+    Trend-following rules from the academic literature cannot work on a prop account that must be flat
+    every night: paying a round trip every day turned a mildly positive trend signal deeply negative.
+
+- id: S096
+  slug: spxs-spxl-structural
+  title: 3× bull / bear ETF pair (SPXL / SPXS) structural study
+  family: trend-following
+  mechanism: structural-experiment
+  source: {type: internal, name: "Structural experiment"}
+  strategies: [spxs_spxl]
+  instruments: [US500 (synthetic 3× legs)]
+  products: [CFD]
+  timeframe: intraday
+  data: synthesised on US500
+  tested: 2026-05-20
+  closed: 2026-05-20
+  verdict: REJECT
+  headline: A positive-skew trend bet that choppy markets offset; not an edge and not tradeable on FTMO.
+  why: Studied for its path properties, not as an alpha hypothesis.
+  visibility: public
+  public_summary: >-
+    Holding a 3× bull and 3× bear ETF pair is a bet on trending markets that chop erodes; it is not an
+    edge.

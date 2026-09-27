@@ -1,0 +1,103 @@
+# Factors & cross-sectional stock selection. Edit here; run scripts/build_strategy_catalogue.py.
+- id: S120
+  slug: discovery-cross-sectional-daily
+  title: Systematic discovery — 41 cross-sectional daily features × 3 universes (Runs 001–002)
+  family: factors
+  mechanism: cross-sectional-equity-statarb
+  source: {type: internal, name: "Clean-slate discovery engine"}
+  instruments: [236 US equities, 109 ETFs, 27 sector ETFs]
+  products: [stock, ETF]
+  timeframe: 1d, 1–21-day holds
+  data: 16y IBKR daily, 392 symbols; untouched 5.6y holdout
+  tested: 2026-08-10
+  closed: 2026-08-10
+  verdict: REJECT
+  headline: >-
+    3,084 pre-specified hypotheses plus a 2,547-cell timing search: zero cleared the gate. Five
+    locked candidates all failed the holdout and three inverted.
+  why: The binding constraint is power — a holdout Sharpe of 0.10–0.13 needs 256–370 years of daily data to establish.
+  lesson: Years needed for t=2 is (2/Sharpe)² — compute it before searching. Dollar-neutral is not market-neutral.
+  variants:
+    - {name: "Run 001 — breadth (41 features × 4 targets × 3 universes)", verdict: REJECT, result: "0 survivors; 2 locked candidates inverted out of sample."}
+    - {name: "Run 002 — combination + holding period", verdict: REJECT, result: "Both fixes work mechanically; in-sample t never above 1.60."}
+    - {name: "Amihud illiquidity", verdict: REJECT, result: "+3.05bp/day t=2.44 → −0.41bp t=−0.21 on holdout."}
+    - {name: "low volatility on sector ETFs", verdict: REJECT, result: "+5.07bp/day t=3.00 → −3.01bp t=−1.16 on holdout."}
+  refs: {scripts: [scripts/discovery_null_calibration.py, scripts/discover_patterns.py, scripts/discover_timing.py, scripts/validate_patterns.py, scripts/discover_composite.py, scripts/download_discovery_universe.py], prs: [183]}
+  visibility: public
+  public_summary: >-
+    We searched over 3,000 cross-sectional stock and ETF signals on 16 years of data. Nothing survived
+    an untouched holdout, and the two best candidates reversed. At the effect sizes involved, 16 years
+    is nowhere near enough data to tell.
+
+- id: S121
+  slug: price-volume-alignment-factor
+  title: '"Price-Volume Alignment" formulaic factor (WorldQuant Alpha#3 variant, X)'
+  family: factors
+  mechanism: price-volume-correlation-reversal
+  source: {type: social, name: "X @pritipatelfgoo"}
+  public_source: "A quant-factor account on X"
+  instruments: [236 US equities, 109 ETFs]
+  products: [stock, ETF]
+  timeframe: 1d
+  data: IBKR daily TRAIN 2010-08→2020-12 (holdout never opened)
+  tested: 2026-08-21
+  closed: 2026-08-21
+  verdict: REJECT
+  headline: >-
+    Stocks: real and in the claimed direction (+1.88bp/day, t=+1.81) but break-even cost 1.02bp vs a
+    measured 2.27bp half-spread. ETFs' +4.89bp (t=+3.00) was an artefact — the factor is undefined for
+    most names on most days.
+  why: Too small to collect on stocks; on ETFs the days where it is defined are a biased market state.
+  lesson: A feature whose definedness depends on the data can silently select market states — always report days used and coverage.
+  refs: {scripts: [scripts/research_pv_alignment_factor.py, scripts/pv_alignment_cost_frontier.py, scripts/pv_alignment_liquidity_test.py], prs: [196]}
+  visibility: public
+  public_summary: >-
+    A price-volume "alignment" alpha formula from X is real on US stocks but smaller than the bid-ask
+    spread. Its impressive ETF result came from the formula only being defined on unusual days.
+
+- id: S122
+  slug: opening-deviation-volume-structure-factor
+  title: '"Opening Deviation × Volume-Price Structure" formulaic factor (X)'
+  family: factors
+  mechanism: opening-deviation-volume-structure-mismatch
+  source: {type: social, name: "X/Twitter quant-factor post"}
+  public_source: "A quant-factor account on X"
+  instruments: [236 US equities, 109 ETFs]
+  products: [stock, ETF]
+  timeframe: 1d
+  data: IBKR daily TRAIN 2010-08→2020-12 (holdout never opened)
+  tested: 2026-08-21
+  closed: 2026-08-21
+  verdict: REJECT
+  headline: >-
+    Gross +2.59bp/day (t=+3.38), but 56% of it is a nominal share-price tilt from an un-normalised
+    dollar term. Scale-free version t=+0.40; ETFs t=+0.03.
+  why: The formula ranks share price by accident; the genuine part is zero among liquid names.
+  lesson: An un-normalised units term inside a RANK is a bug, not a factor — test the scale-free version alongside the literal one.
+  refs: {scripts: [scripts/research_open_dev_pv_structure.py, scripts/oddvps_attribution.py, scripts/oddvps_cost_reality.py], prs: [197]}
+  visibility: public
+  public_summary: >-
+    A complex alpha formula from X looked significant, but more than half its signal came from
+    accidentally ranking stocks by share price. Fix that and nothing is left.
+
+- id: S123
+  slug: smart-beta-value-quality
+  title: Long-only smart beta — value / quality fundamentals + ML (SSRN 3904097)
+  family: factors
+  mechanism: fundamental-value-quality-factor
+  source: {type: paper, name: "Shishlenin, Harke & Koppisetti 2019, SSRN 3904097"}
+  paper: P035
+  instruments: [S&P 500 constituents]
+  products: [stock]
+  timeframe: monthly
+  data: none — rejected at intake from the paper's own tables
+  tested: 2026-09-22
+  closed: 2026-09-22
+  verdict: NOT_TESTED
+  headline: The paper's best leg returned 8.5% CAGR vs the S&P's 12.0%; its S&P drawdown figure (12.3%) disagrees with the real −20.2%.
+  why: Needs point-in-time fundamentals (paid data), and the evidence is weak even on the paper's own numbers.
+  refs: {prs: [223]}
+  visibility: public
+  public_summary: >-
+    A "smart beta beats the index" paper lost to the S&P 500 on its own headline numbers, so we did not
+    spend money on the fundamentals data needed to test it.

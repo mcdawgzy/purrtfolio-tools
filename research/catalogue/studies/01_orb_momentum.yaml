@@ -1,0 +1,660 @@
+# Opening range & intraday momentum. Edit here; run scripts/build_strategy_catalogue.py.
+- id: S001
+  slug: orb-15m-family
+  title: 15-minute opening-range breakout — 19 gate/exit variants
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: internal, name: "Opening-range breakout literature; project baseline"}
+  paper: P004
+  strategies: [orb_15m, orb_15m_trail, orb_15m_vol_filter, orb_15m_first_hour, orb_15m_range_filter,
+    orb_15m_range_pct_filter, orb_15m_runner, orb_15m_retest, orb_15m_or_bias, orb_15m_gap_bias,
+    orb_15m_htf_trend, orb_15m_vol_size, orb_15m_no_nfp, orb_15m_no_fomc, orb_15m_mm_target,
+    orb_15m_time_stop, orb_15m_scale_out, orb_15m_low_vol_only, orb_15m_prior_day_close]
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1m bars, 15m opening range, same-day exit
+  data: FTMO index CFD 1m; OOS extended to 2026-07-28 for the final re-score
+  tested: 2026-05-20
+  closed: 2026-08-29
+  verdict: REJECT
+  headline: >-
+    0 robust survivors from 19 variants. Out-of-sample expectancy of the base rule is about
+    −$0.13/trade. The one walk-forward pass (prior-day OR bias) flipped to −$263.79 once 2.3 more
+    forward months arrived, with 5 straight losing months.
+  why: >-
+    The breakout direction carries almost no information on index CFDs, and what little there is
+    is smaller than the spread. Gates and exits reshape the distribution but not the mean.
+  lesson: >-
+    Changing the filter or the exit of a dead entry produces many correlated draws of one bet, not
+    many independent tests. Count mechanisms, not variants.
+  variants:
+    - {name: "orb_15m (baseline)", verdict: EXAMPLE, result: "No fundable edge; kept as the worked example."}
+    - {name: "or_bias (trade with prior-day OR bias)", verdict: REJECT, result: "Only walk-forward pass (US100). Shelved on robustness, then −$263.79 total, PSR 0.198 with 2.3 more forward months."}
+    - {name: "scale_out (partial exits)", verdict: REJECT, result: "Passed PRIMARY but drawdown 4.85–6.71× the baseline cap; resizing cannot fix it (Sharpe is scale-invariant); profit factor <1 on all six legs by 2026-07."}
+    - {name: "trail, runner, mm_target, time_stop", verdict: REJECT, result: "Exit overlays — none positive out of sample."}
+    - {name: "vol_filter, range_filter, range_pct_filter, low_vol_only, vol_size", verdict: REJECT, result: "Volatility / range gates — none positive out of sample."}
+    - {name: "first_hour, retest, gap_bias, htf_trend, prior_day_close", verdict: REJECT, result: "Entry-timing and trend gates — none positive out of sample."}
+    - {name: "no_nfp, no_fomc", verdict: REJECT, result: "News-day exclusions — no change to the verdict."}
+  refs:
+    ledger: "Verdict by mechanism → intraday-momentum"
+    scripts: [scripts/backtest_wf_orb15m.py, scripts/robustness_orb15m_or_bias.py, scripts/robustness_orb15m_scale_out.py]
+    prs: [206, 207]
+  visibility: public
+  public_summary: >-
+    We tested the classic 15-minute opening-range breakout on the Nasdaq, S&P and Dow CFDs with 19
+    different filters and exits. None survived out of sample. The single version that passed
+    walk-forward went on to lose over the next few months of fresh data.
+
+- id: S002
+  slug: early-intraday-trend-entries
+  title: Pullback, EMA-scalp and Alligator intraday trend entries
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: internal, name: "Early project builds"}
+  strategies: [rc_pullback, ema_scalp, alligator_trend]
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1m–5m intraday
+  data: FTMO index CFD 1m
+  tested: 2026-05-20
+  closed: 2026-05-21
+  verdict: REJECT
+  headline: All three rejected at the walk-forward gate; part of the 0/26 intraday-momentum tally.
+  why: Same friction wall as the ORB family — trend-continuation entries with tight stops are smaller than the CFD spread.
+  variants:
+    - {name: "rc_pullback", verdict: REJECT, result: "Pullback-continuation entry; no out-of-sample edge."}
+    - {name: "ema_scalp", verdict: REJECT, result: "EMA-gated scalp; no out-of-sample edge."}
+    - {name: "alligator_trend", verdict: REJECT, result: "Williams Alligator trend entry; no out-of-sample edge."}
+  refs: {ledger: "Verdict by strategy → Rejected / shelved"}
+  visibility: public
+  public_summary: >-
+    Three common intraday trend entries — buy the pullback, an EMA scalp, and the Williams
+    Alligator — all failed out of sample on index CFDs once real spreads were charged.
+
+- id: S003
+  slug: orb-5m-fvg-reddit
+  title: 5-minute ORB with fair-value-gap confirmation (Reddit)
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: social, name: "Reddit r/Daytrading, u/IMHIM257"}
+  public_source: "A prominent Reddit day-trading poster"
+  paper: P007
+  instruments: [US100, US500, US30, XAUUSD, EURUSD, GBPUSD, BTCUSD]
+  products: [CFD]
+  timeframe: 1m, 5m opening range
+  data: FTMO CFD 1m, 26 months
+  tested: 2026-06-11
+  closed: 2026-06-19
+  verdict: REJECT
+  headline: Pooled net −0.66bp/trade (t=−2.11, n=3,503). Win rate 41% vs the poster's ~56%. The FVG filter made the bare breakout worse.
+  why: The FVG confirmation removes good breakouts as often as bad ones; the net result is negative after costs.
+  variants:
+    - {name: "first screen (2026-06-11)", verdict: REJECT, result: "Pooled net −0.61bp/trade, t=−1.97."}
+    - {name: "re-confirm on +8 months (2026-06-19)", verdict: REJECT, result: "−0.66bp/trade, t=−2.11 — a stronger rejection."}
+  refs: {scripts: [scripts/eda_orb_fvg.py]}
+  visibility: public
+  public_summary: >-
+    A popular Reddit setup — trade the 5-minute opening-range break only when it leaves a fair-value
+    gap — lost money across seven markets. The FVG filter made results worse than the plain breakout.
+
+- id: S004
+  slug: ema-stack-vwap-scalp
+  title: '"Purgatory Method" — 4m EMA(5/9/30) + VWAP alignment'
+  public_title: "Reddit EMA-stack scalp — 4m EMA(5/9/30) + VWAP alignment"
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: social, name: "Reddit r/optionstrading"}
+  public_source: "A Reddit options-trading post"
+  paper: P011
+  strategies: [purgatory_method]
+  instruments: [US100, US500, US30, XAUUSD, EURUSD, GBPUSD, BTCUSD]
+  products: [CFD]
+  timeframe: 4m bars
+  data: FTMO CFD 1m resampled
+  tested: 2026-06-18
+  closed: 2026-06-19
+  verdict: REJECT
+  headline: Screen pooled −1.08bp/trade (t=−1.96), cost-negative on 6/7 markets. Walk-forward OOS Sharpe US100 −0.68, US500 −0.03.
+  why: A random-direction control did as well as the signal — the result is stop/target geometry, not direction.
+  refs: {scripts: [scripts/eda_purgatory_method.py, scripts/backtest_wf_purgatory_method.py]}
+  visibility: public
+  public_summary: "A Reddit EMA-stack / VWAP scalp lost money on 6 of 7 markets, and a coin-flip entry with the same stops did just as well."
+
+- id: S005
+  slug: market-intraday-momentum
+  title: First half-hour predicts the last half-hour (Gao et al. 2018)
+  family: orb-momentum
+  mechanism: market-intraday-momentum
+  source: {type: paper, name: "Gao, Han, Li & Zhou 2018"}
+  paper: P005
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 30m windows
+  data: FTMO index CFD 1m, 26 months
+  tested: 2026-06-10
+  closed: 2026-06-10
+  verdict: REJECT
+  headline: Gross edge absent — US100 +0.10pt against 1.47pt cost; US500/US30 negative before costs. Pooled net −1.23bp/trade (t=−1.99).
+  why: The published effect does not show up in recent index CFD data at all.
+  refs: {scripts: [scripts/eda_market_intraday_momentum.py]}
+  visibility: public
+  public_summary: >-
+    The academic "intraday momentum" effect — the first 30 minutes predicting the last 30 — was not
+    present in recent Nasdaq, S&P or Dow data, even before trading costs.
+
+- id: S006
+  slug: atr-volatility-breakout
+  title: ATR(5) volatility breakout, open ± 0.4·ATR (crackingmarkets)
+  public_title: "ATR(5) volatility breakout, open ± 0.4·ATR"
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: vendor, name: "crackingmarkets.com"}
+  public_source: "A trading-education blog"
+  paper: P013
+  instruments: [US100, US500, US30, XAUUSD, EURUSD, GBPUSD, BTCUSD]
+  products: [CFD, ETF]
+  timeframe: intraday, entry on band break, exit at stop or close
+  data: FTMO CFD 1m (n=3,357) plus ETF replication
+  tested: 2026-06-20
+  closed: 2026-06-20
+  verdict: REJECT
+  headline: Right direction (TRUE +$8.09 > RANDOM −$20.28 > FADE −$53.92) but insignificant (t=+0.46); negative at 3× spread.
+  why: A wide stop does keep costs to ~1% of risk, but the signal itself is too weak to be distinguished from noise.
+  variants:
+    - {name: "base rule", verdict: REJECT, result: "t=+0.46; no primary instrument reaches t≥1.64."}
+    - {name: "ETF replication / bar-resolution check / volatility filter", verdict: REJECT, result: "Robustness checks; none change the verdict."}
+  refs: {scripts: [scripts/eda_volatility_breakout.py, scripts/eda_p013_etf_replication.py, scripts/eda_p013_bar_resolution_calibration.py, scripts/eda_p013_volatility_filter.py], prs: [194, 195]}
+  visibility: public
+  public_summary: >-
+    An ATR volatility-breakout rule had the right directional tilt, but it was too weak to separate
+    from noise and turned negative once spreads were doubled.
+
+- id: S007
+  slug: orb-60m-atr-trail
+  title: Full-hour ORB with ATR trailing stop (RavenQuant "Daybreak")
+  public_title: "Full-hour ORB with ATR trailing stop"
+  family: orb-momentum
+  mechanism: intraday-volatility-breakout
+  source: {type: vendor, name: "ravenquant.com"}
+  public_source: "A trading-signals vendor"
+  paper: P016
+  strategies: [raven_quant_daybreak]
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1m, 60m opening range
+  data: FTMO index CFD 1m
+  tested: 2026-06-28
+  closed: 2026-06-28
+  verdict: REJECT
+  headline: High-risk profile breached the 10% drawdown cap in-sample (−15.98%). Medium-risk OOS Sharpe US100 −0.88, US500 −0.41, US30 +0.18.
+  why: Negative expectancy at every risk profile.
+  refs: {scripts: [scripts/backtest_wf_raven_quant_daybreak.py]}
+  visibility: public
+  public_summary: >-
+    A vendor's full-hour opening-range breakout with an ATR trailing stop lost money at every risk
+    setting, and the aggressive setting breached a 10% drawdown limit even in-sample.
+
+- id: S008
+  slug: atr-breakout-trail
+  title: ATR-band breakout with delayed 2R trailing exit (crackingmarkets)
+  public_title: "ATR-band breakout with delayed 2R trailing exit"
+  family: orb-momentum
+  mechanism: intraday-volatility-breakout
+  source: {type: vendor, name: "crackingmarkets.com (2026-07-07 article)"}
+  public_source: "A trading-education blog (same author as S006)"
+  paper: P023
+  strategies: [atr_breakout_trail]
+  instruments: [US100, US500, US30, BTCUSD]
+  products: [CFD]
+  timeframe: intraday
+  data: FTMO CFD 1m
+  tested: 2026-07-10
+  closed: 2026-07-17
+  verdict: REJECT
+  headline: Passed PRIMARY (OOS Sharpe US100 +1.66, US500 +1.36) but robustness failed — DSR 0.832; regime-gated retest DSR 0.775.
+  why: >-
+    The edge is fragile and instrument-specific (BTCUSD and US30 deeply negative), and does not
+    survive correction for the number of exits tried.
+  variants:
+    - {name: "exit = delayed 2R trail (selected)", verdict: REJECT, result: "OOS Sharpe +1.66 / +1.36, DD ≤1%, DSR 0.832 < 0.95."}
+    - {name: "exit = hold to close / immediate trail", verdict: REJECT, result: "Worse in-sample; not selected."}
+    - {name: "v2: trade only in 'trending' regime", verdict: REJECT, result: "Flipped US30/BTC info legs positive but lowered US100 Sharpe to +1.20; DSR 0.775."}
+  refs:
+    prereg: [docs/prereg/2026-07-17_atr_breakout_trail_regime_gate.md]
+    scripts: [scripts/backtest_wf_atr_breakout_trail.py, scripts/backtest_wf_atr_breakout_trail_regime.py]
+  visibility: public
+  public_summary: >-
+    A breakout that only starts trailing after +2R looked good out of sample on two indices, but not
+    once we corrected for how many exits were tried — and it lost badly on Bitcoin and the Dow.
+
+- id: S009
+  slug: orb-30m-ema9-trail
+  title: 30-minute ORB with EMA(9) trailing hold ("~95% win rate" method)
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: user, name: "User-supplied published method (two filters withheld by the author)"}
+  public_source: "A trader's published method, sent to me (two filters withheld)"
+  paper: P017
+  strategies: [orb_30m_ema_trail]
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1m, 30m opening range
+  data: FTMO index CFD 1m
+  tested: 2026-06-30
+  closed: 2026-06-30
+  verdict: REJECT
+  headline: Net-negative on all three indices; random direction did as well as the rule. Walk-forward OOS US100 +0.71, US500 −0.83.
+  why: The high advertised win rate is what a trailing stop does to any entry, not evidence of an edge.
+  lesson: A tight trailing stop converts small wins into a high win rate and leaves the average unchanged or worse.
+  refs: {scripts: [scripts/eda_orb_30m_ema_trail.py, scripts/backtest_wf_orb_30m_ema_trail.py]}
+  visibility: public
+  public_summary: >-
+    A 30-minute breakout sold on a ~95% win rate lost money on all three US indices. The high win
+    rate came from the trailing stop, not the entry.
+
+- id: S010
+  slug: orfb-asia-session
+  title: ORFB Asia-session ORB + fib retest
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: user, name: "User-supplied practitioner method"}
+  public_source: "A practitioner method sent to me"
+  paper: P018
+  instruments: [US100, US500]
+  products: [CFD]
+  timeframe: 15m opening range at 10:00 AEDT
+  data: FTMO CFD 1m — only 63/60 complete Asia-session days available
+  tested: 2026-07-01
+  closed: 2026-07-01
+  verdict: REJECT
+  headline: Pooled −$4.41/trade (t=−0.97); the opposite and random directions both beat the rule.
+  why: FTMO has almost no Asia-session index data to trade or test, and what exists shows no edge.
+  refs: {scripts: [scripts/eda_orfb_asia.py, scripts/preflight_orfb_asia_coverage.py]}
+  visibility: public
+  public_summary: >-
+    An Asia-session opening-range + Fibonacci setup could barely be tested on FTMO data, and the
+    two months that exist showed no edge — trading the opposite way did better.
+
+- id: S011
+  slug: reddit-simplest-m15-orb
+  title: Reddit "simplest ORB" — NY 15m OR, close-confirm, wide stop
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: social, name: "Reddit"}
+  public_source: "A popular Reddit ORB post"
+  instruments: [US100, QQQ, SPY, DIA]
+  products: [CFD, ETF]
+  timeframe: 15m opening range
+  data: US100 1m 2024-05→2026-06; QQQ/SPY/DIA 15m 2016–2024 (IBKR)
+  tested: 2026-06-22
+  closed: 2026-06-22
+  verdict: REJECT
+  headline: >-
+    First ORB to clear the cost screen (TRUE +13.69pt ≫ RANDOM +4.11 ≫ FADE −13.69 on US100), but
+    over 8.4 years of QQQ the direction premium washes to +0.0bp and inverts in 2018 and 2020.
+  why: The short sample was one bull regime; the "edge" was trend beta.
+  lesson: A direction test that passes in one regime cannot see regime beta — always test through bear markets.
+  refs: {scripts: [scripts/eda_orb_m15_reddit.py, scripts/eda_orb_m15_regime.py, scripts/download_ibkr_orb_history.py]}
+  visibility: public
+  public_summary: >-
+    A wide-stop 15-minute ORB looked genuinely directional on two years of bull-market data. Across
+    eight years including 2018 and 2020 the edge disappeared and reversed in the sharp sell-offs.
+
+- id: S012
+  slug: reddit-prop-15m-orb-fvg
+  title: Reddit "Alpha" 15m NY ORB + 1m FVG entry (claimed ~$40K/yr on prop)
+  public_title: "Reddit prop-group 15m NY ORB + 1m FVG entry (claimed ~$40K/yr on prop)"
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: social, name: "Reddit r/AlphaGroupOfficial"}
+  public_source: "A Reddit prop-trading group"
+  paper: P021
+  instruments: [US100, US500, US30, QQQ, SPY, DIA]
+  products: [CFD, ETF]
+  timeframe: 1m, 15m opening range
+  data: FTMO US100 1m 2024-05→2026-07 (n=680); QQQ/SPY/DIA 15m 2016–2024
+  tested: 2026-07-05
+  closed: 2026-07-05
+  verdict: REJECT
+  headline: Gross +0.0548R/trade (t=+1.16) — insignificant before costs; net −0.0054R at the live spread; −0.0657R at 2×.
+  why: The premium is about one spread wide; the $40K/yr claim needs a free venue plus discretionary bias.
+  variants:
+    - {name: "exact published rules", verdict: REJECT, result: "Net −0.0054R, t=−0.11."}
+    - {name: "17-cell levels sweep (OR 5–60m × targets × entries)", verdict: REJECT, result: "Best cell t=+1.95, below the Bonferroni 2.9 bar."}
+    - {name: "hold breakout direction to close, 2016–2024", verdict: REJECT, result: "≈0 on QQQ/SPY/DIA; negative in bear markets on all three."}
+    - {name: "US500 / US30 legs", verdict: REJECT, result: "−0.062R / −0.020R."}
+  refs: {scripts: [scripts/eda_orb15_fvg_reddit_alpha.py, scripts/eda_p021_levels_sweep.py]}
+  visibility: public
+  public_summary: >-
+    A Reddit prop-trading ORB + FVG setup claiming ~$40K a year made about +0.05R per trade before
+    costs — not significant — and lost money after the spread. A 17-cell sweep of its levels found
+    nothing either.
+
+- id: S013
+  slug: p021-orb-fvg-btc-build
+  title: ORB + FVG on BTCUSD (NY and London legs) — built, holdout FAILED
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: social, name: "Reddit r/AlphaGroupOfficial (P021), moved to BTCUSD"}
+  public_source: "A Reddit prop-trading group's setup, moved to Bitcoin"
+  strategies: [p021_orb_fvg_btc_ny, p021_orb_fvg_btc_ldn]
+  instruments: [BTCUSD, US500, US100]
+  products: [CFD]
+  timeframe: 1m, session opening ranges
+  data: FTMO BTCUSD 1m 2024-05→2026-07; TRAIN to 2025-12, HOLDOUT 2026-01→07
+  tested: 2026-07-19
+  closed: 2026-07-20
+  verdict: REJECT
+  headline: >-
+    Pre-registered holdout failed 0/2 — NY −0.0521R (0 of 12 cells positive), London +0.1199R at
+    t=+1.48 retaining 24%. A post-hoc US500 leg was negative in-sample (t=−4.39) and out (DSR 0.009).
+  why: The exit and filter were chosen after seeing results; the edge decayed to ~zero inside its own fitting window.
+  lesson: Re-fit on the early data and score the late data before trusting any post-hoc stack.
+  variants:
+    - {name: "BTCUSD NY leg", verdict: REJECT, result: "Holdout −0.0521R, t=−0.77, 0/12 cells positive."}
+    - {name: "BTCUSD London leg", verdict: REJECT, result: "Holdout +0.1199R, t=+1.48 < 1.64, 12/12 cells positive but none significant."}
+    - {name: "US500 follow-up (post-hoc)", verdict: REJECT, result: "Deployed cell −0.1662R in-sample (t=−4.39), −0.1289R holdout."}
+  refs:
+    ledger: "2026-07-20 — the one deployment that broke this ledger's own rule"
+    prereg: [docs/prereg/2026-07-20_p021_btc_exit_selection_holdout.md]
+    scripts: [scripts/holdout_p021_orb_fvg_btc.py, scripts/eda_p021_btc_spread_study.py]
+  visibility: public
+  public_summary: >-
+    We moved a Reddit ORB + FVG setup to Bitcoin, where it looked profitable in-sample. A
+    pre-registered holdout on 2026 data failed on both sessions: the New York leg lost on every one
+    of 12 configurations.
+
+- id: S014
+  slug: noise-area-intraday-momentum
+  title: Noise-Area intraday momentum (Zarattini, Aziz & Barbon)
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: paper, name: "Zarattini, Aziz & Barbon 2024, SSRN 4824172", url: "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4824172"}
+  paper: P032
+  instruments: [SPY, QQQ, DIA, US500, US100, US30, NQ, ES]
+  products: [ETF, CFD, futures]
+  timeframe: 15m/1m, decisions at :00/:30, flat by close
+  data: ETFs 15m 2016→2024; FTMO CFD 1m 2024-05→2026-07; NQ/ES 1m 2010→2026
+  tested: 2026-07-20
+  closed: 2026-09-27
+  verdict: NEAR_MISS
+  headline: >-
+    CFD screen 5/6 — in-sample +2.13bp/session (t=+1.90), post-publication +2.10bp (t=+0.88,
+    underpowered). On NQ futures at today's cost 2010–26: t=+3.59, Sharpe 0.85, but the registered
+    2010–22 holdout failed (net t=0.72) because historical micro-futures costs were 3–6× higher.
+  why: >-
+    The effect is real (right direction, stronger in bear markets) but it is small, and the
+    pre-registered holdout failed. A stop-and-daily-cap variant (V2) is a paper-trade candidate only.
+  lesson: A post-publication sample can be too short to confirm an effect that has not shrunk — compute the years needed before judging.
+  variants:
+    - {name: "FTMO CFD screen (P032)", verdict: NEAR_MISS, result: "5/6 criteria; failed only post-publication significance; ~5 more years needed."}
+    - {name: "US100-only leg", verdict: REJECT, result: "+5.64bp t=+1.74 — promotion of one leg forbidden by the pre-registration."}
+    - {name: "NQ 1m registered holdout 2010–22", verdict: REJECT, result: "Net t=0.72 (gross t=3.47)."}
+    - {name: "NQ at today's cost 2010–26 (post-holdout diagnostic)", verdict: LEAD, result: "t=3.59, Sharpe 0.85; ES t=1.04."}
+    - {name: "Prop-safe V2: 1-min stop at band + −$800/day cap, 2 MNQ", verdict: LEAD, result: "t=2.87, ~$3.9k/yr, P(pass) 34% vs 21% zero-edge null; 2025 a losing year."}
+  refs:
+    prereg: [docs/prereg/2026-07-20_p032_noise_area_intraday_momentum.md, docs/prereg/2026-09-26_paper_library_futures_battery.md]
+    scripts: [scripts/eda_noise_area_momentum.py]
+    prs: [161, 231]
+  visibility: public
+  public_summary: >-
+    The Noise-Area momentum paper is the strongest intraday result we have found. The direction is
+    real and holds up in bear markets, but the edge is small. It failed our pre-registered holdout,
+    so for now it is a paper-trading candidate on Nasdaq futures, not a validated strategy.
+
+- id: S015
+  slug: concretum-orb-qqq-tqqq
+  title: 5-minute ORB on QQQ/TQQQ (Zarattini & Aziz 2023)
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: paper, name: "Zarattini & Aziz 2023, SSRN 4416622", url: "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4416622"}
+  paper: P033
+  instruments: [QQQ, TQQQ]
+  products: [ETF]
+  timeframe: 5m opening range
+  data: none — rejected at intake from the paper's own tables
+  tested: 2026-07-21
+  closed: 2026-07-21
+  verdict: REJECT
+  headline: Rejected at intake — the headline returns come from TQQQ leverage, and the paper's own max drawdown breaches a 10% prop cap.
+  why: The unlevered result is modest, the mechanism was already exhausted on our venue, and the drawdown alone disqualifies it for a prop account.
+  refs: {prs: [163]}
+  visibility: public
+  public_summary: >-
+    The well-known Concretum 5-minute ORB paper gets its big numbers from 3× leveraged TQQQ. Its own
+    drawdown figures would breach a standard prop-firm limit, so we did not build it.
+
+- id: S016
+  slug: vwap-holy-grail
+  title: '"VWAP — The Holy Grail" always-in-market QQQ trend'
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: paper, name: "Zarattini & Aziz 2023, SSRN 4631351"}
+  paper: P034
+  instruments: [QQQ, US100]
+  products: [ETF, CFD]
+  timeframe: 1m, flip on every close through VWAP
+  data: QQQ 1m and FTMO US100 1m
+  tested: 2026-07-21
+  closed: 2026-07-21
+  verdict: REJECT
+  headline: 0 of 18 cells net-positive in either direction once realistic costs replace the paper's $0.0005/share and zero slippage.
+  why: Flipping on every VWAP cross trades so often that costs swamp any trend premium.
+  refs: {scripts: [scripts/eda_vwap_trend_trading.py]}
+  visibility: public
+  public_summary: >-
+    The "VWAP Holy Grail" paper's +671% on QQQ assumed near-zero costs. With realistic costs, none of
+    18 variants made money in either direction.
+
+- id: S017
+  slug: reddit-1m-2m-orb-3r
+  title: Reddit 1-min / 2-min ORB scalp at fixed 3:1
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: social, name: "Reddit"}
+  public_source: "A Reddit scalping post"
+  instruments: [US500, US100, US30]
+  products: [CFD]
+  timeframe: 1-second chart; tick data
+  data: FTMO tick data (519 sessions US500) + 1m bars ~27 months
+  tested: 2026-08-04
+  closed: 2026-08-04
+  verdict: REJECT
+  headline: Win rate 26.1% [22.6–29.9%], mean +0.008R, t=+0.10. The claimed 34–36% win rate is outside the confidence interval.
+  why: A 3:1 bracket wins ~25% of the time on a coin flip; the observed rate is the null. Break direction is real (TRUE−FADE +0.308R, t=+2.50) but smaller than the spread.
+  lesson: Before believing any win rate on a fixed R:R bracket, compare it with 1/(1+RR).
+  variants:
+    - {name: "R:R 1:1 / 2:1 / 3:1 / 5:1", verdict: REJECT, result: "Observed 48.5% / 33.6% / 26.1% / 15.6% vs random-walk 50 / 33.3 / 25 / 16.7%."}
+    - {name: "zero-cost venue", verdict: REJECT, result: "Gross t=+1.57 — fails on futures too."}
+  refs:
+    prereg: [docs/prereg/2026-08-04_reddit_orb_1m2m_3r.md]
+    scripts: [scripts/eda_reddit_orb_1m2m.py, scripts/eda_reddit_orb_null.py, scripts/eda_reddit_orb_bars.py]
+    prs: [182]
+  visibility: public
+  public_summary: >-
+    A Reddit 1-minute ORB scalp at 3:1 claimed a 34–36% win rate. On real tick data it won 26% —
+    exactly what a coin flip gives a 3:1 bracket. The breakout direction is real, but it is worth less
+    than the spread.
+
+- id: S018
+  slug: xauusd-ema-orb-london
+  title: Gold London-session ORB with H1 EMA(50) trend filter
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: user, name: "User-designed discretionary plan"}
+  public_source: "My own discretionary plan"
+  instruments: [XAUUSD]
+  products: [CFD]
+  timeframe: 15m ATR gate, 1m execution
+  data: FTMO XAUUSD 1m, 2.03 years (391 trades)
+  tested: 2026-07-18
+  closed: 2026-07-18
+  verdict: REJECT
+  headline: Gross +0.447pt/trade but net indistinguishable from zero (t=+0.06, p=0.474); costs eat 90% of the gross edge.
+  why: Same friction wall as the index ORBs, now on gold.
+  refs: {scripts: [scripts/eda_xauusd_ema_orb_gate.py], prs: [152]}
+  visibility: public
+  public_summary: >-
+    A London-session gold breakout with a trend filter made a little before costs; spreads ate 90% of
+    it and left nothing measurable.
+
+- id: S019
+  slug: xauusd-prev-day-fib-breakout
+  title: Gold previous-day high/low fib breakout (YouTube)
+  public_title: "Gold previous-day high/low fib breakout"
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: social, name: "YouTube (aHbP0lXLZOs)", url: "https://www.youtube.com/watch?v=aHbP0lXLZOs"}
+  public_source: "A YouTube trading video"
+  instruments: [XAUUSD]
+  products: [CFD]
+  timeframe: daily levels, 1m execution
+  data: FTMO XAUUSD 1m 2024-05→2026-06 (436 trades); 25y IBKR daily bracket (4,404 trades)
+  tested: 2026-07-19
+  closed: 2026-07-19
+  verdict: REJECT
+  headline: Gross −1.21pt/trade (t=−1.22) — negative before costs. Win rate 28.9% vs the 28.6% a 2.5R bracket needs to break even.
+  why: The 0.10-range stop sits exactly where breakout retraces trade, and gap-through fills push losses past the nominal stop.
+  refs: {scripts: [scripts/eda_xauusd_prev_day_fib.py]}
+  visibility: public
+  public_summary: "A YouTube gold breakout of the prior day's high and low lost money before costs. Its tight stop sits right where breakouts normally pull back."
+
+- id: S020
+  slug: vendor-5min-orb-es-playbook
+  title: edgeful "5min ORB playbook on ES" (claimed 72% win rate, +108% in 6 months)
+  public_title: "A vendor's \"5min ORB playbook on ES\" (claimed 72% win rate, +108% in 6 months)"
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: vendor, name: "edgeful.com marketing PDF"}
+  public_source: "An ORB analytics vendor's marketing PDF"
+  instruments: [US500, US100]
+  products: [CFD]
+  timeframe: 5m opening range, target 50% / stop 100% of the range
+  data: FTMO US500 / US100 1m 2024-05→2026-07 (2.2 years)
+  tested: 2026-08-22
+  closed: 2026-08-22
+  verdict: REJECT
+  headline: >-
+    US500 (the ES proxy): 544 trades, net −1.42pt/trade, t=−2.97, profit factor 0.72 — negative
+    before costs. US100: net −0.34pt/trade, t=−0.13.
+  why: >-
+    Target and stop are fractions of each day's range, so average winners were only ~0.34× average
+    losers; the 72% vs 66.7% break-even argument hides that skew. The claim came from one 6-month
+    window with day-of-week filters fitted on it.
+  variants:
+    - {name: "exact stated rule", verdict: REJECT, result: "US500 −1.42pt/trade t=−2.97; US100 −0.34pt t=−0.13."}
+    - {name: "vendor's 'no Tuesday breakouts' filter", verdict: REJECT, result: "US500 still −1.42pt/trade — the filter does not transfer."}
+  visibility: public
+  public_summary: >-
+    A vendor's 5-minute ORB for ES claimed a 72% win rate and +108% in six months. On two years of
+    S&P data the same rule lost money before costs: winners were about a third the size of losers,
+    which the win-rate pitch hides.
+
+- id: S021
+  slug: ib75-ending-zone
+  title: edgeful IB breakout by rejection + "ending zone" (IB75 pullback)
+  public_title: "Initial-balance breakout by rejection + \"ending zone\" (IB75 pullback)"
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: vendor, name: "edgeful.com"}
+  public_source: "An ORB analytics vendor"
+  instruments: [QQQ, SPY, US100, US500]
+  products: [ETF, CFD]
+  timeframe: 1m, 09:30–10:30 initial balance
+  data: QQQ/SPY 1m 2016–2024 (8.4y); FTMO CFD 2024–2026
+  tested: 2026-08-23
+  closed: 2026-08-23
+  verdict: REJECT
+  headline: >-
+    The directional bias is real — the first-formed side broke first in 79–86% of sessions vs a
+    25–29% baseline (p<0.0001). The mechanical 1:1R pullback trade won 45–54%, a coin flip.
+  why: Waiting for the retrace to the 75% level throws away the information in the signal.
+  lesson: A real session-level signal can still be untradeable if the entry rule resets the odds.
+  variants:
+    - {name: "ending-zone directional bias", verdict: LEAD, result: "85.3% QQQ, 79.4% SPY, 80.0% US100, 85.7% US500 vs 25–29% base."}
+    - {name: "IB75 limit entry / IB50 stop / 1:1R", verdict: REJECT, result: "Win rate 53.8 / 52.0 / 45.0 / 50.0% — all p>0.15 vs 50%."}
+  refs: {scripts: [scripts/eda_ib75_ending_zone.py], prs: [202]}
+  visibility: public
+  public_summary: "A vendor's \"ending zone\" observation is real — we reproduced it at 80–86% on four markets. But the trade taken off it (a pullback to the 75% level with a 1:1 target) wins about half the time, which is breakeven before costs."
+
+- id: S022
+  slug: atr-fib-level-ladder
+  title: milkmantrades / Saty ATR levels ("Golden Gate", Trigger Box, chop zone)
+  public_title: "ATR Fibonacci level ladder — gate, trigger box and chop-zone setups"
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: vendor, name: "milkmantrades.com (Saty Mahajan ATR Levels)"}
+  public_source: "A trading-education site built on a popular public ATR-levels indicator"
+  instruments: [SPY, QQQ, US500, US100]
+  products: [ETF, CFD]
+  timeframe: 1m intraday, daily ATR levels
+  data: SPY/QQQ 1m 2022-10→2026-08 (945 sessions); daily back to 2010
+  tested: 2026-09-02
+  closed: 2026-09-02
+  verdict: REJECT
+  headline: >-
+    16/16 tests reject. The site's statistics reproduce, but they are one-sided touch rates.
+    "Gate completes 62.5%" becomes 35.2% as a trade vs a 38.2% coin flip (−0.058R, t=−1.66).
+  why: A touch probability with no opposing stop is not a win rate; several headlines also pool days that open already past the level.
+  lesson: Pooling gap-over days manufactured t=+19 on one test; a filter defined by what happens after entry cannot be traded.
+  variants:
+    - {name: "Gate run 0.382→0.618 ATR", verdict: REJECT, result: "35.22% vs 38.22% null, n=1,218."}
+    - {name: "Trigger box hold", verdict: REJECT, result: "Reproduces (79.2% vs 82.2%) but is a touch rate, not a trade."}
+    - {name: '"Clean runs hit 97%"', verdict: REJECT, result: "Only identifiable in hindsight; acting on invalidation −0.0045 ATR/trade."}
+    - {name: 'Chop zone "70% reverse"', verdict: REJECT, result: "42.0% / 33.2% vs 41.3% null — unequal distances."}
+    - {name: "Compression → expansion 83.7%", verdict: REJECT, result: "56.2% from a tradeable entry."}
+    - {name: "ATR-based SPX premium selling", verdict: PARKED, result: "Only the −1 ATR weekly put is positive — the known variance premium; needs SPXW quotes."}
+  refs: {scripts: [src/trading_hub/research/barriers.py], prs: [212]}
+  visibility: public
+  public_summary: "This site's numbers are honest — we reproduced them. The problem is what they measure: how often price touches a level, with no stop on the other side. Scored as real trades, 16 of 16 setups were no better than a coin flip."
+
+- id: S023
+  slug: nq-30m-or-2m-ema-premarket-target
+  title: NQ 30m OR → 10m close-out → 2m EMA(20) reclaim → pre-market target
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: user, name: "User-supplied rule set"}
+  public_source: "A setup I was sent"
+  instruments: [NQ, ES, YM]
+  products: [futures]
+  timeframe: 30m / 10m / 2m
+  data: NQ 1m full Globex 2026-03-27→2026-09-23 (127 sessions, IBKR)
+  tested: 2026-09-24
+  closed: 2026-09-24
+  verdict: REJECT
+  headline: Net −0.195R/trade (t=−0.83); gross −0.103R — negative before costs; the reversed control is about the same.
+  why: On 70 of 120 breakout days price was already past the pre-market extreme at entry, so the target rarely exists.
+  refs: {scripts: [scripts/eda_nq_orb30_ema2m_pmh.py], prs: [230]}
+  visibility: public
+  public_summary: >-
+    A multi-timeframe NQ setup targeting the pre-market high lost money before costs. On most days the
+    pre-market level was already taken out before the setup even triggered.
+
+- id: S035
+  slug: futures-intraday-battery
+  title: Intraday paper rules on MES / MNQ for a futures prop account (paper battery)
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: paper, name: "User's 478-file paper library"}
+  instruments: [SPY, QQQ (as MES / MNQ)]
+  products: [ETF, futures cost model]
+  timeframe: 1m intraday
+  data: SPY/QQQ 1m 2022–2026
+  tested: 2026-09-26
+  closed: 2026-09-26
+  verdict: REJECT
+  headline: Market intraday momentum, three 5-minute ORB variants, VWAP trend, and gap follow / fade all rejected at futures costs.
+  why: Same result as on CFDs — cheaper futures costs do not create an edge the rules do not have.
+  variants:
+    - {name: "market intraday momentum (MIM)", verdict: REJECT, result: "Rejected at the screen."}
+    - {name: "ORB-5m, three variants", verdict: REJECT, result: "Rejected at the screen."}
+    - {name: "VWAP trend", verdict: REJECT, result: "Rejected at the screen."}
+    - {name: "gap follow / gap fade", verdict: REJECT, result: "Rejected at the screen."}
+  refs:
+    prereg: [docs/prereg/2026-09-26_paper_library_futures_battery.md]
+    scripts: [scripts/battery_intraday_2026_09_26.py, scripts/battery_holdout_calendar_2026_09_26.py, scripts/battery_book_2026_09_26.py]
+    prs: [231]
+  visibility: public
+  public_summary: >-
+    Re-testing the classic intraday rules from the academic literature on Nasdaq and S&P micro-futures
+    costs changed nothing: none of them passed.

@@ -1,6 +1,6 @@
 # X thread — the one-minute ORB scalp at 3:1
 
-Not deployed: research-assets/ is outside static/. Attach the images named on each post.
+Not deployed: research/ is outside static/. Images are in assets/; attach the one named on each post.
 Page: https://mcdawgzy.github.io/purrtfolio-tools/research/one-minute-orb/
 
 **1/** (image: 0-poster.png)

@@ -1,0 +1,368 @@
+# Calendar, session & event effects. Edit here; run scripts/build_strategy_catalogue.py.
+- id: S070
+  slug: turn-of-month-intraday
+  title: Turn-of-month intraday long (tom_intraday)
+  family: calendar-events
+  mechanism: turn-of-month-flow
+  source: {type: paper, name: "Ariel 1987; McConnell & Xu 2008"}
+  paper: P001
+  strategies: [tom_intraday]
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1m, RTH open→close on the last 1 + first 3 trading days of the month
+  data: FTMO index CFD 1m + deep daily; OOS 2025-10→2026-05
+  tested: 2026-06-03
+  verdict: PASS
+  headline: >-
+    First strategy to clear the full gate. OOS pooled Sharpe +0.341 (above TRAIN), 3/3 instruments
+    positive, drawdown 1.01%, DSR 0.993. Non-turn-of-month days ≈0bp.
+  why: Month-boundary pension/salary flow gives a mechanical reason to persist. Caution — the 2026-09 paper battery found the daily-bar version failed an untouched 2010–22 holdout.
+  variants:
+    - {name: "first_n = 3 (selected from 2/3/4)", verdict: PASS, result: "OOS Sharpe +0.341; N*=3 at every split fraction 0.55–0.80."}
+    - {name: "stopped variant (live sizing)", verdict: PASS, result: "Stop added for sizing; same mechanism."}
+    - {name: "meanrev / Hurst regime gate (v2)", verdict: NEAR_MISS, result: "Sharpe +0.449, DSR 0.969 — but kept 43% of trades vs a 50% floor."}
+    - {name: "open→close on daily bars, 2010–22 holdout (paper battery)", verdict: REJECT, result: "Failed the untouched holdout — a warning, not a verdict on the 1m rule."}
+  refs:
+    prereg: [docs/prereg/2026-08-14_tom_intraday_meanrev_regime_gate.md]
+    scripts: [scripts/backtest_wf_tom_intraday.py, scripts/backtest_wf_tom_intraday_stopped.py, scripts/backtest_wf_tom_intraday_daily.py, scripts/backtest_wf_tom_intraday_regime.py, scripts/tom_intraday_sizing.py]
+    prs: [190]
+  visibility: public
+  public_summary: >-
+    Buying the US indices at the open and selling at the close around the turn of each month passed our
+    full out-of-sample test. The effect is concentrated in those days — the rest of the month is flat.
+
+- id: S071
+  slug: monday-intraday-weekend-effect
+  title: Monday open→close long (weekend effect, intraday leg)
+  family: calendar-events
+  mechanism: weekend-effect-intraday
+  source: {type: internal, name: "Calendar-flow expansion screen"}
+  strategies: [monday_intraday]
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1m, Monday RTH open→close
+  data: 15y deep daily + FTMO CFD 1m
+  tested: 2026-06-22
+  verdict: CANDIDATE
+  headline: >-
+    +$9.42/trade, t=3.14 over 15 years; PRIMARY 3/3 OOS, 1%-stop DD 3.5%, drop-top-1 survives. DSR
+    marginal (0.914 at n=5) once picking the best of five weekdays is accounted for.
+  why: Borderline by construction — ~8–18 years of data are needed to reach t=2, and we have 16.
+  variants:
+    - {name: "Monday-only intraday", verdict: CANDIDATE, result: "Hard gate passes; DSR 0.914 / 0.732 / 0.392 at n=5 / 11 / 35."}
+    - {name: "close-to-close day-of-week", verdict: REJECT, result: "Weekend-gap leg −$2.57/trade offsets the intraday leg."}
+    - {name: "ISDL — Monday OR turn-of-month OR RSI(2) dip, every qualifying day", verdict: REJECT, result: "12–27% FTMO max-loss breach risk; DSR 0.85–0.93."}
+    - {name: "Monday open→close, 2010–22 holdout (paper battery)", verdict: REJECT, result: "Only FDR survivor of 52 trials; failed the untouched holdout (t ≤ 0.94)."}
+  refs: {scripts: [scripts/eda_calendar_flow_expansion.py, scripts/backtest_wf_isdl.py, scripts/backtest_wf_monday_intraday.py], prs: [99, 102]}
+  visibility: public
+  public_summary: >-
+    US indices have tended to rise from Monday's open to its close over 15 years. It passes our hard
+    tests, but after correcting for picking the best of five weekdays the evidence is borderline.
+
+- id: S072
+  slug: monday-0600-et-claim
+  title: '"Buy ES Monday 06:00 ET, sell 16:00 ET" vendor claim'
+  public_title: "\"Buy ES Monday 06:00 ET, sell 16:00 ET\" claim"
+  family: calendar-events
+  mechanism: weekend-effect-intraday
+  source: {type: vendor, name: "MrMilkTrading"}
+  public_source: "A well-known futures trader's claim"
+  instruments: [US500, SPY, QQQ]
+  products: [CFD, ETF]
+  timeframe: 1m
+  data: 16y SPY/QQQ daily; FTMO US500 1m incl. off-hours bars
+  tested: 2026-09-08
+  closed: 2026-09-08
+  verdict: REJECT
+  headline: >-
+    The 06:00 leg measured +$2,040/Monday (t=+2.74) — about 20 index points of which was a CFD quoting
+    step at 09:30 ET (+27.75bp in one minute). The RTH part is the known Monday effect; after
+    correcting for best-of-5 weekdays, p=0.61 (SPY) / 0.090 (QQQ).
+  why: The novel part was a data artefact; the rest was already known and borderline.
+  lesson: >-
+    Profile a suspected level offset minute by minute before trusting a two-point decomposition; when
+    scanning many buckets, gate on effect size — max |t| over 1,380 buckets reaches 4 by chance 14% of the time.
+  refs: {prs: [215]}
+  visibility: public
+  public_summary: >-
+    A "buy ES at 6am Monday" claim looked significant, but most of the pre-market profit was a
+    quoting artefact in the CFD data at the 9:30 open. The regular-hours part is the familiar Monday
+    effect, and it is borderline once you account for picking the best day of the week.
+
+- id: S073
+  slug: pre-fomc-drift
+  title: Pre-FOMC overnight drift (Lucca & Moench)
+  family: calendar-events
+  mechanism: pre-fomc-announcement-drift
+  source: {type: paper, name: "Lucca & Moench 2015"}
+  paper: P006
+  strategies: [pre_fomc_drift]
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1m, close before FOMC day → next open
+  data: 90 FOMC events 2015–2026 (IBKR daily); FTMO CFD 1m
+  tested: 2026-06-10
+  verdict: CANDIDATE
+  headline: >-
+    Drift alive in the overnight gap into FOMC day (US100 +27.5bp t=4.04, US500 +14.0bp t=3.74). Gate:
+    TEST drawdown 0.90%, direction TRUE +6.65bp ≫ RANDOM −3.28; DSR 0.886 — one event carries 62% of TEST profit.
+  why: A documented pre-announcement premium; only ~8 trades a year, so the sample is thin.
+  variants:
+    - {name: "faithful 24h pre-announcement window (1m)", verdict: REJECT, result: "Thin, n=16."}
+    - {name: "overnight gap into announcement day", verdict: CANDIDATE, result: "Hard criteria pass; DSR 0.886."}
+    - {name: "2-day daily-bar approximation", verdict: REJECT, result: "Dilutes the edge materially."}
+  refs: {scripts: [scripts/eda_pre_fomc_drift.py, scripts/backtest_wf_pre_fomc_drift.py], prs: [79, 141, 142]}
+  visibility: public
+  public_summary: >-
+    US indices have tended to gap up overnight into Federal Reserve announcement days. The effect is
+    strong in the data but happens only about eight times a year, so one event dominates the recent sample.
+
+- id: S074
+  slug: month-of-year-seasonality
+  title: Month-of-year long (April / July / November)
+  family: calendar-events
+  mechanism: month-of-year-seasonality
+  source: {type: paper, name: "Bouman & Jacobsen 2002"}
+  paper: P003
+  strategies: [month_of_year]
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1d, whole-month hold
+  data: deep daily
+  tested: 2026-06-04
+  closed: 2026-06-06
+  verdict: SHELVED
+  headline: Cleared the alpha gate (net Sharpe +0.379, 3/3, DSR 0.972) but ~2 trades/yr and large intra-month drawdown; standalone P(pass) ~27%.
+  why: Low frequency, correlated with the long-equity book, and it lowered the combined book's pass probability.
+  refs: {scripts: [scripts/backtest_wf_month_of_year.py]}
+  visibility: public
+  public_summary: >-
+    Holding US indices only in April, July and November passed our statistical test, but with two
+    trades a year and big swings inside the month it was not useful for a prop challenge.
+
+- id: S075
+  slug: macro-announcement-premium
+  title: Scheduled macro-announcement premium (FOMC + CPI + NFP days)
+  family: calendar-events
+  mechanism: scheduled-macro-announcement-premium
+  source: {type: paper, name: "Savor & Wilson 2013; Lucca & Moench 2015; Ai & Bansal 2018"}
+  paper: P025
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1d, close→close on release days
+  data: 369 event days 2015→2026, deep daily
+  tested: 2026-07-11
+  closed: 2026-07-11
+  verdict: REJECT
+  headline: Event days +5.80bp vs unconditional +5.69bp (Welch t=+0.03); negative since 2021; 0/5 criteria.
+  why: A post-publication death of the 1958–2009 result; only the FOMC overnight leg (S073) survives.
+  refs: {scripts: [scripts/eda_macro_announcement_premium.py]}
+  visibility: public
+  public_summary: >-
+    The academic "announcement-day premium" — stocks earning far more on CPI, jobs and Fed days — was
+    absent in 2015–2026 data. Announcement days returned the same as any other day.
+
+- id: S076
+  slug: option-expiration-week
+  title: Option-expiration week premium (third-Friday week)
+  family: calendar-events
+  mechanism: option-expiration-week-flow
+  source: {type: paper, name: "Stivers & Sun 2013"}
+  paper: P029
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1d
+  data: 15y IBKR daily (2,649 pooled OE sessions); FTMO CFD confirm
+  tested: 2026-07-18
+  closed: 2026-07-18
+  verdict: REJECT
+  headline: OE days +0.97bp vs non-OE +3.68bp (t=−1.38); a random week beats the OE week; 0/6 criteria; the "weak fourth week" is the best week.
+  why: Absent to inverted at index level, and dead since 2021.
+  refs: {scripts: [scripts/eda_opex_week.py], prs: [154]}
+  visibility: public
+  public_summary: >-
+    The idea that stocks do well in options-expiration week did not hold for US indices over 15 years
+    — a randomly chosen week did better.
+
+- id: S077
+  slug: pre-holiday-effect
+  title: Pre-holiday effect (day before US market holidays)
+  family: calendar-events
+  mechanism: pre-holiday-seasonality
+  source: {type: paper, name: "Ariel 1990; Lakonishok & Smidt 1988"}
+  paper: P030
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1d
+  data: 15y IBKR daily, 420 pooled pre-holiday sessions
+  tested: 2026-07-18
+  closed: 2026-07-18
+  verdict: NEAR_MISS
+  headline: Pooled net +7.73bp (t=+2.31), 2.7× an ordinary day, alive since 2021 — but pre-holiday vs other days Welch t=+1.57 < 1.64.
+  why: The premium is present and holiday-specific; ~10 events a year is not enough power. Revisit with ≥3 more years.
+  refs: {scripts: [scripts/eda_pre_holiday.py], prs: [155]}
+  visibility: public
+  public_summary: >-
+    The day before a US market holiday has been about 2.7× stronger than a normal day since 2011. It
+    falls just short of significance — with only ten holidays a year, it needs more data.
+
+- id: S078
+  slug: gotobi-tokyo-fix
+  title: Gotobi Tokyo-fix USDJPY drift
+  family: calendar-events
+  mechanism: fx-fix-flow
+  source: {type: paper, name: "Ito & Yamada 2017"}
+  paper: P026
+  instruments: [USDJPY]
+  products: [FX]
+  timeframe: 15m, Tokyo morning
+  data: IBKR 15m 2012-02→2026-07 (1,013 gotobi days)
+  tested: 2026-07-11
+  closed: 2026-07-11
+  verdict: REJECT
+  headline: The shape exists (gross +0.99bp t=+2.31, post-fix reversal −1.36bp) but ~0.5bp gross vs a ~1.05bp round trip; decayed post-publication.
+  why: Real but sub-cost — the friction wall at sub-basis-point scale.
+  refs: {scripts: [scripts/eda_gotobi_fix.py]}
+  visibility: public
+  public_summary: >-
+    The Japanese "gotobi" dollar-yen drift before the Tokyo fix is still visible, but it is about half
+    the size of the spread and has faded since it was published.
+
+- id: S079
+  slug: wmr-month-end-fix
+  title: Month-end WM/R London 4pm fix rebalancing flow
+  family: calendar-events
+  mechanism: fx-fix-flow
+  source: {type: paper, name: "Melvin & Prins 2015"}
+  paper: P031
+  instruments: [EURUSD, GBPUSD]
+  products: [FX]
+  timeframe: 15m, pre-fix hour
+  data: IBKR 15m (EURUSD 2012→2026, GBPUSD 2019→2026), 257 month-ends
+  tested: 2026-07-18
+  closed: 2026-07-18
+  verdict: REJECT
+  headline: Fingerprint present (signed pre-fix +3.06bp vs +0.66 ordinary; reversal −2.13bp t=−2.55) but pooled net +1.96bp t=+1.25; negative at 3× cost.
+  why: Real-looking but too small and noisy against FX costs.
+  refs: {scripts: [scripts/eda_wmr_month_end.py], prs: [156]}
+  visibility: public
+  public_summary: >-
+    Month-end FX rebalancing around the London 4pm fix leaves a visible footprint, but it is too small
+    to trade profitably after costs.
+
+- id: S080
+  slug: crypto-us-session-drift
+  title: Bitcoin US-session / ETF-hours drift
+  family: calendar-events
+  mechanism: crypto-session-seasonality
+  source: {type: paper, name: "Post-ETF decompositions 2024–26; QuantPedia; Concretum"}
+  paper: P027
+  instruments: [BTCUSD, ETHUSD]
+  products: [crypto]
+  timeframe: 30m sessions
+  data: Binance 30m 2020-01→2026-06 (644 post-ETF sessions)
+  tested: 2026-07-12
+  closed: 2026-07-12
+  verdict: REJECT
+  headline: Inverted — post-ETF US hours −9.81bp/session on BTC (rest of day +11.52bp), ETH −30.86bp (t=−2.97).
+  why: The ETF era reversed the pattern the headlines describe, and it is getting worse.
+  refs: {scripts: [scripts/eda_crypto_us_session.py]}
+  visibility: public
+  public_summary: >-
+    The popular claim that Bitcoin's gains happen during US trading hours since the ETFs launched is
+    backwards in the data: those hours have been negative.
+
+- id: S081
+  slug: btc-closed-exchange-window
+  title: Bitcoin closed-exchange window — long 21:00→23:00 UTC
+  family: calendar-events
+  mechanism: crypto-session-seasonality
+  source: {type: paper, name: "QuantPedia 2022"}
+  paper: P028
+  strategies: [btc_closed_window]
+  instruments: [BTCUSD, ETHUSD]
+  products: [CFD, crypto]
+  timeframe: 1m, 2-hour daily window
+  data: Binance 2017–2019 (unpeeked), FTMO BTCUSD 2023–2026; 40 post-freeze forward trades
+  tested: 2026-07-12
+  closed: 2026-07-28
+  verdict: FORWARD_FAILED
+  headline: >-
+    Strongest gate pass in the project (DSR 0.980, TEST +7.16bp/day t=+3.27, unpeeked 2017–19 +11.91bp).
+    Forward test: 40 trades at −$7.21 vs a +$61.62 baseline — its own abort condition.
+  why: The edge did not survive real out-of-sample time; the data replayed to the cent, so it was not an artefact.
+  lesson: A high DSR on a walk-forward gate is not sufficient — only a forward test is.
+  variants:
+    - {name: "ETH cross-confirm", verdict: REJECT, result: "Effect is BTC-specific, not crypto-wide."}
+    - {name: "BTC-only full gate (P028b)", verdict: PASS, result: "DSR 0.980, DD 7.69%."}
+    - {name: "forward test (40 trades)", verdict: FORWARD_FAILED, result: "−$7.21/trade, win 50%, PF 0.94."}
+  refs: {scripts: [scripts/eda_btc_closed_exchange_window.py, scripts/backtest_wf_btc_closed_window.py, scripts/probe_btc_swap_rollover.py], prs: [137, 141, 180]}
+  visibility: public
+  public_summary: >-
+    Our strongest backtest ever — Bitcoin's 21:00–23:00 UTC window — passed every statistical test,
+    then lost money in live forward testing. It is the clearest lesson we have that a great backtest
+    is not proof.
+
+- id: S082
+  slug: overnight-return-anomaly
+  title: Overnight return anomaly — hold close→open
+  family: calendar-events
+  mechanism: overnight-gap-reversion
+  source: {type: internal, name: "High-frequency intraday research cycle"}
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: close→open
+  data: FTMO index CFD + deep daily
+  tested: 2026-06-22
+  closed: 2026-06-22
+  verdict: REJECT
+  headline: Gross-positive on US100 and clears the spread, but pooled t=1.43 even at zero swap, and decaying.
+  why: Not significant, and sensitive to overnight financing.
+  refs: {scripts: [scripts/eda_overnight_anomaly.py]}
+  visibility: public
+  public_summary: >-
+    Holding US indices only overnight made a little on the Nasdaq, but not enough to be significant,
+    and overnight financing costs erase it.
+
+- id: S083
+  slug: time-of-day-window-sweep
+  title: Time-of-day window sweep — 134 clock-anchored intraday rules
+  family: calendar-events
+  mechanism: intraday-time-of-day-seasonality
+  source: {type: paper, name: "Heston, Korajczyk & Sadka 2010; Bogousslavsky 2016; Baltussen et al. 2021"}
+  instruments: [QQQ, SPY, US100]
+  products: [ETF, CFD]
+  timeframe: 15m / 1m windows, every session
+  data: QQQ 15m 2016–2024 discovery; SPY 15m + FTMO US100 1m confirms
+  tested: 2026-07-03
+  closed: 2026-07-03
+  verdict: REJECT
+  headline: Best of 134 (10:00→16:00 prior-day fade) +5.24bp t=2.39 vs a required t≥3.0; its CFD confirm t=0.21.
+  why: No every-day intraday window survives multiple-testing correction; this closed the last every-day intraday family on FTMO CFDs.
+  refs: {scripts: [scripts/eda_tod_window_sweep.py], prs: [115]}
+  visibility: public
+  public_summary: >-
+    We swept 134 "buy at time X, sell at time Y" intraday windows. None beat what chance produces
+    when you test that many, and the best one did not hold up on the tradeable CFD.
+
+- id: S084
+  slug: overnight-gap-fade
+  title: Overnight gap fade (gap_fade)
+  family: intraday-mean-reversion
+  mechanism: overnight-gap-reversion
+  source: {type: internal, name: "Project EDA"}
+  strategies: [gap_fade]
+  instruments: [US100, US500]
+  products: [CFD]
+  timeframe: RTH open→close after a gap
+  data: FTMO index CFD 1m
+  tested: 2026-01-15
+  closed: 2026-05-28
+  verdict: SHELVED
+  headline: First strategy ever to pass walk-forward; shelved the same day — both OOS legs one trade from negative, and decaying.
+  why: The pass rested on a single trade on each leg.
+  lesson: This is why the drop-the-best-trade check exists.
+  visibility: public
+  public_summary: >-
+    Fading big overnight gaps was the first idea to pass our walk-forward test — and was shelved the
+    same day, because removing one trade on each index turned it negative.

@@ -19,6 +19,7 @@ purrtfolio-tools/
 ├── scanners/             # Data ingestion scanners
 │   ├── 13f/              # 13F scanner (ingest, compare, export, bot)
 │   └── short-interest/   # FINRA short interest scanner
+├── research/             # Strategy research content: catalogue, study images, X threads (not deployed)
 ├── snapshots/            # Market snapshot renderers
 │   ├── market/           # Compact 16:9 market snapshot PNG (X/Twitter)
 │   └── macro/            # Editorial-style macro market update PNG (Discord)
