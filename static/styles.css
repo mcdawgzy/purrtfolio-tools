@@ -400,7 +400,8 @@ tbody td.mut { color: var(--text-mut); font-size: 11px; }
 }
 
 /* ------- Tabs ------- */
-.tabs {
+.tabs,
+.tab-bar {
   display: flex;
   gap: 0;
   border-bottom: 1px solid var(--line);
