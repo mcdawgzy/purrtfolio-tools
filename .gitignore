@@ -28,10 +28,10 @@ Thumbs.db
 *.log
 
 # Scanner artifacts (generated charts, exports, PNGs)
-scanners/13f/charts_*.html
-scanners/13f/charts_*.json
-scanners/13f/exports/
-scanners/13f/exports.zip
+scanners/thirteen_f/charts_*.html
+scanners/thirteen_f/charts_*.json
+scanners/thirteen_f/exports/
+scanners/thirteen_f/exports.zip
 scanners/short_interest_scanner/exports/
 scanners/form4_insider_trading/data/
 scanners/price_momentum/*.db.gz
@@ -39,7 +39,7 @@ snapshots/market/output/
 snapshots/macro/output/
 
 # Scraped data
-scanners/economic-calendar/exports/
+scanners/economic_calendar/exports/
 scanners/*/exports/
 
 # Tool caches

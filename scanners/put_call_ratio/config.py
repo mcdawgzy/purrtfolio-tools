@@ -6,9 +6,11 @@ CBOE data is free — no API keys required.
 import os
 from pathlib import Path
 
+from ..common import DB_PATH as COMMON_DB_PATH
+
 # ── Database ──────────────────────────────────────────────
 DB_DEFAULT = Path.home() / "purrtfolio.db"
-DB_PATH = Path(os.environ.get("PURRTFOLIO_DB", str(DB_DEFAULT)))
+DB_PATH = COMMON_DB_PATH  # PURRTFOLIO_DB, else ~/purrtfolio.db (scanners/common.py)
 
 # ── CBOE data source ────────────────────────────────────────
 # Daily JSON feed: https://cdn.cboe.com/data/us/options/market_statistics/daily/{YYYY-MM-DD}_daily_options

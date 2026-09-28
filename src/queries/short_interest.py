@@ -16,7 +16,7 @@ def get_si_meta() -> dict:
         total = c.execute(
             "SELECT SUM(current_short) AS total_short, COUNT(*) AS count "
             "FROM short_interest WHERE settlement_date = ?",
-            (latest,) if latest else ()
+            (latest,),  # NULL when the table is empty -> matches nothing
         ).fetchone()
         categories = [r[0] for r in c.execute(
             "SELECT DISTINCT category FROM tickers WHERE category IS NOT NULL ORDER BY category"

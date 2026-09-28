@@ -3,46 +3,12 @@ from __future__ import annotations
 
 import sqlite3
 
-from ..database import db_conn, writable_conn
+from ..database import db_conn
 
 
 # ---------------------------------------------------------------------------
 # Earnings Revision Momentum
 # ---------------------------------------------------------------------------
-def init_earnings_revisions() -> None:
-    """Create earnings revision tables if they don't exist (writable)."""
-    conn = writable_conn()
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS earnings_revision_momentum (
-            ticker              TEXT PRIMARY KEY,
-            latest_report_date  DATE,
-            avg_revision_4q     REAL,    -- average pct revision over last 4 quarters
-            pct_positive        REAL,    -- % of positive surprises (0-1)
-            avg_surprise_pct    REAL,    -- average earnings surprise %
-            trend               TEXT,    -- 'improving' | 'deteriorating' | 'stable'
-            zscore              REAL,    -- standardized momentum score
-            created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS earnings_revision_history (
-            ticker              TEXT NOT NULL,
-            date                DATE NOT NULL,
-            avg_revision_4q     REAL,
-            pct_positive        REAL,
-            avg_surprise_pct    REAL,
-            trend               TEXT,
-            zscore              REAL,
-            PRIMARY KEY (ticker, date)
-        )
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_erm_date ON earnings_revision_momentum(created_at)
-    """)
-    conn.commit()
-    conn.close()
-
-
 def get_earnings_revision_momentum() -> list[dict]:
     """Return all tickers with earnings revision momentum, sorted by zscore desc."""
     try:

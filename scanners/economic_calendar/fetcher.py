@@ -18,7 +18,7 @@ import urllib.error
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from config import (
+from .config import (
     HTTP_HEADERS,
     FINNHUB_API_KEY,
     HIGH_IMPACT_US_EVENTS_2026,

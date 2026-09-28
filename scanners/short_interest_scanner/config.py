@@ -4,13 +4,15 @@ Configuration for Short Interest Scanner
 import os
 from pathlib import Path
 
+from ..common import DB_PATH as COMMON_DB_PATH
+
 # Base paths
 BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 EXPORTS_DIR = BASE_DIR / "exports"
 REFERENCES_DIR = BASE_DIR / "references"
 
-DB_PATH = Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db"))
+DB_PATH = COMMON_DB_PATH  # PURRTFOLIO_DB, else ~/purrtfolio.db (scanners/common.py)
 WATCHLIST_PATH = BASE_DIR / "ticker_watchlist.json"
 
 # FINRA CDN

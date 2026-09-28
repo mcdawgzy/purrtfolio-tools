@@ -2,7 +2,7 @@
 """Hermes cron entry point: economic calendar daily ingestion.
 
 Follows the exact pattern of run_short_interest_daily.py:
-  - Sets up sys.path to the scanner package
+  - Puts the repo root on sys.path (scanners is a package)
   - Delegates to main.py ingest --days 30
   - Prints Status/Error for cron delivery
 """
@@ -18,7 +18,7 @@ import json
 
 
 # Make the scanner package importable when run from any cwd
-sys.path.insert(0, str(REPO / "scanners" / "economic-calendar"))
+sys.path.insert(0, str(REPO))
 
 WORK_DIR = str(REPO / "snapshots" / "macro")
 
@@ -27,7 +27,7 @@ def main() -> int:
     emit_json = "--json" in sys.argv[1:]
     try:
         # Import after sys.path is set
-        from main import ingest
+        from scanners.economic_calendar.main import ingest
 
         result = ingest(days_ahead=30)
 

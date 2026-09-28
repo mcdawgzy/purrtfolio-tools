@@ -32,9 +32,9 @@ import json
 
 # Make the scanners package importable when run from any cwd
 # (Hermes runs from its own workdir, not 13f-scanner-web/)
-sys.path.insert(0, str(REPO / "scanners"))
+sys.path.insert(0, str(REPO))
 
-from crowded_trades.scheduler import run_once  # noqa: E402
+from scanners.crowded_trades.scheduler import run_once  # noqa: E402
 
 
 def main() -> int:

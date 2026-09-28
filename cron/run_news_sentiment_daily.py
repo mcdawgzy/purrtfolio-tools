@@ -12,17 +12,6 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 
 import sys
-import subprocess
-
-
-# ── locate the scanners directory ─────────────────────────────────────
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-SCANNERS_DIR = os.path.join(SCRIPT_DIR, "..", "..", "13f-scanner-web", "scanners")
-SCANNERS_DIR = os.path.normpath(SCANNERS_DIR)
-
-# Also check the standard project location
-if not os.path.isdir(SCANNERS_DIR):
-    SCANNERS_DIR = str(REPO / "scanners")
 
 # ── ensure nltk vader_lexicon is available ───────────────────────────
 try:
@@ -36,10 +25,10 @@ except (ImportError, ModuleNotFoundError):
 
 # ── run the ingest ────────────────────────────────────────────────────
 if __name__ == "__main__":
-    if SCANNERS_DIR not in sys.path:
-        sys.path.insert(0, SCANNERS_DIR)
+    if str(REPO) not in sys.path:
+        sys.path.insert(0, str(REPO))
 
-    from news_sentiment.main import main as cli_main
+    from scanners.news_sentiment.main import main as cli_main
 
     # news_sentiment ingest latest  →  uses argparse
     sys.argv = ["news_sentiment", "ingest", "latest"]

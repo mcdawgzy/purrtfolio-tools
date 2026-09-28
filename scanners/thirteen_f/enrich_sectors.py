@@ -21,6 +21,8 @@ from pathlib import Path
 import yfinance as yf
 import os
 
+from ..common import ensure_shared_schema
+
 DEFAULT_DB = Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db"))
 
 
@@ -124,18 +126,8 @@ def sync_sectors_table(conn: sqlite3.Connection, sector_map: dict[str, tuple]) -
 
 
 def ensure_sectors_table(conn: sqlite3.Connection):
-    """Create sectors table if it doesn't exist (unified schema)."""
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS sectors (
-            ticker TEXT PRIMARY KEY,
-            sector TEXT,
-            industry TEXT,
-            market_cap BIGINT,
-            currency TEXT,
-            country TEXT,
-            last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    """Create sectors table if it doesn't exist (shared schema in scanners/common.py)."""
+    ensure_shared_schema(conn)
     conn.commit()
 
 

@@ -9,14 +9,17 @@ from datetime import datetime
 from pathlib import Path
 import os
 # Add project to path
-sys.path.insert(0, str(Path(__file__).parent))
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parents[1]  # steps run as `python -m scanners.thirteen_f...` from the repo root
+
 
 def run_cmd(cmd, desc):
     print(f"\n{'='*60}")
     print(f"  {desc}")
     print(f"  Command: {cmd}")
     print(f"{'='*60}")
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=Path(__file__).parent)
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=REPO)
     if result.stdout:
         print(result.stdout)
     if result.stderr:
@@ -38,7 +41,7 @@ def get_latest_quarter_end():
 
     candidates = [
         Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db")),
-        Path(__file__).parent / "13f_scanner.db",
+        HERE / "13f_scanner.db",
     ]
     db_path = next((p for p in candidates if p.exists() and p.stat().st_size > 0), candidates[0])
 
@@ -97,28 +100,28 @@ def main():
 
     # Step 1: Ingest
     if not run_cmd(
-        f'{py} main.py {db_flag} ingest --email "13f-scanner@example.com" --max-filings 3',
+        f'{py} -m scanners.thirteen_f.main {db_flag} ingest --email "13f-scanner@example.com" --max-filings 3',
         "Ingest latest filings"
     ):
         sys.exit(1)
 
     # Step 2: Compare
     if not run_cmd(
-        f'{py} main.py {db_flag} compare --backfill',
+        f'{py} -m scanners.thirteen_f.main {db_flag} compare --backfill',
         "Run QoQ comparison"
     ):
         sys.exit(1)
 
     # Step 3: Export
     if not run_cmd(
-        f'{py} main.py {db_flag} export --quarter {latest_quarter} --package --output-dir exports',
+        f'{py} -m scanners.thirteen_f.main {db_flag} export --quarter {latest_quarter} --package --output-dir "{HERE / "exports"}"',
         f"Generate Excel exports for {latest_quarter}"
     ):
         sys.exit(1)
 
     # Step 4: Enrich sectors (for sector rotation view on web dashboard)
     run_cmd(
-        f'{py} enrich_sectors.py {db_flag} --limit 500',
+        f'{py} -m scanners.thirteen_f.enrich_sectors {db_flag} --limit 500',
         "Enrich tickers with GICS sector data"
     )
 
@@ -127,7 +130,7 @@ def main():
     #    the momentum scanner's already-computed ROC. Adds the `ticker_factors`
     #    table to purrtfolio.db. Re-run with --refresh to re-classify everything.
     run_cmd(
-        f'{py} enrich_factors.py {db_flag} --limit 300 --refresh',
+        f'{py} -m scanners.thirteen_f.enrich_factors {db_flag} --limit 300 --refresh',
         "Enrich tickers with factor classification (size / value-growth / momentum)"
     )
 

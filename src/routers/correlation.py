@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query
 
-from .. import scanners
-from ..scanners import compute_corr_on_demand, corr_db_ready, corr_pivots, mom_watchlist
+from .. import scanner_data as scanners
+from ..scanner_data import compute_corr_on_demand, corr_db_ready, corr_pivots, mom_watchlist
 
 router = APIRouter()
 

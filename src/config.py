@@ -2,8 +2,7 @@
 
 Env vars:
   PURRTFOLIO_DB          main SQLite DB (default ~/purrtfolio.db)
-  MOMENTUM_DB            slim momentum DB (resolved by scanners/price_momentum/config.py;
-                         the value below is only the fallback when those modules can't load)
+  MOMENTUM_DB            slim momentum DB (default: the main DB; see scanners/common.py)
   DB_RELEASE_BASE        override the GitHub Release URL the DBs are downloaded from
   CORS_ALLOWED_ORIGINS   comma-separated origins (default "*")
   SNAPSHOT_OUTPUT_DIR    macro snapshot output dir (absolute, or relative to the repo root)
@@ -15,14 +14,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 STATIC_DIR = ROOT / "static"
-SCANNERS_DIR = ROOT / "scanners"
 
 # Default to the user's home purrtfolio.db. Override with PURRTFOLIO_DB env var.
 DEFAULT_DB = Path.home() / "purrtfolio.db"
 
 # GitHub Release holding the production DBs. The tag is bumped daily by the
 # DB release job, which regex-rewrites the db-vYYYY-MM-DD tag in THIS file
-# (keep render.yaml and scripts/download_db.sh in sync); override with
+# (and render.yaml); override with
 # DB_RELEASE_BASE if needed.
 RELEASE_BASE = os.environ.get(
     "DB_RELEASE_BASE",
@@ -42,12 +40,6 @@ def get_db_path() -> Path:
     """Main DB path; read on every call so tests/tools can set the env late."""
     p = os.environ.get("PURRTFOLIO_DB")
     return Path(p) if p else DEFAULT_DB
-
-
-def momentum_db_fallback_path() -> Path:
-    """Slim momentum DB path used only when the scanner modules aren't importable
-    (otherwise price_momentum.db.DB_PATH is authoritative)."""
-    return Path(os.environ.get("MOMENTUM_DB", "/opt/render/momentum_data.db"))
 
 
 def get_snapshot_dir() -> Path:

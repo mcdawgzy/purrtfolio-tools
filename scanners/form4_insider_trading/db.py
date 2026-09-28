@@ -16,6 +16,7 @@ from datetime import date
 from typing import Any, Iterator
 
 from .config import DB_PATH
+from ..common import ensure_shared_schema
 
 logger = logging.getLogger(__name__)
 
@@ -709,19 +710,8 @@ def sync_watchlist() -> int:
 
     with get_db() as conn:
         c = conn.cursor()
-        # Ensure tickers table exists (shared with other scanners)
-        c.execute("""
-            CREATE TABLE IF NOT EXISTS tickers (
-                ticker  TEXT PRIMARY KEY,
-                name    TEXT,
-                sector  TEXT,
-                industry TEXT,
-                category TEXT,
-                exchange TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            ) WITHOUT ROWID
-        """)
+        # Ensure tickers table exists (shared schema lives in scanners/common.py)
+        ensure_shared_schema(conn)
 
         with open(WATCHLIST_PATH, encoding="utf-8") as f:
             watchlist = json.load(f)

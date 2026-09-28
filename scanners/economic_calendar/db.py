@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
-from config import DB_PATH
+from .config import DB_PATH
 
 logger = logging.getLogger("econ-cal-db")
 

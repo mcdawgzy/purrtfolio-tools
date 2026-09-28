@@ -9,13 +9,11 @@ import sqlite3
 from pathlib import Path
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).parent))
 
-from db_init import init_database, get_tracked_funds
-from ingest import run_ingestion, EdgartoolsIngestor
-from compare import run_comparison, ChangeComparator
-from export import run_export, ExcelExporter
-from bot import run_bot, setup_bot_commands, create_bot
+from .db_init import init_database, get_tracked_funds
+from .ingest import run_ingestion, EdgartoolsIngestor
+from .compare import run_comparison, ChangeComparator
+from .export import run_export, ExcelExporter
 import asyncio
 import os
 
@@ -64,6 +62,7 @@ def cmd_export(args):
 def cmd_bot(args):
     """Run Discord bot."""
     allowed = [int(x) for x in args.admins.split(",")] if args.admins else None
+    from .bot import run_bot  # discord.py only needed for the bot command
     asyncio.run(run_bot(args.db, args.token, allowed))
 
 

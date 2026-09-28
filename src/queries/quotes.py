@@ -1,37 +1,12 @@
 """Famous trader quotes."""
 from __future__ import annotations
 
-from ..database import db_conn, writable_conn
+from ..database import db_conn
 
 
 # ---------------------------------------------------------------------------
 # Famous Trader Quotes
 # ---------------------------------------------------------------------------
-def init_trader_quotes() -> None:
-    """Create the trader_quotes table if it doesn't exist (writable)."""
-    conn = writable_conn()
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS trader_quotes (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            author        TEXT    NOT NULL,
-            quote         TEXT    NOT NULL,
-            category      TEXT,
-            source        TEXT,
-            created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.execute("""
-        CREATE INDEX IF NOT EXISTS idx_trader_quotes_category
-        ON trader_quotes(category)
-    """)
-    conn.execute("""
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_trader_quotes_unique
-        ON trader_quotes(author, quote)
-    """)
-    conn.commit()
-    conn.close()
-
-
 def get_trader_quotes(category: str = "", limit: int = 100) -> list[dict]:
     """Retrieve trader quotes, optionally filtered by category."""
     with db_conn() as c:

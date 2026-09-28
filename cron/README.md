@@ -8,7 +8,7 @@ and changes to the repo never require editing Hermes.
 
 | Hermes job | Runner |
 |---|---|
-| 13F Quarterly Ingestion | `quarterly_13f_pipeline.py` (Hermes script name: `quarterly_pipeline.sh`) |
+| 13F Quarterly Ingestion | `quarterly_13f_pipeline.py` (Hermes script name: `quarterly_pipeline.sh`, a bash shim) |
 | Daily Macro Market Update | `macro_market_update.py` |
 | Short Interest Daily Ingestion | `run_short_interest_daily.py` |
 | Sector Enrichment (Weekly) | `enrich_sectors_cron.py` |
@@ -42,8 +42,10 @@ Originals are kept in `hermes/scripts/_pre_repo_backup/`.
 
 ## Conventions
 
-- Paths are repo-relative (`REPO = Path(__file__).resolve().parents[1]`); the
-  DB is `PURRTFOLIO_DB` or `~/purrtfolio.db`.
+- Paths are repo-relative (`REPO = Path(__file__).resolve().parents[1]`).
+  Runners put the repo root on `sys.path` and import `scanners.<name>`, or run
+  `python -m scanners.<name>...` with the repo root as the working directory.
+  The DB is `PURRTFOLIO_DB` or `~/purrtfolio.db` (`scanners/common.py`).
 - Hermes runs `.py` scripts with its own venv interpreter
   (`hermes-agent/venv`), which has the scanner dependencies (`apscheduler`,
   `nltk`, `edgartools`, ...). Run runners manually with that interpreter.

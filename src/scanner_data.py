@@ -1,7 +1,7 @@
 """Bridge to the scanner packages under <repo>/scanners + yfinance fallbacks.
 
-This is the ONE place the API imports scanner code. The scanner packages are
-not installed, so their directory is put on sys.path. Exposes:
+This is the ONE place the API imports scanner code (as the `scanners`
+package, from the repo root). Exposes:
   pm_db, cm_db, SCANNERS_OK   price_momentum / correlation_matrix DB modules
   ensure_momentum_db()        download the slim momentum DB if missing
   momentum_db_ready(), corr_db_ready()
@@ -13,17 +13,17 @@ import logging
 import sys
 from pathlib import Path
 
-from .config import MOMENTUM_RELEASE_ASSET, SCANNERS_DIR, momentum_db_fallback_path
+from .config import MOMENTUM_RELEASE_ASSET, ROOT
 from .database import download_with_redirect, gunzip
 
 log = logging.getLogger("13f-web")
 
-if str(SCANNERS_DIR) not in sys.path:
-    sys.path.insert(0, str(SCANNERS_DIR))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 try:
-    from price_momentum import db as pm_db
-    from correlation_matrix import db as cm_db
+    from scanners.price_momentum import db as pm_db
+    from scanners.correlation_matrix import db as cm_db
     SCANNERS_OK = True
 except Exception as e:
     log.warning(f"Scanner modules not importable in API: {e}")
@@ -46,8 +46,10 @@ def ensure_momentum_db() -> None:
     """Download the slim momentum DB (price_history + corr_matrices) from the
     GitHub Release if it's missing. Called on startup and lazily from endpoints
     when bar_count() / total_rows() returns 0."""
-    # Same path the scanner modules read from (MOMENTUM_DB > sibling of PURRTFOLIO_DB > ...)
-    slim_db = Path(pm_db.DB_PATH) if SCANNERS_OK else momentum_db_fallback_path()
+    if not SCANNERS_OK:
+        return
+    # Same path the scanner modules read from (MOMENTUM_DB, else the main DB)
+    slim_db = Path(pm_db.DB_PATH)
     if slim_db.exists() and slim_db.stat().st_size > 100_000:
         return
     log.info("Momentum DB missing — downloading...")

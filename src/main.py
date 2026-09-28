@@ -24,7 +24,7 @@ from .routers import (
     correlation, crowded, earnings, econ, factors, funds, insider, meta, momentum,
     news, options, quotes, screener, short_interest, snapshot,
 )
-from .scanners import ensure_momentum_db
+from .scanner_data import ensure_momentum_db
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -77,19 +77,21 @@ def index():
     return FileResponse(idx)
 
 
-# Serve static assets (CSS, JS) — mounted at /static/ for API compatibility
-# and at / for GitHub Pages-style relative URLs (./app.js, ./styles.css).
-# Order matters: routes above, then /static, then the catch-all root mount.
-if STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-    # Root-level static mount for relative paths (./app.js etc.)
-    # Placed after /static to avoid shadowing any API routes
-    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static_root")
-
-# Serve macro market snapshot PNGs
+# Serve macro market snapshot PNGs (before the catch-all root mount, which
+# would otherwise shadow it)
 SNAPSHOT_OUT = get_snapshot_dir()
 if SNAPSHOT_OUT.exists():
     app.mount("/snapshots", StaticFiles(directory=str(SNAPSHOT_OUT)), name="snapshots")
+
+# Serve static assets (CSS, JS) — mounted at /static/ for API compatibility
+# and at / for GitHub Pages-style relative URLs (./js/main.js, ./styles.css).
+# Order matters: routes above, then /static, then the catch-all root mount.
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    # Root-level static mount for relative paths (./js/..., ./styles.css)
+    # Placed after /static to avoid shadowing any API routes
+    app.mount("/", StaticFiles(directory=str(STATIC_DIR), html=True), name="static_root")
+
 
 
 if __name__ == "__main__":

@@ -18,11 +18,11 @@ REPO = Path(__file__).resolve().parents[1]
 
 import sys
 
-SCANNERS_DIR = str(REPO / "scanners")
-if SCANNERS_DIR not in sys.path:
-    sys.path.insert(0, SCANNERS_DIR)
+REPO_DIR = str(REPO)  # scanners is a package under the repo root
+if REPO_DIR not in sys.path:
+    sys.path.insert(0, REPO_DIR)
 
-from implied_volatility.scheduler import run_once
+from scanners.implied_volatility.scheduler import run_once
 
 
 if __name__ == "__main__":

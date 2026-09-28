@@ -10,7 +10,6 @@ from typing import Optional, List, Dict, Any
 import sys
 
 # Add parent directory for imports
-sys.path.insert(0, str(Path(__file__).parent))
 
 from edgar import Company, set_identity, get_filings, Filing
 import os

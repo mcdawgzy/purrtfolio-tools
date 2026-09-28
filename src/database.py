@@ -1,9 +1,10 @@
 """SQLite connection helpers + download-if-missing logic for purrtfolio.db.
 
 All reads are read-only (URI mode=ro) so concurrent reads are safe and won't
-block the write cron jobs. On first use (in production on Render), if the DB
-is missing locally or stale, it's downloaded from the GitHub Release asset
-(see config.RELEASE_BASE).
+block the write cron jobs. If the DB file is missing it's downloaded from the
+GitHub Release asset (see config.RELEASE_BASE). Replacing an *existing* file
+that looks stale only happens when DB_AUTO_REFRESH=1 (set on Render), so a
+local API never overwrites the cron host's master purrtfolio.db.
 """
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ import os
 import shutil
 import sqlite3
 import subprocess
+import threading
 import urllib.request
 from contextlib import contextmanager
 from pathlib import Path
@@ -52,33 +54,32 @@ def gunzip(src: str | Path, dest: str | Path) -> None:
         shutil.copyfileobj(f_in, f_out)
 
 
+_REQUIRED_TABLES = ("price_history", "price_momentum_signals", "corr_matrices",
+                    "earnings_revision_momentum", "crowded_trades")
+
+
 def _db_has_new_tables(db_path: Path) -> bool:
     """Check whether the existing DB contains the new scanner tables
     AND has actual data (not just empty schema from a partial build)."""
     try:
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
-        tables = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
-        conn.close()
-        names = {t[0] for t in tables}
-        required = {"price_history", "price_momentum_signals", "corr_matrices",
-                    "earnings_revision_momentum", "crowded_trades"}
-        if not required.issubset(names):
-            return False
-        # Verify the tables have data
-        for tbl in required:
-            conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, timeout=5)
-            count = conn.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]
-            conn.close()
-            if count == 0:
+        try:
+            names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            if not set(_REQUIRED_TABLES) <= names:
                 return False
-        return True
+            return all(conn.execute(f"SELECT 1 FROM {t} LIMIT 1").fetchone() for t in _REQUIRED_TABLES)
+        finally:
+            conn.close()
     except Exception:
         return False
 
 
 _db_validated_path: str | None = None
+_download_lock = threading.Lock()
+
+
+def _auto_refresh_enabled() -> bool:
+    return os.environ.get("DB_AUTO_REFRESH", "").lower() in ("1", "true", "yes")
 
 
 def _download_db_if_needed(db_path: Path) -> Path:
@@ -87,17 +88,29 @@ def _download_db_if_needed(db_path: Path) -> Path:
     The release asset is gzip-compressed (purrtfolio.db.gz) to keep the
     download fast on Render's free tier. We decompress on the fly.
 
-    Also re-downloads if the existing DB lacks the new tables (stale build).
+    With DB_AUTO_REFRESH=1 (Render), also re-downloads if the existing DB
+    lacks the scanner tables (stale build). Without it, an existing file is
+    never replaced.
 
     Caches the validation result per-process so we don't re-open 4 SQLite
     connections on every request just to verify the DB hasn't changed.
     """
     global _db_validated_path
-    if _db_validated_path == str(db_path) and db_path.exists() and db_path.stat().st_size > 10_000_000:
+    if _db_validated_path == str(db_path) and db_path.exists():
         return db_path
-    if db_path.exists() and _db_has_new_tables(db_path):
+    with _download_lock:  # concurrent first requests must not race the download
+        if _db_validated_path == str(db_path) and db_path.exists():
+            return db_path
+        if db_path.exists() and (not _auto_refresh_enabled() or _db_has_new_tables(db_path)):
+            _db_validated_path = str(db_path)
+            return db_path
+        _fetch_release_db(db_path)
         _db_validated_path = str(db_path)
         return db_path
+
+
+def _fetch_release_db(db_path: Path) -> None:
+    """Download + decompress the release DB and atomically swap it into place."""
     logger.info(f"DB stale or missing at {db_path}, downloading fresh copy...")
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -116,7 +129,6 @@ def _download_db_if_needed(db_path: Path) -> Path:
         os.chmod(db_path, 0o644)  # ensure writable
     os.replace(tmp_db, db_path)
     logger.info(f"DB swapped to {db_path}")
-    return db_path
 
 
 @contextmanager
@@ -133,12 +145,6 @@ def db_conn() -> Iterator[sqlite3.Connection]:
         yield conn
     finally:
         conn.close()
-
-
-def writable_conn() -> sqlite3.Connection:
-    """Plain read-write connection to the main DB (schema init by cron scripts).
-    Deliberately skips the download check."""
-    return sqlite3.connect(str(get_db_path()))
 
 
 def row_dicts(cur_or_rows) -> list[dict[str, Any]]:

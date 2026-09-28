@@ -12,12 +12,11 @@ from typing import Optional, List
 import sys
 import os
 
-sys.path.insert(0, str(Path(__file__).parent))
 
-from export import ExcelExporter
-from compare import ChangeComparator
-from ingest import EdgartoolsIngestor
-from db_init import init_database, get_tracked_funds
+from .export import ExcelExporter
+from .compare import ChangeComparator
+from .ingest import EdgartoolsIngestor
+from .db_init import init_database, get_tracked_funds
 
 
 class ScannerBot(commands.Bot):

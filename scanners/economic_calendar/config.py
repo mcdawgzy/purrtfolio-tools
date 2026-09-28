@@ -6,10 +6,12 @@ All paths use the canonical purrtfolio.db location.
 import os
 from pathlib import Path
 
+from ..common import DB_PATH as COMMON_DB_PATH
+
 # ── Database ──────────────────────────────────────────────
 # Canonical unified DB — shared with 13F + Short Interest
 _DB_DEFAULT = Path.home() / "purrtfolio.db"
-DB_PATH = Path(os.environ.get("PURRTFOLIO_DB", str(_DB_DEFAULT)))
+DB_PATH = COMMON_DB_PATH  # PURRTFOLIO_DB, else ~/purrtfolio.db (scanners/common.py)
 
 # ── Output ────────────────────────────────────────────────
 EXPORTS_DIR = Path(__file__).parent / "exports"

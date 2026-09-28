@@ -21,11 +21,10 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # Make sibling modules importable
-sys.path.insert(0, os.path.dirname(__file__))
 
-from config import DB_PATH, EXPORTS_DIR, UPCOMING_DAYS
-from db import init_db, upsert_event, db_conn
-from fetcher import fetch_all_events
+from .config import DB_PATH, EXPORTS_DIR, UPCOMING_DAYS
+from .db import init_db, upsert_event, db_conn
+from .fetcher import fetch_all_events
 
 
 def get_utc_now() -> str:

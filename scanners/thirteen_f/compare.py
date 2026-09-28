@@ -10,7 +10,6 @@ from typing import List, Optional, Tuple
 import sys
 import os
 
-sys.path.insert(0, str(Path(__file__).parent))
 
 
 class ChangeComparator:

@@ -9,8 +9,8 @@ cron jobs finish, this script:
   3. Builds a slim momentum DB (price_history + corr_matrices only) ->
      momentum_data.db.gz (~0.3MB) for Render cold-start fast path
   4. Creates a GitHub Release tagged db-vYYYY-MM-DD with both assets
-  5. Updates version tag references in src/db.py, render.yaml and
-     scripts/download_db.sh (audit_qa_bot.py reads the tag from src/db.py)
+  5. Updates version tag references in src/config.py and render.yaml
+     (audit_qa_bot.py reads the tag from src/config.py)
 
 Idempotent: skips release creation if the tag already exists.
 Only updates source references when the tag changes.
@@ -39,9 +39,8 @@ GITHUB_REPO = "mcdawgzy/purrtfolio-tools"
 
 # Files that hardcode the release tag/URL — updated when tag changes
 TAG_REFS = [
-    (WEBROOT / "src" / "db.py", r"db-v\d{4}-\d{2}-\d{2}", "db-v{tag}"),
+    (WEBROOT / "src" / "config.py", r"db-v\d{4}-\d{2}-\d{2}", "db-v{tag}"),
     (WEBROOT / "render.yaml", r"db-v\d{4}-\d{2}-\d{2}", "db-v{tag}"),
-    (WEBROOT / "scripts" / "download_db.sh", r"db-v\d{4}-\d{2}-\d{2}", "db-v{tag}"),
 ]
 
 

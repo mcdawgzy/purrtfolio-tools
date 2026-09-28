@@ -23,9 +23,9 @@ import sys
 import json
 
 # Make the scanners package importable when run from any cwd
-sys.path.insert(0, str(REPO / "scanners"))
+sys.path.insert(0, str(REPO))
 
-from form4_insider_trading.main import run  # noqa: E402
+from scanners.form4_insider_trading.main import run  # noqa: E402
 
 
 def main() -> int:

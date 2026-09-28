@@ -25,9 +25,9 @@ import sys
 import json
 
 # Make the scanners package importable when run from any cwd
-sys.path.insert(0, str(REPO / "scanners"))
+sys.path.insert(0, str(REPO))
 
-from correlation_matrix.ingest import run_once  # noqa: E402
+from scanners.correlation_matrix.ingest import run_once  # noqa: E402
 
 
 def main() -> int:

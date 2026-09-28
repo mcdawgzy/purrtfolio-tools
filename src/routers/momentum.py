@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query
 
-from .. import scanners
-from ..scanners import fetch_ohlcv, mom_watchlist, momentum_db_ready
+from .. import scanner_data as scanners
+from ..scanner_data import fetch_ohlcv, mom_watchlist, momentum_db_ready
 
 router = APIRouter()
 

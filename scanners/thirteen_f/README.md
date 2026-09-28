@@ -15,23 +15,23 @@ Track hedge fund and institutional investor portfolio changes via SEC 13F filing
 
 ```bash
 # 1. Clone and install
-cd 13f-scanner
+# from the repo root
 pip install -r requirements.txt
 
 # 2. Initialize database with 30 tracked funds
-python main.py init
+python -m scanners.thirteen_f init
 
 # 3. Ingest latest filings (all funds, last 4 quarters each)
-python main.py ingest
+python -m scanners.thirteen_f ingest
 
 # 4. Compute QoQ changes for latest quarter
-python main.py compare
+python -m scanners.thirteen_f compare
 
 # 5. Generate consensus Excel for latest quarter
-python main.py export --quarter 2025-09-30
+python -m scanners.thirteen_f export --quarter 2025-09-30
 
 # 6. Run Discord bot (requires token)
-python main.py bot --token YOUR_DISCORD_TOKEN --admins YOUR_USER_ID
+python -m scanners.thirteen_f bot --token YOUR_DISCORD_TOKEN --admins YOUR_USER_ID
 ```
 
 ## Tracked Institutions (30)
@@ -141,7 +141,7 @@ Quarterly cronjob (runs ~45 days after quarter-end):
 
 ## Extending
 
-- Add funds: edit `funds_seed.json` and re-run `python main.py init`
+- Add funds: edit `funds_seed.json` and re-run `python -m scanners.thirteen_f init`
 - Add sectors: enrich with yfinance or SEC company facts
 - Add 13D/G + Form 4: extend ingestion for activist stakes + insider trades
 - Add AI summaries: LLM-generated quarterly letters per fund
