@@ -33,7 +33,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 async def lifespan(_app: FastAPI):
     # Fetch the slim momentum DB (~0.3MB) on cold start so the first
     # momentum/correlation request doesn't have to.
-    ensure_momentum_db()
+    ensure_momentum_db(at_startup=True)
     yield
 
 

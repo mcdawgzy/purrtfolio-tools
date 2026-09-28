@@ -13,7 +13,8 @@ import logging
 import sys
 from pathlib import Path
 
-from .config import MOMENTUM_RELEASE_ASSET, ROOT
+from .config import MOMENTUM_RELEASE_ASSET, ROOT, get_db_path
+from .database import _download_db_if_needed as download_db_if_needed
 from .database import download_with_redirect, gunzip
 
 log = logging.getLogger("13f-web")
@@ -42,7 +43,7 @@ except Exception:
 # ---------------------------------------------------------------------------
 # Slim momentum DB (price_history + corr_matrices)
 # ---------------------------------------------------------------------------
-def ensure_momentum_db() -> None:
+def ensure_momentum_db(at_startup: bool = False) -> None:
     """Download the slim momentum DB (price_history + corr_matrices) from the
     GitHub Release if it's missing. Called on startup and lazily from endpoints
     when bar_count() / total_rows() returns 0."""
@@ -50,6 +51,13 @@ def ensure_momentum_db() -> None:
         return
     # Same path the scanner modules read from (MOMENTUM_DB, else the main DB)
     slim_db = Path(pm_db.DB_PATH)
+    if slim_db.resolve() == get_db_path().resolve():
+        # No separate MOMENTUM_DB: momentum data lives in the main DB. Never put
+        # the slim extract there (it would shadow the full DB); fetch the full
+        # DB instead, lazily on first request like every other route.
+        if not at_startup:
+            download_db_if_needed(slim_db)
+        return
     if slim_db.exists() and slim_db.stat().st_size > 100_000:
         return
     log.info("Momentum DB missing — downloading...")
