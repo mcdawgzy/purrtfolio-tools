@@ -13,24 +13,13 @@ import os
 import json
 from pathlib import Path
 
+from ..common import MOMENTUM_DB_PATH
+
 # Canonical DB (same unified store as 13F / SI / insider)
 # The momentum scanner uses a SEPARATE slim DB (price_history + corr_matrices only,
 # ~0.8MB uncompressed) to avoid re-downloading the 487MB main DB on Render cold starts.
 # Path resolution: MOMENTUM_DB env var > sibling of main DB > local default
-_env_mdb = os.environ.get("MOMENTUM_DB")
-if _env_mdb:
-    DB_PATH = Path(_env_mdb)
-else:
-    _main_db = os.environ.get("PURRTFOLIO_DB")
-    if _main_db:
-        # Sibling of the main DB (e.g. /opt/render/momentum_data.db)
-        DB_PATH = Path(_main_db).parent / "momentum_data.db"
-    elif os.name != "nt":
-        # Linux/Render: sibling of home dir purrtfolio.db
-        DB_PATH = Path.home() / "momentum_data.db"
-    else:
-        # Local dev
-        DB_PATH = Path("C:/Users/cho_i/purrtfolio.db")
+DB_PATH = MOMENTUM_DB_PATH  # MOMENTUM_DB, else the main purrtfolio.db (scanners/common.py)
 
 # ─── Watchlist ─────────────────────────────────────────────────────
 # Curated from the macro snapshot tickers + the SI watchlist overlap.

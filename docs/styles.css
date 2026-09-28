@@ -11,7 +11,7 @@
   --line-2:     #25323F;
   --text:       #E8EBEF;
   --text-dim:   #7E8A9A;
-  --text-mut:   #5C6B7A;
+  --text-mut:   #7D8B99;
   --brass:      #C9A24E;
   --brass-dim:  rgba(201, 162, 78, 0.12);
   --green:      #2E9E6B;
@@ -64,6 +64,9 @@ input[type=text], input[type=search], input[type=number], select {
   outline: none;
 }
 input:focus, select:focus { border-color: var(--brass); }
+/* Keyboard focus ring (mouse focus keeps the border-only style above) */
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+input:focus-visible, select:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
 
 /* ------- Layout ------- */
 .app {
@@ -94,6 +97,7 @@ input:focus, select:focus { border-color: var(--brass); }
 /* ------- Nav / search ------- */
 .nav {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   margin-bottom: 24px;
@@ -109,6 +113,7 @@ input:focus, select:focus { border-color: var(--brass); }
 }
 .nav .nav-search {
   flex: 1;
+  min-width: 0;
   max-width: 320px;
 }
 .nav .nav-link {
@@ -261,7 +266,9 @@ input:focus, select:focus { border-color: var(--brass); }
 .table-wrap {
   border: 1px solid var(--line);
   border-radius: 4px;
-  overflow: hidden;
+  /* scroll wide tables inside the frame instead of clipping columns */
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 table {
   width: 100%;
@@ -400,7 +407,8 @@ tbody td.mut { color: var(--text-mut); font-size: 11px; }
 }
 
 /* ------- Tabs ------- */
-.tabs {
+.tabs,
+.tab-bar {
   display: flex;
   gap: 0;
   border-bottom: 1px solid var(--line);
@@ -570,6 +578,8 @@ tbody td.mut { color: var(--text-mut); font-size: 11px; }
   .nav-dropdown-menu .nav-link {
     padding: 10px 16px;
   }
+  .nav .nav-spacer { display: none; }
+  .nav .nav-search { flex-basis: 100%; max-width: none; order: 10; }
 }
 
 /* ------- Market Snapshot view ------- */
@@ -1083,3 +1093,27 @@ tbody td.mut { color: var(--text-mut); font-size: 11px; }
 
 /* ------- Earnings Revision Momentum ------- */
 .erm-table td.s-ticker { font-weight: 600; }
+
+/* Cold-start notice shown while API requests are retrying (see api() in app.js) */
+.cold-start-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 1000;
+  max-width: calc(100% - 32px);
+  padding: 8px 14px;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  color: var(--text-mut);
+  font-size: 12px;
+  border-radius: 2px;
+}
+
+/* ------- Small screens: keep everything inside the viewport ------- */
+.consensus-grid > * { min-width: 0; }
+@media (max-width: 600px) {
+  .leg-row { grid-template-columns: 1fr 1fr; }
+  /* tables rendered without a .table-wrap: let them scroll themselves */
+  .section > table { display: block; overflow-x: auto; }
+}

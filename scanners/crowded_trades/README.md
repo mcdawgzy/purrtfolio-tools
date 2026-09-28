@@ -9,7 +9,7 @@ into a single 0–100 crowdedness score per ticker.
 ```
 crowded_trades/
 ├── __init__.py
-├── __main__.py          # CLI entry: python -m crowded_trades {run|analyze} ...
+├── __main__.py          # CLI entry: python -m scanners.crowded_trades {run|analyze} ...
 ├── config.py            # Thresholds, weights, PCR thresholds, watchlist path
 ├── db.py                # Schema init, batch loaders, result persistence
 ├── analyzer.py          # Scoring engine (6 components → 0-100 score)
@@ -64,19 +64,19 @@ Uses the curated SI watchlist from `short_interest_scanner/ticker_watchlist.json
 
 ```bash
 # Full daily run (writes to DB, prints summary)
-python -m crowded_trades run
+python -m scanners.crowded_trades run
 
 # JSON output (for programmatic use)
-python -m crowded_trades run --json
+python -m scanners.crowded_trades run --json
 
 # Pretty-printed signal list
-python -m crowded_trades analyze signals
+python -m scanners.crowded_trades analyze signals
 
 # Detailed single-ticker breakdown
-python -m crowded_trades analyze ticker AAPL
+python -m scanners.crowded_trades analyze ticker AAPL
 
 # Sector-level aggregation
-python -m crowded_trades analyze summary
+python -m scanners.crowded_trades analyze summary
 ```
 
 ## Cron Job

@@ -10,7 +10,9 @@ Issues:
 import sqlite3
 from pathlib import Path
 
-PURRTFOLIO = r"C:\Users\cho_i\purrtfolio.db"
+from ..common import DB_PATH, ensure_shared_schema
+
+PURRTFOLIO = str(DB_PATH)
 LEGACY = r"C:\Users\cho_i\short_interest_scanner\data\short_interest.db"
 
 # ── Step 1: Create missing unified tables ──────────────────────────
@@ -18,25 +20,8 @@ def create_unified_schema():
     conn = sqlite3.connect(PURRTFOLIO)
     c = conn.cursor()
 
-    # tickers: unified metadata table for all tracked tickers
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS tickers (
-            ticker TEXT PRIMARY KEY,
-            name TEXT,
-            cik TEXT,
-            exchange TEXT,
-            market_class TEXT,
-            sector TEXT,
-            industry TEXT,
-            category TEXT,
-            is_etf BOOLEAN DEFAULT 0,
-            is_active BOOLEAN DEFAULT 1,
-            free_float_shares BIGINT,
-            shares_outstanding BIGINT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    # tickers: unified metadata table (shared schema lives in scanners/common.py)
+    ensure_shared_schema(conn)
 
     # short_interest
     c.execute("""

@@ -2,7 +2,9 @@
 import os
 from pathlib import Path
 
-DB_PATH = Path(os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db")))
+from ..common import DB_PATH as COMMON_DB_PATH
+
+DB_PATH = COMMON_DB_PATH  # PURRTFOLIO_DB, else ~/purrtfolio.db (scanners/common.py)
 
 WATCHLIST = [
     "SPY", "QQQ", "IWM",

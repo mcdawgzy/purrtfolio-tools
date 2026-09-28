@@ -8,9 +8,11 @@ Sentiment analysis: VADER (NLTK) + financial-specific lexicon overlay.
 import os
 from pathlib import Path
 
+from ..common import DB_PATH as COMMON_DB_PATH
+
 # ── Database (unified purrtfolio.db) ─────────────────────────────────
 DB_DEFAULT = Path.home() / "purrtfolio.db"
-DB_PATH = Path(os.environ.get("PURRTFOLIO_DB", str(DB_DEFAULT)))
+DB_PATH = COMMON_DB_PATH  # PURRTFOLIO_DB, else ~/purrtfolio.db (scanners/common.py)
 
 # ── Watchlist ────────────────────────────────────────────────────────
 # Reuse the short-interest watchlist (already curated, ~150 tickers).

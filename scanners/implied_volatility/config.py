@@ -6,9 +6,11 @@ Computes 52-week IV Rank and IV Percentile.
 import os
 from pathlib import Path
 
+from ..common import DB_PATH as COMMON_DB_PATH
+
 # ── Database ──────────────────────────────────────────────
 DB_DEFAULT = Path.home() / "purrtfolio.db"
-DB_PATH = Path(os.environ.get("PURRTFOLIO_DB", str(DB_DEFAULT)))
+DB_PATH = COMMON_DB_PATH  # PURRTFOLIO_DB, else ~/purrtfolio.db (scanners/common.py)
 
 # ── Curated watchlist: large-cap tickers with liquid options ──
 WATCHLIST = [

@@ -2,29 +2,27 @@
 Form 4 Insider Trading Scanner — Main CLI Entry Point
 
 Usage:
-  python -m form4_insider_trading --db C:/Users/cho_i/purrtfolio.db init
-  python -m form4_insider_trading --db C:/Users/cho_i/purrtfolio.db ingest latest
-  python -m form4_insider_trading --db C:/Users/cho_i/purrtfolio.db ingest backfill 2024Q1 2026Q2
-  python -m form4_insider_trading --db C:/Users/cho_i/purrtfolio.db analyze ticker AAPL
-  python -m form4_insider_trading --db C:/Users/cho_i/purrtfolio.db analyze signals
-  python -m form4_insider_trading --db C:/Users/cho_i/purrtfolio.db analyze summary
-  python -m form4_insider_trading --db C:/Users/cho_i/purrtfolio.db status
+  python -m scanners.form4_insider_trading --db C:/Users/cho_i/purrtfolio.db init
+  python -m scanners.form4_insider_trading --db C:/Users/cho_i/purrtfolio.db ingest latest
+  python -m scanners.form4_insider_trading --db C:/Users/cho_i/purrtfolio.db ingest backfill 2024Q1 2026Q2
+  python -m scanners.form4_insider_trading --db C:/Users/cho_i/purrtfolio.db analyze ticker AAPL
+  python -m scanners.form4_insider_trading --db C:/Users/cho_i/purrtfolio.db analyze signals
+  python -m scanners.form4_insider_trading --db C:/Users/cho_i/purrtfolio.db analyze summary
+  python -m scanners.form4_insider_trading --db C:/Users/cho_i/purrtfolio.db status
 """
 import argparse
 import sys
 import json
 import sqlite3
 from pathlib import Path
-
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+import os
 
 # Allow --db BEFORE subcommand (like 13f scanner's main.py)
 def main():
     parser = argparse.ArgumentParser(
         description="Form 4 Insider Trading Scanner — SEC Forms 3/4/5 tracker"
     )
-    parser.add_argument("--db", default="C:/Users/cho_i/purrtfolio.db",
+    parser.add_argument("--db", default=os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db")),
                         help="SQLite database path (defaults to unified purrtfolio.db)")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
