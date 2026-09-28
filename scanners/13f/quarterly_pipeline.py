@@ -90,32 +90,35 @@ def main():
     
     # All steps target the unified purrtfolio.db explicitly.
     # argparse in main.py expects --db BEFORE the subcommand, so it lives there.
-    db_flag = '--db os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db"))'
+    db_path = os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db"))
+    db_flag = f'--db "{db_path}"'
+    # Same interpreter as this pipeline (a bare `python` may not be on PATH under cron)
+    py = f'"{sys.executable}"'
 
     # Step 1: Ingest
     if not run_cmd(
-        f'python main.py {db_flag} ingest --email "13f-scanner@example.com" --max-filings 3',
+        f'{py} main.py {db_flag} ingest --email "13f-scanner@example.com" --max-filings 3',
         "Ingest latest filings"
     ):
         sys.exit(1)
 
     # Step 2: Compare
     if not run_cmd(
-        f'python main.py {db_flag} compare --backfill',
+        f'{py} main.py {db_flag} compare --backfill',
         "Run QoQ comparison"
     ):
         sys.exit(1)
 
     # Step 3: Export
     if not run_cmd(
-        f'python main.py {db_flag} export --quarter {latest_quarter} --package --output-dir exports',
+        f'{py} main.py {db_flag} export --quarter {latest_quarter} --package --output-dir exports',
         f"Generate Excel exports for {latest_quarter}"
     ):
         sys.exit(1)
 
     # Step 4: Enrich sectors (for sector rotation view on web dashboard)
     run_cmd(
-        f'python enrich_sectors.py --db os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db")) --limit 500',
+        f'{py} enrich_sectors.py {db_flag} --limit 500',
         "Enrich tickers with GICS sector data"
     )
 
@@ -124,7 +127,7 @@ def main():
     #    the momentum scanner's already-computed ROC. Adds the `ticker_factors`
     #    table to purrtfolio.db. Re-run with --refresh to re-classify everything.
     run_cmd(
-        f'python enrich_factors.py {db_flag} --limit 300 --refresh',
+        f'{py} enrich_factors.py {db_flag} --limit 300 --refresh',
         "Enrich tickers with factor classification (size / value-growth / momentum)"
     )
 
