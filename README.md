@@ -15,7 +15,8 @@ purrtfolio-tools/
 │   └── __init__.py
 ├── static/               # Frontend source (HTML / CSS / JS)
 ├── docs/                 # GitHub Pages build output (copy of static/)
-├── scripts/              # Cron shims + sync helpers
+├── cron/                 # Hermes job runners (see cron/README.md)
+├── scripts/              # One-off maintenance helpers
 ├── scanners/             # Data ingestion (each writes to purrtfolio.db)
 │   ├── 13f/                  # 13F filings (ingest, compare, export, Discord bot)
 │   ├── short_interest_scanner/  # FINRA short interest
@@ -82,7 +83,8 @@ All endpoints return JSON. Errors (including validation errors and unexpected
 
 ## Scanners
 
-Scanners run on the Hermes cron host (see job IDs below), not on Render. Most
+Scanners run on the Hermes cron host via the runners in `cron/` (see
+`cron/README.md`), not on Render. Most
 are packages run from inside `scanners/`, e.g. `python -m put_call_ratio`.
 Beyond `requirements.txt` they need `apscheduler`, `httpx`, `nltk` and (13F)
 `edgartools` — see each scanner's own requirements file where present.
