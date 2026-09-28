@@ -37,8 +37,15 @@ MARKER = "Managed by cron/install_hermes_shims.py"
 
 PY_SHIM = '''# Hermes shim: runs {target}
 # {marker} (originals in _pre_repo_backup/).
+import os
 import runpy
 import sys
+
+# UTF-8 output regardless of how Hermes was launched (reports use emoji)
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+os.environ.setdefault("PYTHONUTF8", "1")
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 TARGET = r"{target}"
 sys.argv[0] = TARGET
@@ -47,6 +54,7 @@ runpy.run_path(TARGET, run_name="__main__")
 
 SH_SHIM = '''#!/bin/bash
 # Hermes shim: runs {target}. {marker} (originals in _pre_repo_backup/).
+export PYTHONUTF8=1 PYTHONIOENCODING=utf-8
 exec "{python}" "{target}" "$@"
 '''
 
