@@ -24,7 +24,7 @@ DEFAULT_DB = Path.home() / "purrtfolio.db"
 # DB_RELEASE_BASE if needed.
 RELEASE_BASE = os.environ.get(
     "DB_RELEASE_BASE",
-    "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-28",
+    "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-29",
 )
 PURRTFOLIO_RELEASE_ASSET = f"{RELEASE_BASE}/purrtfolio.db.gz"
 MOMENTUM_RELEASE_ASSET = f"{RELEASE_BASE}/momentum_data.db.gz"
