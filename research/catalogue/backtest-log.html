@@ -1,0 +1,4126 @@
+<title>Purrtfolio Backtest Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --ground: #f2f3ef;
+  --surface: #ffffff;
+  --surface-2: #f7f8f5;
+  --ink: #16202b;
+  --muted: #5b6470;
+  --faint: #8a919a;
+  --rule: #d9dcd4;
+  --accent: #0e6e74;
+  --accent-soft: #dcecec;
+  --pass: #2f7d4a;
+  --cand: #a86b12;
+  --fail: #b0413e;
+  --lead: #5e4ba3;
+  --neutral: #7a7f87;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #10151b; --surface: #171e26; --surface-2: #1c242e;
+    --ink: #e4e8ec; --muted: #9aa4ae; --faint: #6f7883; --rule: #2a333d;
+    --accent: #5bb9be; --accent-soft: #1d3a3d;
+    --pass: #62c283; --cand: #e0a33b; --fail: #e27771; --lead: #a592ea; --neutral: #8d949c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #10151b; --surface: #171e26; --surface-2: #1c242e;
+  --ink: #e4e8ec; --muted: #9aa4ae; --faint: #6f7883; --rule: #2a333d;
+  --accent: #5bb9be; --accent-soft: #1d3a3d;
+  --pass: #62c283; --cand: #e0a33b; --fail: #e27771; --lead: #a592ea; --neutral: #8d949c;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--ground); color: var(--ink);
+  font: 15px/1.55 var(--body);
+  padding-inline: 16px; padding-block: 0 64px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header.top { padding-block: 40px 20px; display: grid; gap: 14px; }
+.handle { font: 500 13px/1 var(--mono); color: var(--accent); letter-spacing: .02em; }
+h1 {
+  font: 700 clamp(34px, 6vw, 56px)/1.02 var(--display);
+  letter-spacing: -.02em; margin: 0; text-wrap: balance;
+}
+.lede { max-width: 64ch; color: var(--muted); font-size: 16.5px; margin: 0; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px 22px; font: 500 13px/1.4 var(--mono); color: var(--muted); }
+.stats b { color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* The tape: one cell per study, in catalogue order, coloured by verdict. */
+.tape-block { display: grid; gap: 8px; padding-block: 8px 24px; }
+.tape-label { font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); }
+.tape { display: grid; grid-template-columns: repeat(auto-fill, minmax(14px, 1fr)); gap: 3px; }
+.tape button {
+  aspect-ratio: 1 / 1.6; max-width: 100%; border: 0; border-radius: 2px; padding: 0; cursor: pointer;
+  background: var(--c, var(--neutral)); opacity: .9;
+}
+.tape button:hover { opacity: 1; transform: translateY(-2px); }
+.tape button.dim { opacity: .18; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--muted); }
+.legend span::before {
+  content: ""; display: inline-block; width: 9px; height: 13px; border-radius: 2px;
+  background: var(--c); margin-right: 6px; vertical-align: -2px;
+}
+
+/* Controls */
+.controls {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: color-mix(in srgb, var(--ground) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border-block: 1px solid var(--rule);
+  padding-block: 12px; display: grid; gap: 10px;
+}
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.row .lbl { font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--faint); min-width: 64px; }
+input[type="search"] {
+  flex: 1 1 220px; min-width: 0; font: 15px var(--body); color: var(--ink);
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 8px 12px;
+}
+.chip {
+  font: 500 12.5px/1 var(--body); color: var(--muted); background: var(--surface);
+  border: 1px solid var(--rule); border-radius: 999px; padding: 6px 11px; cursor: pointer;
+}
+.chip[aria-pressed="true"] { color: var(--surface); background: var(--ink); border-color: var(--ink); }
+.chip .n { font-family: var(--mono); font-variant-numeric: tabular-nums; opacity: .7; margin-left: 4px; }
+.count { font: 13px var(--mono); color: var(--muted); margin-left: auto; }
+
+/* Families and studies */
+section.family { padding-block: 28px 4px; }
+section.family > h2 {
+  font: 700 24px/1.15 var(--display); margin: 0 0 4px; letter-spacing: -.01em; text-wrap: balance;
+}
+.fam-meta { font: 13px var(--mono); color: var(--muted); margin: 0 0 12px; }
+.fam-meta b { color: var(--ink); font-weight: 500; }
+.list { display: grid; gap: 0; border-top: 1px solid var(--rule); }
+details.study { border-bottom: 1px solid var(--rule); background: transparent; }
+details.study[open] { background: var(--surface); }
+details.study > summary {
+  list-style: none; cursor: pointer; display: grid; gap: 4px 14px; padding: 12px 10px;
+  grid-template-columns: 58px 1fr auto;
+  align-items: baseline;
+}
+details.study > summary::-webkit-details-marker { display: none; }
+.sid { font: 12px var(--mono); color: var(--faint); font-variant-numeric: tabular-nums; }
+.stitle { font-weight: 600; line-height: 1.35; }
+.ssource { grid-column: 2; font-size: 13px; color: var(--muted); }
+.pill {
+  font: 600 11.5px/1 var(--body); letter-spacing: .02em; white-space: nowrap;
+  color: var(--c); border: 1px solid color-mix(in srgb, var(--c) 45%, transparent);
+  background: color-mix(in srgb, var(--c) 10%, transparent);
+  padding: 5px 8px; border-radius: 4px; grid-row: 1; grid-column: 3;
+}
+.body { padding: 2px 10px 20px 82px; display: grid; gap: 14px; max-width: 900px; }
+.body p { margin: 0; max-width: 72ch; }
+.summary { font-size: 16px; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 14px; margin: 0; }
+.facts dt { font: 500 11px/1.9 var(--mono); text-transform: uppercase; letter-spacing: .07em; color: var(--faint); }
+.facts dd { margin: 0; }
+.num { font-family: var(--mono); font-size: 13.5px; }
+.lesson { border-left: 3px solid var(--accent); padding: 6px 0 6px 12px; color: var(--ink); }
+.lesson b { font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .07em; color: var(--accent); display: block; margin-bottom: 4px; }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: .07em; color: var(--faint); }
+td.v { white-space: nowrap; font-weight: 600; color: var(--c); font-size: 12px; }
+.link-row { font-size: 12.5px; color: var(--faint); display: flex; gap: 12px; flex-wrap: wrap; }
+.copy { font: 12.5px var(--body); color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+.empty { padding: 40px 0; color: var(--muted); text-align: center; }
+
+.glossary { padding-block: 40px 0; }
+.glossary h2 { font: 700 24px/1.15 var(--display); margin: 0 0 14px; }
+.glossary dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px 28px; margin: 0; }
+.glossary dt { font-weight: 600; }
+.glossary dd { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+footer { padding-block: 36px 0; color: var(--faint); font-size: 13px; }
+
+@media (max-width: 640px) {
+  details.study > summary { grid-template-columns: 1fr auto; }
+  .sid { grid-column: 1 / -1; }
+  .stitle { grid-column: 1; }
+  .ssource { grid-column: 1 / -1; }
+  .pill { grid-row: 2; grid-column: 2; }
+  .body { padding-left: 10px; }
+  .row .lbl { min-width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) { .tape button:hover { transform: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="handle">@Purrtfolio</div>
+    <h1>The Backtest Log</h1>
+    <p class="lede">Every trading strategy I have backtested, and what happened to it. Ideas come from academic papers, vendors, social media and my own trading. Each one was judged on data it was not tuned on, after realistic trading costs, and against a random-entry control wherever one applies. Most did not survive.</p>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <div class="tape-block">
+    <div class="tape-label">Every study, in order — tap one to jump to it</div>
+    <div class="tape" id="tape" role="list"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div class="controls">
+    <div class="row">
+      <label class="lbl" for="q">Search</label>
+      <input id="q" type="search" placeholder="ORB, FVG, RSI, 0DTE, Bitcoin…" autocomplete="off">
+      <span class="count" id="count"></span>
+    </div>
+    <div class="row" id="verdicts"><span class="lbl">Verdict</span></div>
+    <div class="row" id="sources"><span class="lbl">Source</span></div>
+  </div>
+
+  <main id="families"></main>
+
+  <section class="glossary" id="glossary">
+    <h2>How to read the numbers</h2>
+    <dl>
+      <div><dt>Out of sample (OOS)</dt><dd>Data the strategy was not built or tuned on. Only out-of-sample results count.</dd></div>
+      <div><dt>Walk-forward</dt><dd>Pick settings on an early stretch of data, then test them on the later stretch without changing anything.</dd></div>
+      <div><dt>t-stat (t)</dt><dd>How far a result is from zero in units of its own noise. Around 2 or more is hard to get by luck in a single test; much less so when many tests were run.</dd></div>
+      <div><dt>DSR</dt><dd>Deflated Sharpe ratio: the probability the edge is real after correcting for how many variants were tried. I require 0.95 or more.</dd></div>
+      <div><dt>Drop-top-1</dt><dd>Remove the single best trade. If the result turns negative, one lucky trade was carrying it.</dd></div>
+      <div><dt>Random-entry control</dt><dd>The same stops, targets and hold time with a random or reversed entry. If that does as well, the signal adds nothing.</dd></div>
+      <div><dt>R</dt><dd>Profit or loss measured in units of the amount risked per trade. +0.1R per trade means 10% of the risk, on average.</dd></div>
+      <div><dt>bp</dt><dd>Basis points: hundredths of a percent. 10bp = 0.10%.</dd></div>
+      <div><dt>Forward test</dt><dd>Trading the frozen rules on new data as it arrives. The final check, and the one that sank my best backtest.</dd></div>
+      <div><dt>Prop account limits</dt><dd>Several studies target prop-firm evaluations, which cap daily loss and total drawdown. A strategy can be profitable and still fail those caps.</dd></div>
+    </dl>
+  </section>
+
+  <footer>Research log, not financial advice. Results are backtests on historical data; they describe what happened, not what will. — @Purrtfolio</footer>
+</div>
+
+<script type="application/json" id="data">[
+  {
+    "id": "S001",
+    "slug": "orb-15m-family",
+    "title": "15-minute opening-range breakout — 19 gate/exit variants",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "internal",
+    "source": "Opening-range breakout literature; project baseline",
+    "source_url": null,
+    "paper": "P004",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m bars, 15m opening range, same-day exit",
+    "data": "FTMO index CFD 1m; OOS extended to 2026-07-28 for the final re-score",
+    "tested": "2026-05-20",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "0 robust survivors from 19 variants. Out-of-sample expectancy of the base rule is about −$0.13/trade. The one walk-forward pass (prior-day OR bias) flipped to −$263.79 once 2.3 more forward months arrived, with 5 straight losing months.",
+    "why": "The breakout direction carries almost no information on index CFDs, and what little there is is smaller than the spread. Gates and exits reshape the distribution but not the mean.",
+    "lesson": "Changing the filter or the exit of a dead entry produces many correlated draws of one bet, not many independent tests. Count mechanisms, not variants.",
+    "summary": "We tested the classic 15-minute opening-range breakout on the Nasdaq, S&P and Dow CFDs with 19 different filters and exits. None survived out of sample. The single version that passed walk-forward went on to lose over the next few months of fresh data.",
+    "variants": [
+      {
+        "name": "orb_15m (baseline)",
+        "verdict": "EXAMPLE",
+        "result": "No fundable edge; kept as the worked example."
+      },
+      {
+        "name": "or_bias (trade with prior-day OR bias)",
+        "verdict": "REJECT",
+        "result": "Only walk-forward pass (US100). Shelved on robustness, then −$263.79 total, PSR 0.198 with 2.3 more forward months."
+      },
+      {
+        "name": "scale_out (partial exits)",
+        "verdict": "REJECT",
+        "result": "Passed PRIMARY but drawdown 4.85–6.71× the baseline cap; resizing cannot fix it (Sharpe is scale-invariant); profit factor <1 on all six legs by 2026-07."
+      },
+      {
+        "name": "trail, runner, mm_target, time_stop",
+        "verdict": "REJECT",
+        "result": "Exit overlays — none positive out of sample."
+      },
+      {
+        "name": "vol_filter, range_filter, range_pct_filter, low_vol_only, vol_size",
+        "verdict": "REJECT",
+        "result": "Volatility / range gates — none positive out of sample."
+      },
+      {
+        "name": "first_hour, retest, gap_bias, htf_trend, prior_day_close",
+        "verdict": "REJECT",
+        "result": "Entry-timing and trend gates — none positive out of sample."
+      },
+      {
+        "name": "no_nfp, no_fomc",
+        "verdict": "REJECT",
+        "result": "News-day exclusions — no change to the verdict."
+      }
+    ]
+  },
+  {
+    "id": "S002",
+    "slug": "early-intraday-trend-entries",
+    "title": "Pullback, EMA-scalp and Alligator intraday trend entries",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "internal",
+    "source": "Early project builds",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m–5m intraday",
+    "data": "FTMO index CFD 1m",
+    "tested": "2026-05-20",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "All three rejected at the walk-forward gate; part of the 0/26 intraday-momentum tally.",
+    "why": "Same friction wall as the ORB family — trend-continuation entries with tight stops are smaller than the CFD spread.",
+    "lesson": null,
+    "summary": "Three common intraday trend entries — buy the pullback, an EMA scalp, and the Williams Alligator — all failed out of sample on index CFDs once real spreads were charged.",
+    "variants": [
+      {
+        "name": "rc_pullback",
+        "verdict": "REJECT",
+        "result": "Pullback-continuation entry; no out-of-sample edge."
+      },
+      {
+        "name": "ema_scalp",
+        "verdict": "REJECT",
+        "result": "EMA-gated scalp; no out-of-sample edge."
+      },
+      {
+        "name": "alligator_trend",
+        "verdict": "REJECT",
+        "result": "Williams Alligator trend entry; no out-of-sample edge."
+      }
+    ]
+  },
+  {
+    "id": "S003",
+    "slug": "orb-5m-fvg-reddit",
+    "title": "5-minute ORB with fair-value-gap confirmation (Reddit)",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "social",
+    "source": "A prominent Reddit day-trading poster",
+    "source_url": null,
+    "paper": "P007",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30",
+      "XAUUSD",
+      "EURUSD",
+      "GBPUSD",
+      "BTCUSD"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m, 5m opening range",
+    "data": "FTMO CFD 1m, 26 months",
+    "tested": "2026-06-11",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Pooled net −0.66bp/trade (t=−2.11, n=3,503). Win rate 41% vs the poster's ~56%. The FVG filter made the bare breakout worse.",
+    "why": "The FVG confirmation removes good breakouts as often as bad ones; the net result is negative after costs.",
+    "lesson": null,
+    "summary": "A popular Reddit setup — trade the 5-minute opening-range break only when it leaves a fair-value gap — lost money across seven markets. The FVG filter made results worse than the plain breakout.",
+    "variants": [
+      {
+        "name": "first screen (2026-06-11)",
+        "verdict": "REJECT",
+        "result": "Pooled net −0.61bp/trade, t=−1.97."
+      },
+      {
+        "name": "re-confirm on +8 months (2026-06-19)",
+        "verdict": "REJECT",
+        "result": "−0.66bp/trade, t=−2.11 — a stronger rejection."
+      }
+    ]
+  },
+  {
+    "id": "S004",
+    "slug": "ema-stack-vwap-scalp",
+    "title": "Reddit EMA-stack scalp — 4m EMA(5/9/30) + VWAP alignment",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "social",
+    "source": "A Reddit options-trading post",
+    "source_url": null,
+    "paper": "P011",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30",
+      "XAUUSD",
+      "EURUSD",
+      "GBPUSD",
+      "BTCUSD"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "4m bars",
+    "data": "FTMO CFD 1m resampled",
+    "tested": "2026-06-18",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Screen pooled −1.08bp/trade (t=−1.96), cost-negative on 6/7 markets. Walk-forward OOS Sharpe US100 −0.68, US500 −0.03.",
+    "why": "A random-direction control did as well as the signal — the result is stop/target geometry, not direction.",
+    "lesson": null,
+    "summary": "A Reddit EMA-stack / VWAP scalp lost money on 6 of 7 markets, and a coin-flip entry with the same stops did just as well.",
+    "variants": []
+  },
+  {
+    "id": "S005",
+    "slug": "market-intraday-momentum",
+    "title": "First half-hour predicts the last half-hour (Gao et al. 2018)",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "paper",
+    "source": "Gao, Han, Li & Zhou 2018",
+    "source_url": null,
+    "paper": "P005",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "30m windows",
+    "data": "FTMO index CFD 1m, 26 months",
+    "tested": "2026-06-10",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Gross edge absent — US100 +0.10pt against 1.47pt cost; US500/US30 negative before costs. Pooled net −1.23bp/trade (t=−1.99).",
+    "why": "The published effect does not show up in recent index CFD data at all.",
+    "lesson": null,
+    "summary": "The academic \"intraday momentum\" effect — the first 30 minutes predicting the last 30 — was not present in recent Nasdaq, S&P or Dow data, even before trading costs.",
+    "variants": []
+  },
+  {
+    "id": "S006",
+    "slug": "atr-volatility-breakout",
+    "title": "ATR(5) volatility breakout, open ± 0.4·ATR",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "vendor",
+    "source": "A trading-education blog",
+    "source_url": null,
+    "paper": "P013",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30",
+      "XAUUSD",
+      "EURUSD",
+      "GBPUSD",
+      "BTCUSD"
+    ],
+    "products": [
+      "CFD",
+      "ETF"
+    ],
+    "timeframe": "intraday, entry on band break, exit at stop or close",
+    "data": "FTMO CFD 1m (n=3,357) plus ETF replication",
+    "tested": "2026-06-20",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Right direction (TRUE +$8.09 > RANDOM −$20.28 > FADE −$53.92) but insignificant (t=+0.46); negative at 3× spread.",
+    "why": "A wide stop does keep costs to ~1% of risk, but the signal itself is too weak to be distinguished from noise.",
+    "lesson": null,
+    "summary": "An ATR volatility-breakout rule had the right directional tilt, but it was too weak to separate from noise and turned negative once spreads were doubled.",
+    "variants": [
+      {
+        "name": "base rule",
+        "verdict": "REJECT",
+        "result": "t=+0.46; no primary instrument reaches t≥1.64."
+      },
+      {
+        "name": "ETF replication / bar-resolution check / volatility filter",
+        "verdict": "REJECT",
+        "result": "Robustness checks; none change the verdict."
+      }
+    ]
+  },
+  {
+    "id": "S007",
+    "slug": "orb-60m-atr-trail",
+    "title": "Full-hour ORB with ATR trailing stop",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "vendor",
+    "source": "A trading-signals vendor",
+    "source_url": null,
+    "paper": "P016",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m, 60m opening range",
+    "data": "FTMO index CFD 1m",
+    "tested": "2026-06-28",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "High-risk profile breached the 10% drawdown cap in-sample (−15.98%). Medium-risk OOS Sharpe US100 −0.88, US500 −0.41, US30 +0.18.",
+    "why": "Negative expectancy at every risk profile.",
+    "lesson": null,
+    "summary": "A vendor's full-hour opening-range breakout with an ATR trailing stop lost money at every risk setting, and the aggressive setting breached a 10% drawdown limit even in-sample.",
+    "variants": []
+  },
+  {
+    "id": "S008",
+    "slug": "atr-breakout-trail",
+    "title": "ATR-band breakout with delayed 2R trailing exit",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "vendor",
+    "source": "A trading-education blog (same author as S006)",
+    "source_url": null,
+    "paper": "P023",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30",
+      "BTCUSD"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "intraday",
+    "data": "FTMO CFD 1m",
+    "tested": "2026-07-10",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Passed PRIMARY (OOS Sharpe US100 +1.66, US500 +1.36) but robustness failed — DSR 0.832; regime-gated retest DSR 0.775.",
+    "why": "The edge is fragile and instrument-specific (BTCUSD and US30 deeply negative), and does not survive correction for the number of exits tried.",
+    "lesson": null,
+    "summary": "A breakout that only starts trailing after +2R looked good out of sample on two indices, but not once we corrected for how many exits were tried — and it lost badly on Bitcoin and the Dow.",
+    "variants": [
+      {
+        "name": "exit = delayed 2R trail (selected)",
+        "verdict": "REJECT",
+        "result": "OOS Sharpe +1.66 / +1.36, DD ≤1%, DSR 0.832 < 0.95."
+      },
+      {
+        "name": "exit = hold to close / immediate trail",
+        "verdict": "REJECT",
+        "result": "Worse in-sample; not selected."
+      },
+      {
+        "name": "v2: trade only in 'trending' regime",
+        "verdict": "REJECT",
+        "result": "Flipped US30/BTC info legs positive but lowered US100 Sharpe to +1.20; DSR 0.775."
+      }
+    ]
+  },
+  {
+    "id": "S009",
+    "slug": "orb-30m-ema9-trail",
+    "title": "30-minute ORB with EMA(9) trailing hold (\"~95% win rate\" method)",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "user",
+    "source": "A trader's published method, sent to me (two filters withheld)",
+    "source_url": null,
+    "paper": "P017",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m, 30m opening range",
+    "data": "FTMO index CFD 1m",
+    "tested": "2026-06-30",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Net-negative on all three indices; random direction did as well as the rule. Walk-forward OOS US100 +0.71, US500 −0.83.",
+    "why": "The high advertised win rate is what a trailing stop does to any entry, not evidence of an edge.",
+    "lesson": "A tight trailing stop converts small wins into a high win rate and leaves the average unchanged or worse.",
+    "summary": "A 30-minute breakout sold on a ~95% win rate lost money on all three US indices. The high win rate came from the trailing stop, not the entry.",
+    "variants": []
+  },
+  {
+    "id": "S010",
+    "slug": "orfb-asia-session",
+    "title": "ORFB Asia-session ORB + fib retest",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "user",
+    "source": "A practitioner method sent to me",
+    "source_url": null,
+    "paper": "P018",
+    "instruments": [
+      "US100",
+      "US500"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "15m opening range at 10:00 AEDT",
+    "data": "FTMO CFD 1m — only 63/60 complete Asia-session days available",
+    "tested": "2026-07-01",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Pooled −$4.41/trade (t=−0.97); the opposite and random directions both beat the rule.",
+    "why": "FTMO has almost no Asia-session index data to trade or test, and what exists shows no edge.",
+    "lesson": null,
+    "summary": "An Asia-session opening-range + Fibonacci setup could barely be tested on FTMO data, and the two months that exist showed no edge — trading the opposite way did better.",
+    "variants": []
+  },
+  {
+    "id": "S011",
+    "slug": "reddit-simplest-m15-orb",
+    "title": "Reddit \"simplest ORB\" — NY 15m OR, close-confirm, wide stop",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "social",
+    "source": "A popular Reddit ORB post",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "QQQ",
+      "SPY",
+      "DIA"
+    ],
+    "products": [
+      "CFD",
+      "ETF"
+    ],
+    "timeframe": "15m opening range",
+    "data": "US100 1m 2024-05→2026-06; QQQ/SPY/DIA 15m 2016–2024 (IBKR)",
+    "tested": "2026-06-22",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "First ORB to clear the cost screen (TRUE +13.69pt ≫ RANDOM +4.11 ≫ FADE −13.69 on US100), but over 8.4 years of QQQ the direction premium washes to +0.0bp and inverts in 2018 and 2020.",
+    "why": "The short sample was one bull regime; the \"edge\" was trend beta.",
+    "lesson": "A direction test that passes in one regime cannot see regime beta — always test through bear markets.",
+    "summary": "A wide-stop 15-minute ORB looked genuinely directional on two years of bull-market data. Across eight years including 2018 and 2020 the edge disappeared and reversed in the sharp sell-offs.",
+    "variants": []
+  },
+  {
+    "id": "S012",
+    "slug": "reddit-prop-15m-orb-fvg",
+    "title": "Reddit prop-group 15m NY ORB + 1m FVG entry (claimed ~$40K/yr on prop)",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "social",
+    "source": "A Reddit prop-trading group",
+    "source_url": null,
+    "paper": "P021",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30",
+      "QQQ",
+      "SPY",
+      "DIA"
+    ],
+    "products": [
+      "CFD",
+      "ETF"
+    ],
+    "timeframe": "1m, 15m opening range",
+    "data": "FTMO US100 1m 2024-05→2026-07 (n=680); QQQ/SPY/DIA 15m 2016–2024",
+    "tested": "2026-07-05",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Gross +0.0548R/trade (t=+1.16) — insignificant before costs; net −0.0054R at the live spread; −0.0657R at 2×.",
+    "why": "The premium is about one spread wide; the $40K/yr claim needs a free venue plus discretionary bias.",
+    "lesson": null,
+    "summary": "A Reddit prop-trading ORB + FVG setup claiming ~$40K a year made about +0.05R per trade before costs — not significant — and lost money after the spread. A 17-cell sweep of its levels found nothing either.",
+    "variants": [
+      {
+        "name": "exact published rules",
+        "verdict": "REJECT",
+        "result": "Net −0.0054R, t=−0.11."
+      },
+      {
+        "name": "17-cell levels sweep (OR 5–60m × targets × entries)",
+        "verdict": "REJECT",
+        "result": "Best cell t=+1.95, below the Bonferroni 2.9 bar."
+      },
+      {
+        "name": "hold breakout direction to close, 2016–2024",
+        "verdict": "REJECT",
+        "result": "≈0 on QQQ/SPY/DIA; negative in bear markets on all three."
+      },
+      {
+        "name": "US500 / US30 legs",
+        "verdict": "REJECT",
+        "result": "−0.062R / −0.020R."
+      }
+    ]
+  },
+  {
+    "id": "S013",
+    "slug": "p021-orb-fvg-btc-build",
+    "title": "ORB + FVG on BTCUSD (NY and London legs) — built, holdout FAILED",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "social",
+    "source": "A Reddit prop-trading group's setup, moved to Bitcoin",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "BTCUSD",
+      "US500",
+      "US100"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m, session opening ranges",
+    "data": "FTMO BTCUSD 1m 2024-05→2026-07; TRAIN to 2025-12, HOLDOUT 2026-01→07",
+    "tested": "2026-07-19",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Pre-registered holdout failed 0/2 — NY −0.0521R (0 of 12 cells positive), London +0.1199R at t=+1.48 retaining 24%. A post-hoc US500 leg was negative in-sample (t=−4.39) and out (DSR 0.009).",
+    "why": "The exit and filter were chosen after seeing results; the edge decayed to ~zero inside its own fitting window.",
+    "lesson": "Re-fit on the early data and score the late data before trusting any post-hoc stack.",
+    "summary": "We moved a Reddit ORB + FVG setup to Bitcoin, where it looked profitable in-sample. A pre-registered holdout on 2026 data failed on both sessions: the New York leg lost on every one of 12 configurations.",
+    "variants": [
+      {
+        "name": "BTCUSD NY leg",
+        "verdict": "REJECT",
+        "result": "Holdout −0.0521R, t=−0.77, 0/12 cells positive."
+      },
+      {
+        "name": "BTCUSD London leg",
+        "verdict": "REJECT",
+        "result": "Holdout +0.1199R, t=+1.48 < 1.64, 12/12 cells positive but none significant."
+      },
+      {
+        "name": "US500 follow-up (post-hoc)",
+        "verdict": "REJECT",
+        "result": "Deployed cell −0.1662R in-sample (t=−4.39), −0.1289R holdout."
+      }
+    ]
+  },
+  {
+    "id": "S014",
+    "slug": "noise-area-intraday-momentum",
+    "title": "Noise-Area intraday momentum (Zarattini, Aziz & Barbon)",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "paper",
+    "source": "Zarattini, Aziz & Barbon 2024, SSRN 4824172",
+    "source_url": "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4824172",
+    "paper": "P032",
+    "instruments": [
+      "SPY",
+      "QQQ",
+      "DIA",
+      "US500",
+      "US100",
+      "US30",
+      "NQ",
+      "ES"
+    ],
+    "products": [
+      "ETF",
+      "CFD",
+      "futures"
+    ],
+    "timeframe": "15m/1m, decisions at :00/:30, flat by close",
+    "data": "ETFs 15m 2016→2024; FTMO CFD 1m 2024-05→2026-07; NQ/ES 1m 2010→2026",
+    "tested": "2026-07-20",
+    "verdict": "NEAR_MISS",
+    "verdict_label": "🟠 Real but underpowered",
+    "headline": "CFD screen 5/6 — in-sample +2.13bp/session (t=+1.90), post-publication +2.10bp (t=+0.88, underpowered). On NQ futures at today's cost 2010–26: t=+3.59, Sharpe 0.85, but the registered 2010–22 holdout failed (net t=0.72) because historical micro-futures costs were 3–6× higher.",
+    "why": "The effect is real (right direction, stronger in bear markets) but it is small, and the pre-registered holdout failed. A stop-and-daily-cap variant (V2) is a paper-trade candidate only.",
+    "lesson": "A post-publication sample can be too short to confirm an effect that has not shrunk — compute the years needed before judging.",
+    "summary": "The Noise-Area momentum paper is the strongest intraday result we have found. The direction is real and holds up in bear markets, but the edge is small. It failed our pre-registered holdout, so for now it is a paper-trading candidate on Nasdaq futures, not a validated strategy.",
+    "variants": [
+      {
+        "name": "FTMO CFD screen (P032)",
+        "verdict": "NEAR_MISS",
+        "result": "5/6 criteria; failed only post-publication significance; ~5 more years needed."
+      },
+      {
+        "name": "US100-only leg",
+        "verdict": "REJECT",
+        "result": "+5.64bp t=+1.74 — promotion of one leg forbidden by the pre-registration."
+      },
+      {
+        "name": "NQ 1m registered holdout 2010–22",
+        "verdict": "REJECT",
+        "result": "Net t=0.72 (gross t=3.47)."
+      },
+      {
+        "name": "NQ at today's cost 2010–26 (post-holdout diagnostic)",
+        "verdict": "LEAD",
+        "result": "t=3.59, Sharpe 0.85; ES t=1.04."
+      },
+      {
+        "name": "Prop-safe V2: 1-min stop at band + −$800/day cap, 2 MNQ",
+        "verdict": "LEAD",
+        "result": "t=2.87, ~$3.9k/yr, P(pass) 34% vs 21% zero-edge null; 2025 a losing year."
+      }
+    ]
+  },
+  {
+    "id": "S015",
+    "slug": "concretum-orb-qqq-tqqq",
+    "title": "5-minute ORB on QQQ/TQQQ (Zarattini & Aziz 2023)",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "paper",
+    "source": "Zarattini & Aziz 2023, SSRN 4416622",
+    "source_url": "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4416622",
+    "paper": "P033",
+    "instruments": [
+      "QQQ",
+      "TQQQ"
+    ],
+    "products": [
+      "ETF"
+    ],
+    "timeframe": "5m opening range",
+    "data": "none — rejected at intake from the paper's own tables",
+    "tested": "2026-07-21",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Rejected at intake — the headline returns come from TQQQ leverage, and the paper's own max drawdown breaches a 10% prop cap.",
+    "why": "The unlevered result is modest, the mechanism was already exhausted on our venue, and the drawdown alone disqualifies it for a prop account.",
+    "lesson": null,
+    "summary": "The well-known Concretum 5-minute ORB paper gets its big numbers from 3× leveraged TQQQ. Its own drawdown figures would breach a standard prop-firm limit, so we did not build it.",
+    "variants": []
+  },
+  {
+    "id": "S016",
+    "slug": "vwap-holy-grail",
+    "title": "\"VWAP — The Holy Grail\" always-in-market QQQ trend",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "paper",
+    "source": "Zarattini & Aziz 2023, SSRN 4631351",
+    "source_url": null,
+    "paper": "P034",
+    "instruments": [
+      "QQQ",
+      "US100"
+    ],
+    "products": [
+      "ETF",
+      "CFD"
+    ],
+    "timeframe": "1m, flip on every close through VWAP",
+    "data": "QQQ 1m and FTMO US100 1m",
+    "tested": "2026-07-21",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "0 of 18 cells net-positive in either direction once realistic costs replace the paper's $0.0005/share and zero slippage.",
+    "why": "Flipping on every VWAP cross trades so often that costs swamp any trend premium.",
+    "lesson": null,
+    "summary": "The \"VWAP Holy Grail\" paper's +671% on QQQ assumed near-zero costs. With realistic costs, none of 18 variants made money in either direction.",
+    "variants": []
+  },
+  {
+    "id": "S017",
+    "slug": "reddit-1m-2m-orb-3r",
+    "title": "Reddit 1-min / 2-min ORB scalp at fixed 3:1",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "social",
+    "source": "A Reddit scalping post",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US500",
+      "US100",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1-second chart; tick data",
+    "data": "FTMO tick data (519 sessions US500) + 1m bars ~27 months",
+    "tested": "2026-08-04",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Win rate 26.1% [22.6–29.9%], mean +0.008R, t=+0.10. The claimed 34–36% win rate is outside the confidence interval.",
+    "why": "A 3:1 bracket wins ~25% of the time on a coin flip; the observed rate is the null. Break direction is real (TRUE−FADE +0.308R, t=+2.50) but smaller than the spread.",
+    "lesson": "Before believing any win rate on a fixed R:R bracket, compare it with 1/(1+RR).",
+    "summary": "A Reddit 1-minute ORB scalp at 3:1 claimed a 34–36% win rate. On real tick data it won 26% — exactly what a coin flip gives a 3:1 bracket. The breakout direction is real, but it is worth less than the spread.",
+    "variants": [
+      {
+        "name": "R:R 1:1 / 2:1 / 3:1 / 5:1",
+        "verdict": "REJECT",
+        "result": "Observed 48.5% / 33.6% / 26.1% / 15.6% vs random-walk 50 / 33.3 / 25 / 16.7%."
+      },
+      {
+        "name": "zero-cost venue",
+        "verdict": "REJECT",
+        "result": "Gross t=+1.57 — fails on futures too."
+      }
+    ]
+  },
+  {
+    "id": "S018",
+    "slug": "xauusd-ema-orb-london",
+    "title": "Gold London-session ORB with H1 EMA(50) trend filter",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "user",
+    "source": "My own discretionary plan",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "XAUUSD"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "15m ATR gate, 1m execution",
+    "data": "FTMO XAUUSD 1m, 2.03 years (391 trades)",
+    "tested": "2026-07-18",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Gross +0.447pt/trade but net indistinguishable from zero (t=+0.06, p=0.474); costs eat 90% of the gross edge.",
+    "why": "Same friction wall as the index ORBs, now on gold.",
+    "lesson": null,
+    "summary": "A London-session gold breakout with a trend filter made a little before costs; spreads ate 90% of it and left nothing measurable.",
+    "variants": []
+  },
+  {
+    "id": "S019",
+    "slug": "xauusd-prev-day-fib-breakout",
+    "title": "Gold previous-day high/low fib breakout",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "social",
+    "source": "A YouTube trading video",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "XAUUSD"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "daily levels, 1m execution",
+    "data": "FTMO XAUUSD 1m 2024-05→2026-06 (436 trades); 25y IBKR daily bracket (4,404 trades)",
+    "tested": "2026-07-19",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Gross −1.21pt/trade (t=−1.22) — negative before costs. Win rate 28.9% vs the 28.6% a 2.5R bracket needs to break even.",
+    "why": "The 0.10-range stop sits exactly where breakout retraces trade, and gap-through fills push losses past the nominal stop.",
+    "lesson": null,
+    "summary": "A YouTube gold breakout of the prior day's high and low lost money before costs. Its tight stop sits right where breakouts normally pull back.",
+    "variants": []
+  },
+  {
+    "id": "S020",
+    "slug": "vendor-5min-orb-es-playbook",
+    "title": "A vendor's \"5min ORB playbook on ES\" (claimed 72% win rate, +108% in 6 months)",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "vendor",
+    "source": "An ORB analytics vendor's marketing PDF",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US500",
+      "US100"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "5m opening range, target 50% / stop 100% of the range",
+    "data": "FTMO US500 / US100 1m 2024-05→2026-07 (2.2 years)",
+    "tested": "2026-08-22",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "US500 (the ES proxy): 544 trades, net −1.42pt/trade, t=−2.97, profit factor 0.72 — negative before costs. US100: net −0.34pt/trade, t=−0.13.",
+    "why": "Target and stop are fractions of each day's range, so average winners were only ~0.34× average losers; the 72% vs 66.7% break-even argument hides that skew. The claim came from one 6-month window with day-of-week filters fitted on it.",
+    "lesson": null,
+    "summary": "A vendor's 5-minute ORB for ES claimed a 72% win rate and +108% in six months. On two years of S&P data the same rule lost money before costs: winners were about a third the size of losers, which the win-rate pitch hides.",
+    "variants": [
+      {
+        "name": "exact stated rule",
+        "verdict": "REJECT",
+        "result": "US500 −1.42pt/trade t=−2.97; US100 −0.34pt t=−0.13."
+      },
+      {
+        "name": "vendor's 'no Tuesday breakouts' filter",
+        "verdict": "REJECT",
+        "result": "US500 still −1.42pt/trade — the filter does not transfer."
+      }
+    ]
+  },
+  {
+    "id": "S021",
+    "slug": "ib75-ending-zone",
+    "title": "Initial-balance breakout by rejection + \"ending zone\" (IB75 pullback)",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "vendor",
+    "source": "An ORB analytics vendor",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "QQQ",
+      "SPY",
+      "US100",
+      "US500"
+    ],
+    "products": [
+      "ETF",
+      "CFD"
+    ],
+    "timeframe": "1m, 09:30–10:30 initial balance",
+    "data": "QQQ/SPY 1m 2016–2024 (8.4y); FTMO CFD 2024–2026",
+    "tested": "2026-08-23",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "The directional bias is real — the first-formed side broke first in 79–86% of sessions vs a 25–29% baseline (p<0.0001). The mechanical 1:1R pullback trade won 45–54%, a coin flip.",
+    "why": "Waiting for the retrace to the 75% level throws away the information in the signal.",
+    "lesson": "A real session-level signal can still be untradeable if the entry rule resets the odds.",
+    "summary": "A vendor's \"ending zone\" observation is real — we reproduced it at 80–86% on four markets. But the trade taken off it (a pullback to the 75% level with a 1:1 target) wins about half the time, which is breakeven before costs.",
+    "variants": [
+      {
+        "name": "ending-zone directional bias",
+        "verdict": "LEAD",
+        "result": "85.3% QQQ, 79.4% SPY, 80.0% US100, 85.7% US500 vs 25–29% base."
+      },
+      {
+        "name": "IB75 limit entry / IB50 stop / 1:1R",
+        "verdict": "REJECT",
+        "result": "Win rate 53.8 / 52.0 / 45.0 / 50.0% — all p>0.15 vs 50%."
+      }
+    ]
+  },
+  {
+    "id": "S022",
+    "slug": "atr-fib-level-ladder",
+    "title": "ATR Fibonacci level ladder — gate, trigger box and chop-zone setups",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "vendor",
+    "source": "A trading-education site built on a popular public ATR-levels indicator",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "SPY",
+      "QQQ",
+      "US500",
+      "US100"
+    ],
+    "products": [
+      "ETF",
+      "CFD"
+    ],
+    "timeframe": "1m intraday, daily ATR levels",
+    "data": "SPY/QQQ 1m 2022-10→2026-08 (945 sessions); daily back to 2010",
+    "tested": "2026-09-02",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "16/16 tests reject. The site's statistics reproduce, but they are one-sided touch rates. \"Gate completes 62.5%\" becomes 35.2% as a trade vs a 38.2% coin flip (−0.058R, t=−1.66).",
+    "why": "A touch probability with no opposing stop is not a win rate; several headlines also pool days that open already past the level.",
+    "lesson": "Pooling gap-over days manufactured t=+19 on one test; a filter defined by what happens after entry cannot be traded.",
+    "summary": "This site's numbers are honest — we reproduced them. The problem is what they measure: how often price touches a level, with no stop on the other side. Scored as real trades, 16 of 16 setups were no better than a coin flip.",
+    "variants": [
+      {
+        "name": "Gate run 0.382→0.618 ATR",
+        "verdict": "REJECT",
+        "result": "35.22% vs 38.22% null, n=1,218."
+      },
+      {
+        "name": "Trigger box hold",
+        "verdict": "REJECT",
+        "result": "Reproduces (79.2% vs 82.2%) but is a touch rate, not a trade."
+      },
+      {
+        "name": "\"Clean runs hit 97%\"",
+        "verdict": "REJECT",
+        "result": "Only identifiable in hindsight; acting on invalidation −0.0045 ATR/trade."
+      },
+      {
+        "name": "Chop zone \"70% reverse\"",
+        "verdict": "REJECT",
+        "result": "42.0% / 33.2% vs 41.3% null — unequal distances."
+      },
+      {
+        "name": "Compression → expansion 83.7%",
+        "verdict": "REJECT",
+        "result": "56.2% from a tradeable entry."
+      },
+      {
+        "name": "ATR-based SPX premium selling",
+        "verdict": "PARKED",
+        "result": "Only the −1 ATR weekly put is positive — the known variance premium; needs SPXW quotes."
+      }
+    ]
+  },
+  {
+    "id": "S023",
+    "slug": "nq-30m-or-2m-ema-premarket-target",
+    "title": "NQ 30m OR → 10m close-out → 2m EMA(20) reclaim → pre-market target",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "user",
+    "source": "A setup I was sent",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "NQ",
+      "ES",
+      "YM"
+    ],
+    "products": [
+      "futures"
+    ],
+    "timeframe": "30m / 10m / 2m",
+    "data": "NQ 1m full Globex 2026-03-27→2026-09-23 (127 sessions, IBKR)",
+    "tested": "2026-09-24",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Net −0.195R/trade (t=−0.83); gross −0.103R — negative before costs; the reversed control is about the same.",
+    "why": "On 70 of 120 breakout days price was already past the pre-market extreme at entry, so the target rarely exists.",
+    "lesson": null,
+    "summary": "A multi-timeframe NQ setup targeting the pre-market high lost money before costs. On most days the pre-market level was already taken out before the setup even triggered.",
+    "variants": []
+  },
+  {
+    "id": "S024",
+    "slug": "user-ict-setups-highfreq-cycle",
+    "title": "Five ICT setups (Asian-range sweep, Silver Bullet, OR failed-break, S/D flip, EMA ribbon)",
+    "family": "ict-smc",
+    "family_title": "ICT / smart-money concepts (FVG, sweeps, SMT)",
+    "source_type": "user",
+    "source": "ICT setups I wanted tested",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m–15m intraday",
+    "data": "FTMO index CFD 1m",
+    "tested": "2026-06-22",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "All rejected — continuation or random direction matched or beat each setup, and none cleared the cost wall.",
+    "why": "The results are stop/target geometry, not a directional signal.",
+    "lesson": null,
+    "summary": "Four popular ICT intraday setups, including the Silver Bullet and the Asian-range sweep, showed no directional edge on index CFDs: trading them in reverse or at random did as well.",
+    "variants": [
+      {
+        "name": "London Asian-range sweep",
+        "verdict": "REJECT",
+        "result": "Direction-null geometry."
+      },
+      {
+        "name": "ICT Silver Bullet (10–11am displacement)",
+        "verdict": "REJECT",
+        "result": "Direction-null geometry."
+      },
+      {
+        "name": "5m-OR failed breakout",
+        "verdict": "REJECT",
+        "result": "Direction-null geometry (later re-classified as sub-spread — see S043)."
+      },
+      {
+        "name": "15m supply/demand flip",
+        "verdict": "REJECT",
+        "result": "Direction-null geometry."
+      },
+      {
+        "name": "EMA ribbon",
+        "verdict": "NOT_TESTED",
+        "result": "Not specified precisely enough to test."
+      }
+    ]
+  },
+  {
+    "id": "S025",
+    "slug": "liquidity-sweep-reversal",
+    "title": "Liquidity-sweep reversal — fade false breaks of PDH/PDL/ORH/ORL",
+    "family": "ict-smc",
+    "family_title": "ICT / smart-money concepts (FVG, sweeps, SMT)",
+    "source_type": "internal",
+    "source": "High-frequency intraday research cycle",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m intraday",
+    "data": "FTMO index CFD 1m",
+    "tested": "2026-06-22",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Continuation and random direction matched or beat the fade; net negative after costs.",
+    "why": "The apparent reversal is stop/target geometry, not information in the sweep.",
+    "lesson": null,
+    "summary": "Fading false breaks of the prior-day and opening-range highs and lows did no better than trading them the other way or at random, and lost money after spreads.",
+    "variants": []
+  },
+  {
+    "id": "S026",
+    "slug": "ict-turtle-soup",
+    "title": "ICT Turtle Soup — MSS-confirmed, EMA-filtered false-break fade",
+    "family": "ict-smc",
+    "family_title": "ICT / smart-money concepts (FVG, sweeps, SMT)",
+    "source_type": "social",
+    "source": "ICT community setup",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m intraday",
+    "data": "FTMO index CFD 1m",
+    "tested": "2026-06-27",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "0/3 pass. Continuation (the opposite side) beat the reversal with 98–99% win rates — a stop-geometry artefact.",
+    "why": "The high win rates belong to whichever side has the far stop, not to the ICT signal.",
+    "lesson": null,
+    "summary": "ICT's Turtle Soup setup showed no edge: trading the opposite direction won more often, and the near-100% win rates on both sides came from where the stops sit.",
+    "variants": []
+  },
+  {
+    "id": "S027",
+    "slug": "holo-h1-open-fade",
+    "title": "HOLO — fade false breaks of the day's highest/lowest H1 open",
+    "family": "ict-smc",
+    "family_title": "ICT / smart-money concepts (FVG, sweeps, SMT)",
+    "source_type": "social",
+    "source": "A long-running FX forum thread",
+    "source_url": null,
+    "paper": "P019",
+    "instruments": [
+      "EURUSD",
+      "GBPUSD",
+      "XAUUSD"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "H1 levels, M15 confirm, 1m execution",
+    "data": "FTMO 1m, 26 months (~525 trades/instrument)",
+    "tested": "2026-07-04",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Fade direction is right but sub-cost — EURUSD gross +$13.65 vs a $13.00 round trip (net t=+0.03); GBPUSD net −$10.59. The thread's own management falls to 28–47% win rate, t=−8.2 / −7.5 / −3.4.",
+    "why": "A real but tiny fade premium at intraday levels is smaller than the FX spread; the thread's BE/trail rules make it worse.",
+    "lesson": null,
+    "summary": "A long-running FX forum's \"Highest Open / Lowest Open\" fade points the right way, but the edge is smaller than the spread. Managed the way the thread describes, it loses heavily.",
+    "variants": []
+  },
+  {
+    "id": "S028",
+    "slug": "ict-smt-fvg-confluence",
+    "title": "ICT SMT divergence + FVG confluence (Reddit)",
+    "family": "ict-smc",
+    "family_title": "ICT / smart-money concepts (FVG, sweeps, SMT)",
+    "source_type": "social",
+    "source": "A Reddit day-trading post",
+    "source_url": null,
+    "paper": "P020",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1h / 1d, 1m execution",
+    "data": "FTMO CFD 1m, 27 months",
+    "tested": "2026-07-04",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "SMT divergence alone carries no information (US100 −$18.50/trade, opposite +$15.56). The full four-condition stack leaves 7 / 3 / 3 trades in 27 months, all net negative.",
+    "why": "The untested ingredient (SMT) is noise, and stacking conditions makes the setup too rare to evaluate.",
+    "lesson": null,
+    "summary": "SMT divergence between the Nasdaq and S&P carried no directional information. The full ICT stack produced only 13 trades in 27 months across three indices, all losing.",
+    "variants": []
+  },
+  {
+    "id": "S029",
+    "slug": "erl-irl-sweep-fvg-refill",
+    "title": "ERL → IRL liquidity sweep + FVG refill (Reddit \"market cycle\")",
+    "family": "ict-smc",
+    "family_title": "ICT / smart-money concepts (FVG, sweeps, SMT)",
+    "source_type": "social",
+    "source": "A Reddit 'strategy mechanics' post",
+    "source_url": null,
+    "paper": "P022",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m intraday",
+    "data": "FTMO CFD 1m 2024-05→2026-07, ~10k trades per instrument",
+    "tested": "2026-07-06",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Gross ≈0 on all three (US100 −0.32pt, US500 +0.01, US30 −0.11); net t=−7.8 / −9.9 / −6.9. Random matched or beat the rule.",
+    "why": "Swapping the fixed-R target for an FVG-refill target changes nothing; direction carries no information.",
+    "lesson": null,
+    "summary": "Sweeping external liquidity and targeting the nearest fair-value gap made nothing before costs on ~30,000 trades, and random entries did as well.",
+    "variants": []
+  },
+  {
+    "id": "S030",
+    "slug": "nq-sweep-mss-fvg-framework",
+    "title": "NQ sweep → market-structure shift → FVG framework",
+    "family": "ict-smc",
+    "family_title": "ICT / smart-money concepts (FVG, sweeps, SMT)",
+    "source_type": "vendor",
+    "source": "A free NQ framework from a trading-education site",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "QQQ",
+      "SPY",
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "ETF",
+      "CFD",
+      "futures cost model"
+    ],
+    "timeframe": "3m RTH",
+    "data": "QQQ/SPY 2022-11→2026-08; FTMO CFD 2024-05→2026-07 (1,837 trades)",
+    "tested": "2026-09-23",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Pooled gross +0.033R (t=+0.65) even at zero cost. On resolved trades it hit target 18.7% vs a 22.3% random-walk baseline (z=−3.25); US100 −0.24R, t=−2.53.",
+    "why": "It reaches its own structural target less often than a coin flip; the break-even look comes from trades timing out at the close.",
+    "lesson": "A time-stopped bracket must be scored on resolved trades only — the naive test read z=+8.42, a false pass.",
+    "summary": "A free sweep → market-structure shift → FVG framework reached its target less often than a coin flip would. It was flat even before costs, so trading it on cheaper futures would not help.",
+    "variants": [
+      {
+        "name": "09:00–10:30 CT 'kill zone'",
+        "verdict": "REJECT",
+        "result": "Worse than all-day (−0.011R)."
+      },
+      {
+        "name": "50% consequent-encroachment entry",
+        "verdict": "REJECT",
+        "result": "−0.0985R, worse than first touch."
+      },
+      {
+        "name": "premium/discount gate",
+        "verdict": "REJECT",
+        "result": "No change."
+      },
+      {
+        "name": "move stop to break-even",
+        "verdict": "REJECT",
+        "result": "+0.015R, t=+0.57."
+      },
+      {
+        "name": "NQ futures cost",
+        "verdict": "REJECT",
+        "result": "Flat before any cost — a cheaper venue cannot help."
+      }
+    ]
+  },
+  {
+    "id": "S031",
+    "slug": "nested-4h-15m-fvg",
+    "title": "Nested 4H → 15m FVG continuation (X post)",
+    "family": "ict-smc",
+    "family_title": "ICT / smart-money concepts (FVG, sweeps, SMT)",
+    "source_type": "social",
+    "source": "A popular X trading account",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30",
+      "XAUUSD",
+      "EURUSD",
+      "GBPUSD",
+      "BTCUSD"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "4H zones, 15m displacement + FVG, 1m execution",
+    "data": "FTMO CFD 1m 2024-05→2026-07",
+    "tested": "2026-09-03",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "2R arm: US100 −$10.88/trade (t=−0.19), US500 −$39.04 (t=−1.35); the opposite and random directions beat the rule on both primaries. 12 of 14 instrument × target cells REJECT_DIRECTION.",
+    "why": "The nested FVG entry has no directional information; the only positive cells (3R on EURUSD, BTCUSD) are thin and best-of-2.",
+    "lesson": null,
+    "summary": "Entering on a 15-minute FVG after price reacts from a 4-hour FVG lost money on the Nasdaq and S&P, and trading the opposite direction or at random did better.",
+    "variants": []
+  },
+  {
+    "id": "S032",
+    "slug": "wickless-candle-retest",
+    "title": "Wickless-candle liquidity-zone retest",
+    "family": "ict-smc",
+    "family_title": "ICT / smart-money concepts (FVG, sweeps, SMT)",
+    "source_type": "social",
+    "source": "A community liquidity-zone setup",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m intraday",
+    "data": "FTMO index CFD 1m",
+    "tested": "2026-06-26",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "PRIMARY failed on all three — OOS Sharpe US100 −1.73 (win 29.7%), US500 −0.37, US30 −4.14 (win 26%).",
+    "why": "Every configuration in the grid was cost-negative.",
+    "lesson": null,
+    "summary": "Trading retests of \"wickless\" candles as liquidity zones lost money on all three US indices at every setting we tried.",
+    "variants": []
+  },
+  {
+    "id": "S035",
+    "slug": "futures-intraday-battery",
+    "title": "Intraday paper rules on MES / MNQ for a futures prop account (paper battery)",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "paper",
+    "source": "User's 478-file paper library",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "SPY",
+      "QQQ (as MES / MNQ)"
+    ],
+    "products": [
+      "ETF",
+      "futures cost model"
+    ],
+    "timeframe": "1m intraday",
+    "data": "SPY/QQQ 1m 2022–2026",
+    "tested": "2026-09-26",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Market intraday momentum, three 5-minute ORB variants, VWAP trend, and gap follow / fade all rejected at futures costs.",
+    "why": "Same result as on CFDs — cheaper futures costs do not create an edge the rules do not have.",
+    "lesson": null,
+    "summary": "Re-testing the classic intraday rules from the academic literature on Nasdaq and S&P micro-futures costs changed nothing: none of them passed.",
+    "variants": [
+      {
+        "name": "market intraday momentum (MIM)",
+        "verdict": "REJECT",
+        "result": "Rejected at the screen."
+      },
+      {
+        "name": "ORB-5m, three variants",
+        "verdict": "REJECT",
+        "result": "Rejected at the screen."
+      },
+      {
+        "name": "VWAP trend",
+        "verdict": "REJECT",
+        "result": "Rejected at the screen."
+      },
+      {
+        "name": "gap follow / gap fade",
+        "verdict": "REJECT",
+        "result": "Rejected at the screen."
+      }
+    ]
+  },
+  {
+    "id": "S040",
+    "slug": "early-intraday-fades",
+    "title": "ORB fade, VWAP reversion (+HVN), RSI-extreme reversal",
+    "family": "intraday-mean-reversion",
+    "family_title": "Intraday fades & mean reversion",
+    "source_type": "internal",
+    "source": "Early project builds",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m intraday",
+    "data": "FTMO index CFD 1m",
+    "tested": "2026-01-15",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "All four rejected at the walk-forward gate — the signal is smaller than the spread on both indices.",
+    "why": "The intraday friction wall; fading a stretch back to VWAP or an RSI extreme does not pay for the round trip.",
+    "lesson": null,
+    "summary": "Four standard intraday fades — against the opening-range break, back to VWAP, at volume nodes, and at RSI extremes — all lost to the spread on the Nasdaq and S&P CFDs.",
+    "variants": [
+      {
+        "name": "orb_15m_fade",
+        "verdict": "REJECT",
+        "result": "Fade the opening-range break; no out-of-sample edge."
+      },
+      {
+        "name": "vwap_reversion",
+        "verdict": "REJECT",
+        "result": "Fade stretches from session VWAP; sub-spread."
+      },
+      {
+        "name": "vwap_reversion_hvn",
+        "verdict": "REJECT",
+        "result": "Same, only at high-volume nodes; sub-spread."
+      },
+      {
+        "name": "rsi_extreme_reversal",
+        "verdict": "REJECT",
+        "result": "Fade 1m RSI extremes; sub-spread."
+      }
+    ]
+  },
+  {
+    "id": "S041",
+    "slug": "eurusd-zscore-intraday-mr",
+    "title": "EURUSD 15-minute z-score mean reversion (Reddit)",
+    "family": "intraday-mean-reversion",
+    "family_title": "Intraday fades & mean reversion",
+    "source_type": "social",
+    "source": "A Reddit algo-trading post",
+    "source_url": null,
+    "paper": "P010",
+    "instruments": [
+      "EURUSD"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "15m",
+    "data": "FTMO EURUSD 15m",
+    "tested": "2026-06-17",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Screen thin (t=+1.12). Walk-forward OOS Sharpe −0.40 at the a-priori lookback and −1.14 at the in-sample best (TRAIN +1.17).",
+    "why": "The in-sample winner was an overfit; FX 15m does not escape the friction wall.",
+    "lesson": null,
+    "summary": "A Reddit z-score mean-reversion bot for EURUSD looked good in-sample (Sharpe +1.17) and lost out of sample at every setting.",
+    "variants": [
+      {
+        "name": "lookback 20 (fixed in advance)",
+        "verdict": "REJECT",
+        "result": "OOS Sharpe −0.40."
+      },
+      {
+        "name": "lookback 10 (best in-sample)",
+        "verdict": "REJECT",
+        "result": "TRAIN +1.17 → OOS −1.14."
+      }
+    ]
+  },
+  {
+    "id": "S042",
+    "slug": "low-vol-orb-fade",
+    "title": "Low-volatility-gated ORB fade (84% win rate curiosity)",
+    "family": "intraday-mean-reversion",
+    "family_title": "Intraday fades & mean reversion",
+    "source_type": "internal",
+    "source": "2026-06-16 regime diagnostic",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m, 15m opening range",
+    "data": "FTMO index CFD 1m",
+    "tested": "2026-06-16",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "OOS US100 +2.02 (96.6% win) and US500 +2.66, but US30 −0.65 → PRIMARY fail. Two-index sensitivity fails robustness: DSR 0.470, kurtosis 44.7.",
+    "why": "A short-gamma payoff — many small wins, rare large losses (US30 worst trade −$1,498) that a 6-month window had not yet drawn.",
+    "lesson": "A 96% win rate with fat tails is what selling insurance looks like before the claim arrives.",
+    "summary": "Fading the opening range on quiet days won 96% of the time on the Nasdaq out of sample — and still failed. It was collecting small premiums against rare large losses, and the Dow leg lost.",
+    "variants": []
+  },
+  {
+    "id": "S043",
+    "slug": "orb-5m-failed-breakout-fade",
+    "title": "5-minute OR failed-breakout fade — fixed-% risk, options, futures venue",
+    "family": "intraday-mean-reversion",
+    "family_title": "Intraday fades & mean reversion",
+    "source_type": "user",
+    "source": "A setup I was sent, re-tested",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30",
+      "QQQ",
+      "SPY"
+    ],
+    "products": [
+      "CFD",
+      "ETF",
+      "option",
+      "futures cost model"
+    ],
+    "timeframe": "1m, 5m opening range",
+    "data": "FTMO CFD 1.8y + QQQ/SPY 3.3y (3,024 trades)",
+    "tested": "2026-09-02",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Direction is real (wins 45.5% vs a 42.6% random-walk null, z=+3.52), but gross +0.0824R against 0.0808R of cost — a break-even multiplier of 1.02×. Net +0.0016R, +4.8R total vs a 182R drawdown.",
+    "why": "The edge is one spread wide and sits in tiny-wick setups that cannot be filled at the modelled price; with a 15%-of-range stop floor it is −0.0088R before any cost.",
+    "lesson": "A product wrapper multiplies edge and cost together; futures round trips are commission-dominated, so the saving is NQ-only and micros cost more per point than their parent.",
+    "summary": "Fading failed 5-minute opening-range breaks has a real directional edge — but it is almost exactly one spread wide. Options make it worse, and even Nasdaq futures are not cheap enough to rescue it.",
+    "variants": [
+      {
+        "name": "CFD, fixed-% risk",
+        "verdict": "REJECT",
+        "result": "Net +0.0016R, t=+0.05."
+      },
+      {
+        "name": "long 0/1/2 DTE options (QQQ/SPY, Black-Scholes)",
+        "verdict": "REJECT",
+        "result": "Strictly worse; 1DTE +0.42% on premium, t=+1.43 at zero cost; break-even $1.33/contract."
+      },
+      {
+        "name": "15%-of-range stop floor",
+        "verdict": "REJECT",
+        "result": "−0.0088R gross — negative at zero cost."
+      },
+      {
+        "name": "futures venue arithmetic (pre-registered, not run)",
+        "verdict": "REJECT",
+        "result": "Cheapest contract NQ at 32% of CFD cost vs a 19.6% drop-top-1 break-even — unreachable."
+      }
+    ]
+  },
+  {
+    "id": "S044",
+    "slug": "vwap-2sigma-cvd-absorption",
+    "title": "ES/NQ VWAP 2σ + CVD-absorption fade (Reddit)",
+    "family": "volume-order-flow",
+    "family_title": "Volume, breadth & order flow",
+    "source_type": "social",
+    "source": "A Reddit poster who quit software engineering to trade futures",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "SPY",
+      "QQQ"
+    ],
+    "products": [
+      "ETF"
+    ],
+    "timeframe": "1m / 5m / 30m confirmation",
+    "data": "SPY/QQQ 1m RTH 2022-11→2026-08 (326 trades)",
+    "tested": "2026-09-18",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Claimed 48% win / 3:1 / +0.92R. Measured 35.3% win, 1.58:1, profit factor 0.86, −0.067R net (+0.029R gross, t=+0.39). 0 of 36 sensitivity cells net-positive.",
+    "why": "The CVD divergence sits at the 90th percentile of random deltas, not above the 95th; by the time all three timeframes confirm, VWAP is only 1.29× the risk away.",
+    "lesson": null,
+    "summary": "A Reddit order-flow fade (VWAP 2σ plus cumulative-delta absorption) claimed +0.92R per trade. We rebuilt the delta from 1-minute data and measured −0.07R, with 0 of 36 variations profitable.",
+    "variants": []
+  },
+  {
+    "id": "S045",
+    "slug": "reddit-orderflow-mr-es-nq",
+    "title": "Reddit ES/NQ order-flow mean-reversion system (Hurst + DOM confluence)",
+    "family": "volume-order-flow",
+    "family_title": "Volume, breadth & order flow",
+    "source_type": "social",
+    "source": "A Reddit poster who quit software engineering to trade futures",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "intraday (source); daily (ported parts)",
+    "data": "FTMO CFD + 15y daily",
+    "tested": "2026-06-04",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Core inputs (order-book depth, liquidity heatmaps) cannot be rebuilt from quote-only CFD data. The two price-only parts, ported to daily: Hurst gate inverted; RV-z 2σ entry DSR 0.93 < 0.95.",
+    "why": "The edge, if any, is in order-book data this venue does not supply; what can be tested does not pass.",
+    "lesson": null,
+    "summary": "A popular Reddit order-flow system depends on order-book data that CFD feeds do not provide. The parts we could test — a Hurst regime filter and a volatility-scaled z-score — did not pass.",
+    "variants": [
+      {
+        "name": "full system (DOM / order-book confluence)",
+        "verdict": "NOT_TESTED",
+        "result": "Venue-locked — no order-book data."
+      },
+      {
+        "name": "Hurst regime gate on daily reversal",
+        "verdict": "REJECT",
+        "result": "Inverted vs the hypothesis across windows 64/128/256."
+      },
+      {
+        "name": "RV-normalised z 2σ daily entry",
+        "verdict": "REJECT",
+        "result": "Walk-forward DSR 0.93 < 0.95, sunk by swap."
+      }
+    ]
+  },
+  {
+    "id": "S046",
+    "slug": "discovery-intraday-reversal-sub-spread",
+    "title": "Systematic discovery — intraday FX and crypto bar patterns (Runs 003–005)",
+    "family": "intraday-mean-reversion",
+    "family_title": "Intraday fades & mean reversion",
+    "source_type": "internal",
+    "source": "Clean-slate discovery engine",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "EURUSD",
+      "GBPUSD",
+      "USDJPY",
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "products": [
+      "FX",
+      "crypto"
+    ],
+    "timeframe": "15m FX (14.4y), 30m crypto (8.9y)",
+    "data": "IBKR 15m FX; Binance 30m crypto; holdout 2023→2026",
+    "tested": "2026-08-10",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "7 of 9 patterns reproduced out of sample (EURUSD t=12 in-sample; holdout t=3.2–5.6), but every one was 4–13× short of the spread. The edge is a one-time shift, flat from 1 to 96 bars.",
+    "why": "Short-horizon reversal is real and is bid-ask bounce — by definition uncapturable. Passive limit entry was worse (adverse selection).",
+    "lesson": "Report \"does it repeat\" and \"does it pay\" separately — they are different questions.",
+    "summary": "Short-term reversal in FX and crypto is one of the most reliable patterns we have measured — it repeated out of sample in 7 of 9 cases. It is also 4–13 times smaller than the spread, because it is mostly the bid-ask bounce itself.",
+    "variants": [
+      {
+        "name": "Run 003 — 205 intraday conditions",
+        "verdict": "REJECT",
+        "result": "7/9 reproduce OOS; 0 beat the spread."
+      },
+      {
+        "name": "Run 004 — holding horizon and selectivity",
+        "verdict": "REJECT",
+        "result": "Flat 1→96 bars; 15 train positives, 0 OOS."
+      },
+      {
+        "name": "Run 005 — passive limit entry",
+        "verdict": "REJECT",
+        "result": "Worse than crossing before any cost."
+      }
+    ]
+  },
+  {
+    "id": "S047",
+    "slug": "btc-gold-intraday-overextension",
+    "title": "Bitcoin and gold intraday overextension reversion",
+    "family": "intraday-mean-reversion",
+    "family_title": "Intraday fades & mean reversion",
+    "source_type": "internal",
+    "source": "Diversifier search (frequent round-trips)",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "BTCUSD",
+      "XAUUSD"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m / 1h",
+    "data": "2y FTMO 1m, stressed spreads",
+    "tested": "2026-06-05",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Bitcoin hourly autocorrelation ≈0 (t≈0.3–0.6), edge entirely in 2026; gold ~zero gross edge against a $40 round trip.",
+    "why": "The intraday friction wall extends to crypto and gold.",
+    "lesson": null,
+    "summary": "Fading big intraday moves in Bitcoin and gold did not work: there was no measurable reversion in Bitcoin and nothing before costs in gold.",
+    "variants": []
+  },
+  {
+    "id": "S050",
+    "slug": "daily-reversal-connors-rsi2",
+    "title": "Daily RSI(2) dip-buy on US index CFDs (daily_reversal)",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "paper",
+    "source": "Connors & Alvarez 2008; Jegadeesh 1990",
+    "source_url": null,
+    "paper": "P002",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1d, multi-day hold",
+    "data": "15y IBKR/MT5 deep daily; real FTMO swap rates",
+    "tested": "2026-06-03",
+    "verdict": "PASS",
+    "verdict_label": "✅ Passed the full gate",
+    "headline": "Second strategy to clear the full gate. OOS pooled Sharpe +0.547 (3/3 positive), drawdown 1.81%, drop-top-1 survives, DSR 0.995 after adding real overnight swap. ~9–28 trades/yr.",
+    "why": "A long-documented short-term reversal premium in US equity indices that survives costs because the hold is multi-day.",
+    "lesson": null,
+    "summary": "Buying the Nasdaq, S&P and Dow after a sharp two-day drop (RSI(2) oversold) and holding a few days passed our full out-of-sample test, including real overnight financing costs.",
+    "variants": [
+      {
+        "name": "RSI(2) < 5 / 10 / 15 entry sweep",
+        "verdict": "PASS",
+        "result": "Pre-registered 3-value sweep; DSR computed against it."
+      },
+      {
+        "name": "SMA(200) trend filter on",
+        "verdict": "REJECT",
+        "result": "Worse than no filter; shipped without it."
+      },
+      {
+        "name": "re-verified with real swap (2026-07-10)",
+        "verdict": "PASS",
+        "result": "OOS Sharpe +0.547, DSR 0.995."
+      }
+    ]
+  },
+  {
+    "id": "S051",
+    "slug": "dip-intraday",
+    "title": "Same-day dip leg — long open→close the morning after RSI(2) < 5 (dip_intraday)",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "internal",
+    "source": "40-condition same-day sweep",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m intraday, open→close",
+    "data": "deep daily + 2.1y FTMO CFD 1m venue confirm",
+    "tested": "2026-07-02",
+    "verdict": "CANDIDATE",
+    "verdict_label": "🟡 Hard gate passed, robustness marginal",
+    "headline": "All six hard criteria pass (OOS t=+3.08, crash-guard DD 2.46%, direction TRUE +18.2bp ≫ FADE −22.0); DSR marginal under program-level deflation. 100% of its days are daily_reversal holding days.",
+    "why": "The same edge without the overnight hold — an alternative expression, not additional alpha.",
+    "lesson": "The sweep's #1 signal (gap continuation) vanished on real CFD opens — cash-index daily opens are stale prints.",
+    "summary": "The same oversold-dip signal, traded only from the next day's open to its close, passes every hard test but falls just short on our strictest robustness measure. It is the same edge as the multi-day version, just without the overnight risk.",
+    "variants": [
+      {
+        "name": "RSI(2) < 5 fixed a priori",
+        "verdict": "CANDIDATE",
+        "result": "All hard criteria pass; DSR 0.96–0.98 mechanism-level, 0.85–0.88 at n=40."
+      },
+      {
+        "name": "tight 1% stop",
+        "verdict": "REJECT",
+        "result": "Fires on ~30% of dip days and destroys the edge."
+      },
+      {
+        "name": "gap-continuation (sweep #1)",
+        "verdict": "REJECT",
+        "result": "Stale-open artefact in cash-index daily bars."
+      }
+    ]
+  },
+  {
+    "id": "S052",
+    "slug": "prior-day-fade-every-day",
+    "title": "Fade the prior session every day (prior_day_fade)",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "internal",
+    "source": "Top rule of the 134-test time-of-day sweep",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "open→close every session",
+    "data": "FTMO index CFD 1m + deep daily",
+    "tested": "2026-07-04",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "TRAIN Sharpe +0.87 → OOS US100 −1.26, US500 −2.40.",
+    "why": "The reversal premium exists only at the oversold extreme, never unconditionally every day.",
+    "lesson": null,
+    "summary": "Fading yesterday's direction every single day looked good in-sample and lost out of sample. The reversal effect only shows up after unusually sharp drops.",
+    "variants": []
+  },
+  {
+    "id": "S053",
+    "slug": "iv-gated-dip-buy",
+    "title": "Implied-vol-gated dip-buy",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "vendor",
+    "source": "A trading-education blog (same author as S006)",
+    "source_url": null,
+    "paper": "P014",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1d",
+    "data": "15y IBKR daily; CBOE VXN/VIX/VXD as the IV proxy",
+    "tested": "2026-06-21",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Real alpha (TRUE +$30.99/trade t=+1.88 > RANDOM +$8.84 > FADE −$30.33) but return correlation +0.83 to +0.94 with daily_reversal.",
+    "why": "A higher-frequency restatement of the same edge, and worse in crashes (US30 −629 pts below the 200-day average vs +128 for daily_reversal).",
+    "lesson": null,
+    "summary": "Gating dip-buys on implied volatility produced a real edge, but it was the same edge as plain RSI(2) dip-buying and did worse in crashes — the opposite of the author's claim.",
+    "variants": []
+  },
+  {
+    "id": "S054",
+    "slug": "buy-the-dip-index",
+    "title": "\"Buy the Dip\" — close > SMA200 + RSI(5) < 20, hold 5 days, on indices",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "vendor",
+    "source": "A trading-education blog (same author as S006)",
+    "source_url": null,
+    "paper": "P015",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1d",
+    "data": "15y IBKR daily (n=248 pooled)",
+    "tested": "2026-06-21",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Edge real (+74.2bp/trade, t=+5.00; ATR-strength claim replicates) but correlated with daily_reversal (0.41–0.70) and lower frequency.",
+    "why": "The SMA200 filter avoids bear markets by not trading them, rather than improving bear-market results.",
+    "lesson": null,
+    "summary": "The classic \"buy the dip above the 200-day\" rule works on index CFDs (+74bp per trade), but it is a slower, correlated version of RSI(2) dip-buying rather than a new edge.",
+    "variants": []
+  },
+  {
+    "id": "S055",
+    "slug": "buy-the-dip-cross-sectional-stocks",
+    "title": "\"Buy the Dip\" on 260 US single stocks (IBKR, the article's native design)",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "vendor",
+    "source": "A trading-education blog (same author as S006)",
+    "source_url": null,
+    "paper": "P015",
+    "instruments": [
+      "US single stocks (260)",
+      "SPY"
+    ],
+    "products": [
+      "stock"
+    ],
+    "timeframe": "1d, 5-day hold",
+    "data": "IBKR daily 2010→2026, TRAIN/TEST split",
+    "tested": "2026-08-20",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Edge real (DSR 0.972, TRUE +32.2bp > RANDOM +16.9 > FADE −44.3) but portfolio Sharpe 0.56 vs SPY 0.73; CAPM alpha +2.65%/yr at t=0.47.",
+    "why": "It does not beat buy-and-hold, and Sharpe is leverage-invariant so sizing up cannot fix it. The edge also lives in survivors.",
+    "lesson": "The first result where cost was not the binding constraint — the strategy failed on merit.",
+    "summary": "Buying oversold US stocks works — but over 2010–2026 it earned less than just holding SPY, with a similar amount of risk. Its genuine strength is defence: in 2022 it lost 9.7% against SPY's 19.5%.",
+    "variants": [
+      {
+        "name": "ATR-selectivity (top decile)",
+        "verdict": "LEAD",
+        "result": "Replicates OOS (+117bp top-bottom, t=+3.13) but higher mean comes with higher risk."
+      },
+      {
+        "name": "article's $1,000/trade sizing",
+        "verdict": "REJECT",
+        "result": "IBKR $0.35 minimum makes it cost-hostile (Sharpe 0.37)."
+      }
+    ]
+  },
+  {
+    "id": "S056",
+    "slug": "reddit-momentum-universe-dips",
+    "title": "Reddit momentum-universe dip-buy (re-rank every 2 weeks, buy RSI dips)",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "social",
+    "source": "A Reddit algo-trading post",
+    "source_url": null,
+    "paper": "P009",
+    "instruments": [
+      "US stock CFDs"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1d, ~3.5-day hold",
+    "data": "FTMO stock-CFD universe probe",
+    "tested": "2026-06-15",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Only 26 long-tradeable US stock CFDs on FTMO vs a pre-registered floor of ~30. No edge work done.",
+    "why": "The venue was too thin for a cross-sectional ranking; the mechanism itself was not refuted (see S057).",
+    "lesson": null,
+    "summary": "We could not test this Reddit stock-ranking strategy on FTMO: the broker lists too few US stocks for a cross-sectional ranking to make sense.",
+    "variants": []
+  },
+  {
+    "id": "S057",
+    "slug": "xs-stock-reversal",
+    "title": "Cross-sectional short-term reversal on US large-caps (46 FTMO stock CFDs)",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "paper",
+    "source": "Jegadeesh 1990; Lehmann 1990; de Groot, Huij & Zhou 2012",
+    "source_url": null,
+    "paper": "P024",
+    "instruments": [
+      "US single-stock CFDs (44)"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1d, 1–5-day hold",
+    "data": "median 15y IBKR daily",
+    "tested": "2026-07-11",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Strongest Step-0 net signal catalogued: +53.5bp/trade (t=+4.89, n=1,607), positive 14/15 years. Failed on distinctiveness (corr +0.669 with daily_reversal) and frequency (112 entries/yr < 250).",
+    "why": "Real but redundant — 31% of entries fall on index dip days and carry most of the profit.",
+    "lesson": null,
+    "summary": "Buying oversold large-cap stocks produced one of the strongest signals we have measured (+53bp per trade, positive in 14 of 15 years) — but it mostly fires on the same days as index dip-buying, so it adds little.",
+    "variants": [
+      {
+        "name": "momentum-tier (pre-registered)",
+        "verdict": "REJECT",
+        "result": "+53.5bp t=+4.89; redundant and too infrequent."
+      },
+      {
+        "name": "all names",
+        "verdict": "REJECT",
+        "result": "276/yr but corr +0.832 and negative at 2× cost."
+      },
+      {
+        "name": "idiosyncratic days only",
+        "verdict": "REJECT",
+        "result": "Distinct by construction but negative at 2× cost."
+      }
+    ]
+  },
+  {
+    "id": "S058",
+    "slug": "daily-reversal-fx-gold-crypto",
+    "title": "Daily RSI(2) reversal on FX, gold and Bitcoin",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "internal",
+    "source": "Extension of daily_reversal to non-index instruments",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "XAUUSD",
+      "EURUSD",
+      "GBPUSD",
+      "BTCUSD"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1d",
+    "data": "IBKR/MT5 daily; BTCUSD 8.8y; real FTMO swap rates",
+    "tested": "2026-07-12",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Pooled net +3.85bp (t=+0.26), EURUSD/GBPUSD negative. BTCUSD alone passed PRIMARY (+80.56bp/trade) but drawdown 29.14% vs a 15% cap and DSR 0.582.",
+    "why": "The premium is a US-equity phenomenon; Bitcoin's version is real but its fat tails breach any prop drawdown limit.",
+    "lesson": null,
+    "summary": "The RSI(2) dip-buy did not carry over to FX or gold. On Bitcoin it made money but with drawdowns of 22–33%, far beyond what a prop account allows.",
+    "variants": [
+      {
+        "name": "first pass on gold / FX / BTC (2026-06-05)",
+        "verdict": "REJECT",
+        "result": "All thin, t 0.1–1.4; catastrophic loss years in each."
+      },
+      {
+        "name": "4-instrument pooled screen",
+        "verdict": "REJECT",
+        "result": "+3.85bp t=+0.26; re-run on rebuilt FX bars +7.14bp t=+0.42."
+      },
+      {
+        "name": "BTCUSD walk-forward",
+        "verdict": "REJECT",
+        "result": "TEST +80.56bp t=+1.24, DD 29.14%, DSR 0.582."
+      },
+      {
+        "name": "BTCUSD regime-gated v2",
+        "verdict": "REJECT",
+        "result": "DD 22–33%, DSR 0.328."
+      }
+    ]
+  },
+  {
+    "id": "S059",
+    "slug": "daily-reversal-international-indices",
+    "title": "Daily RSI(2) reversal on GER40, UK100, JP225, US2000",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "internal",
+    "source": "Extension of daily_reversal to non-US indices",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "GER40",
+      "UK100",
+      "JP225",
+      "US2000"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1d",
+    "data": "MT5 daily 2017-12→2026-07; IBKR N225 2012–2017 for JP225 confirmation",
+    "tested": "2026-07-11",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Pooled +3.45bp (t=+0.17), 1/4 legs positive; bear years invert (GER40 −110bp, US2000 −126bp). JP225 +58bp (t=+1.74) but pooled 14.5y t=+1.67 < the 2.50 multiplicity bar.",
+    "why": "The reversal premium does not travel outside US large-cap indices on this venue.",
+    "lesson": null,
+    "summary": "RSI(2) dip-buying on the DAX, FTSE, Nikkei and Russell 2000 did not work; in bear years it lost money. Japan came closest but fell short of our bar for a best-of-four pick.",
+    "variants": [
+      {
+        "name": "4-index screen",
+        "verdict": "REJECT",
+        "result": "3-of-5 criteria fail."
+      },
+      {
+        "name": "JP225 independent confirmation",
+        "verdict": "REJECT",
+        "result": "Unseen 2012–17 slice +74bp t=+2.16, but pooled t=+1.67 < 2.50."
+      },
+      {
+        "name": "JP225 walk-forward",
+        "verdict": "REJECT",
+        "result": "Venue-proxy gate failed."
+      }
+    ]
+  },
+  {
+    "id": "S060",
+    "slug": "connors-rsi2-equity-etfs",
+    "title": "Connors RSI(2) < 5 / exit RSI(2) > 70 on SPY, QQQ, IWM, DIA (cash ETFs)",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "user",
+    "source": "A classic rule I wanted tested (Connors RSI(2))",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "SPY",
+      "QQQ",
+      "IWM",
+      "DIA"
+    ],
+    "products": [
+      "ETF"
+    ],
+    "timeframe": "1d",
+    "data": "IBKR daily, TRAIN 2010-08→2020-12, TEST 2021-01→2026-08",
+    "tested": "2026-08-29",
+    "verdict": "PASS",
+    "verdict_label": "✅ Passed the full gate",
+    "headline": "PRIMARY 4/4 legs positive, DSR 1.000, drop-top-1 survives. Blended Sharpe beats buy-and-hold on SPY (0.92 vs 0.85), QQQ (0.85 vs 0.77), IWM (0.94 vs 0.45), ties DIA — at about a third of the drawdown.",
+    "why": "Same premium as daily_reversal, on a venue with no spread or swap; the four legs are one correlated bet.",
+    "lesson": "Caveats — ~27–42 TEST trades per leg, no stop tested, filter choice made in-session.",
+    "summary": "The textbook Connors RSI(2) rule on SPY, QQQ, IWM and DIA beat buy-and-hold on a risk-adjusted basis from 2021 to 2026, with roughly a third of the drawdown, while invested only 11–14% of the time.",
+    "variants": [
+      {
+        "name": "SMA(200) filter off (selected)",
+        "verdict": "PASS",
+        "result": "Beats buy-and-hold Sharpe on 3/4 legs."
+      },
+      {
+        "name": "SMA(200) filter on",
+        "verdict": "REJECT",
+        "result": "Lower TRAIN Sharpe."
+      }
+    ]
+  },
+  {
+    "id": "S061",
+    "slug": "long-equity-daily-rules-battery",
+    "title": "Long-equity daily rules on index futures (paper battery)",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "paper",
+    "source": "User's 478-file paper library (Connors, Micaletti, Huck and others)",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "ES",
+      "NQ (ETF proxies)"
+    ],
+    "products": [
+      "futures",
+      "ETF"
+    ],
+    "timeframe": "1d",
+    "data": "ETF proxies 2010–2026",
+    "tested": "2026-09-26",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Raw t≈2.1–2.4, but alpha over volatility-scaled buy-and-hold t=0.4–1.3.",
+    "why": "On a futures prop account these rules are mostly index beta, not edge.",
+    "lesson": null,
+    "summary": "Several published \"buy the index\" daily rules looked significant on their own, but once compared with simply holding the index at the same risk, their extra return was not distinguishable from zero.",
+    "variants": [
+      {
+        "name": "RSI(2) dip",
+        "verdict": "REJECT",
+        "result": "Beta, not alpha, once benchmarked."
+      },
+      {
+        "name": "buy after a red day",
+        "verdict": "REJECT",
+        "result": "Beta, not alpha."
+      },
+      {
+        "name": "Micaletti MTSI",
+        "verdict": "REJECT",
+        "result": "Beta, not alpha."
+      },
+      {
+        "name": "Huck day-of-week rotation",
+        "verdict": "REJECT",
+        "result": "Beta, not alpha."
+      }
+    ]
+  },
+  {
+    "id": "S070",
+    "slug": "turn-of-month-intraday",
+    "title": "Turn-of-month intraday long (tom_intraday)",
+    "family": "calendar-events",
+    "family_title": "Calendar, session & event effects",
+    "source_type": "paper",
+    "source": "Ariel 1987; McConnell & Xu 2008",
+    "source_url": null,
+    "paper": "P001",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m, RTH open→close on the last 1 + first 3 trading days of the month",
+    "data": "FTMO index CFD 1m + deep daily; OOS 2025-10→2026-05",
+    "tested": "2026-06-03",
+    "verdict": "PASS",
+    "verdict_label": "✅ Passed the full gate",
+    "headline": "First strategy to clear the full gate. OOS pooled Sharpe +0.341 (above TRAIN), 3/3 instruments positive, drawdown 1.01%, DSR 0.993. Non-turn-of-month days ≈0bp.",
+    "why": "Month-boundary pension/salary flow gives a mechanical reason to persist. Caution — the 2026-09 paper battery found the daily-bar version failed an untouched 2010–22 holdout.",
+    "lesson": null,
+    "summary": "Buying the US indices at the open and selling at the close around the turn of each month passed our full out-of-sample test. The effect is concentrated in those days — the rest of the month is flat.",
+    "variants": [
+      {
+        "name": "first_n = 3 (selected from 2/3/4)",
+        "verdict": "PASS",
+        "result": "OOS Sharpe +0.341; N*=3 at every split fraction 0.55–0.80."
+      },
+      {
+        "name": "stopped variant (live sizing)",
+        "verdict": "PASS",
+        "result": "Stop added for sizing; same mechanism."
+      },
+      {
+        "name": "meanrev / Hurst regime gate (v2)",
+        "verdict": "NEAR_MISS",
+        "result": "Sharpe +0.449, DSR 0.969 — but kept 43% of trades vs a 50% floor."
+      },
+      {
+        "name": "open→close on daily bars, 2010–22 holdout (paper battery)",
+        "verdict": "REJECT",
+        "result": "Failed the untouched holdout — a warning, not a verdict on the 1m rule."
+      }
+    ]
+  },
+  {
+    "id": "S071",
+    "slug": "monday-intraday-weekend-effect",
+    "title": "Monday open→close long (weekend effect, intraday leg)",
+    "family": "calendar-events",
+    "family_title": "Calendar, session & event effects",
+    "source_type": "internal",
+    "source": "Calendar-flow expansion screen",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m, Monday RTH open→close",
+    "data": "15y deep daily + FTMO CFD 1m",
+    "tested": "2026-06-22",
+    "verdict": "CANDIDATE",
+    "verdict_label": "🟡 Hard gate passed, robustness marginal",
+    "headline": "+$9.42/trade, t=3.14 over 15 years; PRIMARY 3/3 OOS, 1%-stop DD 3.5%, drop-top-1 survives. DSR marginal (0.914 at n=5) once picking the best of five weekdays is accounted for.",
+    "why": "Borderline by construction — ~8–18 years of data are needed to reach t=2, and we have 16.",
+    "lesson": null,
+    "summary": "US indices have tended to rise from Monday's open to its close over 15 years. It passes our hard tests, but after correcting for picking the best of five weekdays the evidence is borderline.",
+    "variants": [
+      {
+        "name": "Monday-only intraday",
+        "verdict": "CANDIDATE",
+        "result": "Hard gate passes; DSR 0.914 / 0.732 / 0.392 at n=5 / 11 / 35."
+      },
+      {
+        "name": "close-to-close day-of-week",
+        "verdict": "REJECT",
+        "result": "Weekend-gap leg −$2.57/trade offsets the intraday leg."
+      },
+      {
+        "name": "ISDL — Monday OR turn-of-month OR RSI(2) dip, every qualifying day",
+        "verdict": "REJECT",
+        "result": "12–27% FTMO max-loss breach risk; DSR 0.85–0.93."
+      },
+      {
+        "name": "Monday open→close, 2010–22 holdout (paper battery)",
+        "verdict": "REJECT",
+        "result": "Only FDR survivor of 52 trials; failed the untouched holdout (t ≤ 0.94)."
+      }
+    ]
+  },
+  {
+    "id": "S072",
+    "slug": "monday-0600-et-claim",
+    "title": "\"Buy ES Monday 06:00 ET, sell 16:00 ET\" claim",
+    "family": "calendar-events",
+    "family_title": "Calendar, session & event effects",
+    "source_type": "vendor",
+    "source": "A well-known futures trader's claim",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US500",
+      "SPY",
+      "QQQ"
+    ],
+    "products": [
+      "CFD",
+      "ETF"
+    ],
+    "timeframe": "1m",
+    "data": "16y SPY/QQQ daily; FTMO US500 1m incl. off-hours bars",
+    "tested": "2026-09-08",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "The 06:00 leg measured +$2,040/Monday (t=+2.74) — about 20 index points of which was a CFD quoting step at 09:30 ET (+27.75bp in one minute). The RTH part is the known Monday effect; after correcting for best-of-5 weekdays, p=0.61 (SPY) / 0.090 (QQQ).",
+    "why": "The novel part was a data artefact; the rest was already known and borderline.",
+    "lesson": "Profile a suspected level offset minute by minute before trusting a two-point decomposition; when scanning many buckets, gate on effect size — max |t| over 1,380 buckets reaches 4 by chance 14% of the time.",
+    "summary": "A \"buy ES at 6am Monday\" claim looked significant, but most of the pre-market profit was a quoting artefact in the CFD data at the 9:30 open. The regular-hours part is the familiar Monday effect, and it is borderline once you account for picking the best day of the week.",
+    "variants": []
+  },
+  {
+    "id": "S073",
+    "slug": "pre-fomc-drift",
+    "title": "Pre-FOMC overnight drift (Lucca & Moench)",
+    "family": "calendar-events",
+    "family_title": "Calendar, session & event effects",
+    "source_type": "paper",
+    "source": "Lucca & Moench 2015",
+    "source_url": null,
+    "paper": "P006",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1m, close before FOMC day → next open",
+    "data": "90 FOMC events 2015–2026 (IBKR daily); FTMO CFD 1m",
+    "tested": "2026-06-10",
+    "verdict": "CANDIDATE",
+    "verdict_label": "🟡 Hard gate passed, robustness marginal",
+    "headline": "Drift alive in the overnight gap into FOMC day (US100 +27.5bp t=4.04, US500 +14.0bp t=3.74). Gate: TEST drawdown 0.90%, direction TRUE +6.65bp ≫ RANDOM −3.28; DSR 0.886 — one event carries 62% of TEST profit.",
+    "why": "A documented pre-announcement premium; only ~8 trades a year, so the sample is thin.",
+    "lesson": null,
+    "summary": "US indices have tended to gap up overnight into Federal Reserve announcement days. The effect is strong in the data but happens only about eight times a year, so one event dominates the recent sample.",
+    "variants": [
+      {
+        "name": "faithful 24h pre-announcement window (1m)",
+        "verdict": "REJECT",
+        "result": "Thin, n=16."
+      },
+      {
+        "name": "overnight gap into announcement day",
+        "verdict": "CANDIDATE",
+        "result": "Hard criteria pass; DSR 0.886."
+      },
+      {
+        "name": "2-day daily-bar approximation",
+        "verdict": "REJECT",
+        "result": "Dilutes the edge materially."
+      }
+    ]
+  },
+  {
+    "id": "S074",
+    "slug": "month-of-year-seasonality",
+    "title": "Month-of-year long (April / July / November)",
+    "family": "calendar-events",
+    "family_title": "Calendar, session & event effects",
+    "source_type": "paper",
+    "source": "Bouman & Jacobsen 2002",
+    "source_url": null,
+    "paper": "P003",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1d, whole-month hold",
+    "data": "deep daily",
+    "tested": "2026-06-04",
+    "verdict": "SHELVED",
+    "verdict_label": "⏸️ Passed, then shelved",
+    "headline": "Cleared the alpha gate (net Sharpe +0.379, 3/3, DSR 0.972) but ~2 trades/yr and large intra-month drawdown; standalone P(pass) ~27%.",
+    "why": "Low frequency, correlated with the long-equity book, and it lowered the combined book's pass probability.",
+    "lesson": null,
+    "summary": "Holding US indices only in April, July and November passed our statistical test, but with two trades a year and big swings inside the month it was not useful for a prop challenge.",
+    "variants": []
+  },
+  {
+    "id": "S075",
+    "slug": "macro-announcement-premium",
+    "title": "Scheduled macro-announcement premium (FOMC + CPI + NFP days)",
+    "family": "calendar-events",
+    "family_title": "Calendar, session & event effects",
+    "source_type": "paper",
+    "source": "Savor & Wilson 2013; Lucca & Moench 2015; Ai & Bansal 2018",
+    "source_url": null,
+    "paper": "P025",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1d, close→close on release days",
+    "data": "369 event days 2015→2026, deep daily",
+    "tested": "2026-07-11",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Event days +5.80bp vs unconditional +5.69bp (Welch t=+0.03); negative since 2021; 0/5 criteria.",
+    "why": "A post-publication death of the 1958–2009 result; only the FOMC overnight leg (S073) survives.",
+    "lesson": null,
+    "summary": "The academic \"announcement-day premium\" — stocks earning far more on CPI, jobs and Fed days — was absent in 2015–2026 data. Announcement days returned the same as any other day.",
+    "variants": []
+  },
+  {
+    "id": "S076",
+    "slug": "option-expiration-week",
+    "title": "Option-expiration week premium (third-Friday week)",
+    "family": "calendar-events",
+    "family_title": "Calendar, session & event effects",
+    "source_type": "paper",
+    "source": "Stivers & Sun 2013",
+    "source_url": null,
+    "paper": "P029",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1d",
+    "data": "15y IBKR daily (2,649 pooled OE sessions); FTMO CFD confirm",
+    "tested": "2026-07-18",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "OE days +0.97bp vs non-OE +3.68bp (t=−1.38); a random week beats the OE week; 0/6 criteria; the \"weak fourth week\" is the best week.",
+    "why": "Absent to inverted at index level, and dead since 2021.",
+    "lesson": null,
+    "summary": "The idea that stocks do well in options-expiration week did not hold for US indices over 15 years — a randomly chosen week did better.",
+    "variants": []
+  },
+  {
+    "id": "S077",
+    "slug": "pre-holiday-effect",
+    "title": "Pre-holiday effect (day before US market holidays)",
+    "family": "calendar-events",
+    "family_title": "Calendar, session & event effects",
+    "source_type": "paper",
+    "source": "Ariel 1990; Lakonishok & Smidt 1988",
+    "source_url": null,
+    "paper": "P030",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1d",
+    "data": "15y IBKR daily, 420 pooled pre-holiday sessions",
+    "tested": "2026-07-18",
+    "verdict": "NEAR_MISS",
+    "verdict_label": "🟠 Real but underpowered",
+    "headline": "Pooled net +7.73bp (t=+2.31), 2.7× an ordinary day, alive since 2021 — but pre-holiday vs other days Welch t=+1.57 < 1.64.",
+    "why": "The premium is present and holiday-specific; ~10 events a year is not enough power. Revisit with ≥3 more years.",
+    "lesson": null,
+    "summary": "The day before a US market holiday has been about 2.7× stronger than a normal day since 2011. It falls just short of significance — with only ten holidays a year, it needs more data.",
+    "variants": []
+  },
+  {
+    "id": "S078",
+    "slug": "gotobi-tokyo-fix",
+    "title": "Gotobi Tokyo-fix USDJPY drift",
+    "family": "calendar-events",
+    "family_title": "Calendar, session & event effects",
+    "source_type": "paper",
+    "source": "Ito & Yamada 2017",
+    "source_url": null,
+    "paper": "P026",
+    "instruments": [
+      "USDJPY"
+    ],
+    "products": [
+      "FX"
+    ],
+    "timeframe": "15m, Tokyo morning",
+    "data": "IBKR 15m 2012-02→2026-07 (1,013 gotobi days)",
+    "tested": "2026-07-11",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "The shape exists (gross +0.99bp t=+2.31, post-fix reversal −1.36bp) but ~0.5bp gross vs a ~1.05bp round trip; decayed post-publication.",
+    "why": "Real but sub-cost — the friction wall at sub-basis-point scale.",
+    "lesson": null,
+    "summary": "The Japanese \"gotobi\" dollar-yen drift before the Tokyo fix is still visible, but it is about half the size of the spread and has faded since it was published.",
+    "variants": []
+  },
+  {
+    "id": "S079",
+    "slug": "wmr-month-end-fix",
+    "title": "Month-end WM/R London 4pm fix rebalancing flow",
+    "family": "calendar-events",
+    "family_title": "Calendar, session & event effects",
+    "source_type": "paper",
+    "source": "Melvin & Prins 2015",
+    "source_url": null,
+    "paper": "P031",
+    "instruments": [
+      "EURUSD",
+      "GBPUSD"
+    ],
+    "products": [
+      "FX"
+    ],
+    "timeframe": "15m, pre-fix hour",
+    "data": "IBKR 15m (EURUSD 2012→2026, GBPUSD 2019→2026), 257 month-ends",
+    "tested": "2026-07-18",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Fingerprint present (signed pre-fix +3.06bp vs +0.66 ordinary; reversal −2.13bp t=−2.55) but pooled net +1.96bp t=+1.25; negative at 3× cost.",
+    "why": "Real-looking but too small and noisy against FX costs.",
+    "lesson": null,
+    "summary": "Month-end FX rebalancing around the London 4pm fix leaves a visible footprint, but it is too small to trade profitably after costs.",
+    "variants": []
+  },
+  {
+    "id": "S080",
+    "slug": "crypto-us-session-drift",
+    "title": "Bitcoin US-session / ETF-hours drift",
+    "family": "calendar-events",
+    "family_title": "Calendar, session & event effects",
+    "source_type": "paper",
+    "source": "Post-ETF decompositions 2024–26; QuantPedia; Concretum",
+    "source_url": null,
+    "paper": "P027",
+    "instruments": [
+      "BTCUSD",
+      "ETHUSD"
+    ],
+    "products": [
+      "crypto"
+    ],
+    "timeframe": "30m sessions",
+    "data": "Binance 30m 2020-01→2026-06 (644 post-ETF sessions)",
+    "tested": "2026-07-12",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Inverted — post-ETF US hours −9.81bp/session on BTC (rest of day +11.52bp), ETH −30.86bp (t=−2.97).",
+    "why": "The ETF era reversed the pattern the headlines describe, and it is getting worse.",
+    "lesson": null,
+    "summary": "The popular claim that Bitcoin's gains happen during US trading hours since the ETFs launched is backwards in the data: those hours have been negative.",
+    "variants": []
+  },
+  {
+    "id": "S081",
+    "slug": "btc-closed-exchange-window",
+    "title": "Bitcoin closed-exchange window — long 21:00→23:00 UTC",
+    "family": "calendar-events",
+    "family_title": "Calendar, session & event effects",
+    "source_type": "paper",
+    "source": "QuantPedia 2022",
+    "source_url": null,
+    "paper": "P028",
+    "instruments": [
+      "BTCUSD",
+      "ETHUSD"
+    ],
+    "products": [
+      "CFD",
+      "crypto"
+    ],
+    "timeframe": "1m, 2-hour daily window",
+    "data": "Binance 2017–2019 (unpeeked), FTMO BTCUSD 2023–2026; 40 post-freeze forward trades",
+    "tested": "2026-07-12",
+    "verdict": "FORWARD_FAILED",
+    "verdict_label": "❌ Passed the gate, failed the forward test",
+    "headline": "Strongest gate pass in the project (DSR 0.980, TEST +7.16bp/day t=+3.27, unpeeked 2017–19 +11.91bp). Forward test: 40 trades at −$7.21 vs a +$61.62 baseline — its own abort condition.",
+    "why": "The edge did not survive real out-of-sample time; the data replayed to the cent, so it was not an artefact.",
+    "lesson": "A high DSR on a walk-forward gate is not sufficient — only a forward test is.",
+    "summary": "Our strongest backtest ever — Bitcoin's 21:00–23:00 UTC window — passed every statistical test, then lost money in live forward testing. It is the clearest lesson we have that a great backtest is not proof.",
+    "variants": [
+      {
+        "name": "ETH cross-confirm",
+        "verdict": "REJECT",
+        "result": "Effect is BTC-specific, not crypto-wide."
+      },
+      {
+        "name": "BTC-only full gate (P028b)",
+        "verdict": "PASS",
+        "result": "DSR 0.980, DD 7.69%."
+      },
+      {
+        "name": "forward test (40 trades)",
+        "verdict": "FORWARD_FAILED",
+        "result": "−$7.21/trade, win 50%, PF 0.94."
+      }
+    ]
+  },
+  {
+    "id": "S082",
+    "slug": "overnight-return-anomaly",
+    "title": "Overnight return anomaly — hold close→open",
+    "family": "calendar-events",
+    "family_title": "Calendar, session & event effects",
+    "source_type": "internal",
+    "source": "High-frequency intraday research cycle",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "close→open",
+    "data": "FTMO index CFD + deep daily",
+    "tested": "2026-06-22",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Gross-positive on US100 and clears the spread, but pooled t=1.43 even at zero swap, and decaying.",
+    "why": "Not significant, and sensitive to overnight financing.",
+    "lesson": null,
+    "summary": "Holding US indices only overnight made a little on the Nasdaq, but not enough to be significant, and overnight financing costs erase it.",
+    "variants": []
+  },
+  {
+    "id": "S083",
+    "slug": "time-of-day-window-sweep",
+    "title": "Time-of-day window sweep — 134 clock-anchored intraday rules",
+    "family": "calendar-events",
+    "family_title": "Calendar, session & event effects",
+    "source_type": "paper",
+    "source": "Heston, Korajczyk & Sadka 2010; Bogousslavsky 2016; Baltussen et al. 2021",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "QQQ",
+      "SPY",
+      "US100"
+    ],
+    "products": [
+      "ETF",
+      "CFD"
+    ],
+    "timeframe": "15m / 1m windows, every session",
+    "data": "QQQ 15m 2016–2024 discovery; SPY 15m + FTMO US100 1m confirms",
+    "tested": "2026-07-03",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Best of 134 (10:00→16:00 prior-day fade) +5.24bp t=2.39 vs a required t≥3.0; its CFD confirm t=0.21.",
+    "why": "No every-day intraday window survives multiple-testing correction; this closed the last every-day intraday family on FTMO CFDs.",
+    "lesson": null,
+    "summary": "We swept 134 \"buy at time X, sell at time Y\" intraday windows. None beat what chance produces when you test that many, and the best one did not hold up on the tradeable CFD.",
+    "variants": []
+  },
+  {
+    "id": "S084",
+    "slug": "overnight-gap-fade",
+    "title": "Overnight gap fade (gap_fade)",
+    "family": "intraday-mean-reversion",
+    "family_title": "Intraday fades & mean reversion",
+    "source_type": "internal",
+    "source": "Project EDA",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "RTH open→close after a gap",
+    "data": "FTMO index CFD 1m",
+    "tested": "2026-01-15",
+    "verdict": "SHELVED",
+    "verdict_label": "⏸️ Passed, then shelved",
+    "headline": "First strategy ever to pass walk-forward; shelved the same day — both OOS legs one trade from negative, and decaying.",
+    "why": "The pass rested on a single trade on each leg.",
+    "lesson": "This is why the drop-the-best-trade check exists.",
+    "summary": "Fading big overnight gaps was the first idea to pass our walk-forward test — and was shelved the same day, because removing one trade on each index turned it negative.",
+    "variants": []
+  },
+  {
+    "id": "S090",
+    "slug": "reddit-210-ema-trend-reversal",
+    "title": "Reddit \"210 EMA\" always-in-market trend reversal",
+    "family": "trend-following",
+    "family_title": "Trend following & moving averages",
+    "source_type": "social",
+    "source": "A Reddit day-trading post",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "H1 / H4 / D1",
+    "data": "FTMO 1m resampled (26 months) + 15y deep daily",
+    "tested": "2026-07-06",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "H1/H4 net-negative and pure geometry. D1 passed PRIMARY (OOS Sharpe +0.142, 3/3) and the drawdown cap, but DSR 0.706 and the single best trade was 80.5% of all OOS profit.",
+    "why": "The daily \"edge\" is one lucky 2022–2026 trend segment.",
+    "lesson": null,
+    "summary": "A Reddit \"one EMA, cut losers, let winners run\" system lost on hourly charts. On daily charts it looked profitable, but 80% of the out-of-sample profit came from a single trade.",
+    "variants": [
+      {
+        "name": "H1 / H4",
+        "verdict": "REJECT",
+        "result": "Net-negative; fade/random capture ≥50% of the rule."
+      },
+      {
+        "name": "D1, ATR stop k=1.5 (selected from 1.0–4.0)",
+        "verdict": "REJECT",
+        "result": "OOS Sharpe +0.142, DSR 0.706, top trade 80.5% of profit."
+      }
+    ]
+  },
+  {
+    "id": "S091",
+    "slug": "ema-20-50-rsi-pullback",
+    "title": "EMA 20/50 flip + RSI(14) > 50 pullback to the 20 EMA",
+    "family": "trend-following",
+    "family_title": "Trend following & moving averages",
+    "source_type": "user",
+    "source": "A rule I was sent",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "H1 / H4 / D1",
+    "data": "FTMO CFD 1m resampled + deep daily",
+    "tested": "2026-09-03",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Pooled t=0.46 (H1), 0.47 (H4), 0.61 (D1), and no better than simply being long for the same time (duration-matched null t=0.00 / −0.33 / −0.95). RSI>50 is true on 80% of bars where EMA20>EMA50.",
+    "why": "The rule is a long filter on rising markets, and the RSI condition is almost redundant with the EMA condition.",
+    "lesson": null,
+    "summary": "The popular \"20 EMA above 50 EMA, RSI above 50, buy the pullback\" rule did no better than simply being long the index for the same amount of time, on any timeframe. The RSI filter adds almost nothing the EMAs have not already said.",
+    "variants": [
+      {
+        "name": "exit on close below 50 EMA (as stated)",
+        "verdict": "REJECT",
+        "result": "Pooled D1 +$21.83/trade, t=0.61."
+      },
+      {
+        "name": "exit only on EMA cross-back",
+        "verdict": "REJECT",
+        "result": "D1 +$215.95/trade, t=1.60 — better, still insignificant."
+      },
+      {
+        "name": "3× spread",
+        "verdict": "REJECT",
+        "result": "D1 +$19.22, t=0.54."
+      }
+    ]
+  },
+  {
+    "id": "S092",
+    "slug": "ema-200-4h-break-stock-swing",
+    "title": "4-hour 200 EMA break / retest on single stocks (~2-month hold)",
+    "family": "trend-following",
+    "family_title": "Trend following & moving averages",
+    "source_type": "user",
+    "source": "A discretionary options setup (equity leg tested)",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US single stocks (52)"
+    ],
+    "products": [
+      "stock"
+    ],
+    "timeframe": "4H bars, ~2-month hold",
+    "data": "IBKR 4H 2020-08→2026-08, every 5th name of the discovery universe",
+    "tested": "2026-08-15",
+    "verdict": "LEAD",
+    "verdict_label": "🔎 Open lead, not validated",
+    "headline": "Calls: +2.69%/trade but no better than holding the same stocks at random (t=+0.17 vs baseline). Puts: +1.18%/trade, t=+4.21 vs blind shorting — but two-thirds of trades are in the 2022 bear.",
+    "why": "The long side just re-selects stocks already going up; the short side shows real selectivity, mostly in one bear market.",
+    "lesson": null,
+    "summary": "Buying stocks when they reclaim the 4-hour 200 EMA did no better than buying them at random. The short side was genuinely selective — but mostly during the 2022 bear market.",
+    "variants": [
+      {
+        "name": "calls, clean break",
+        "verdict": "REJECT",
+        "result": "Indistinguishable from random holding."
+      },
+      {
+        "name": "puts, clean break",
+        "verdict": "LEAD",
+        "result": "+1.18%/trade, t=+4.21 vs own null; bear-concentrated."
+      },
+      {
+        "name": "puts, retest entry",
+        "verdict": "LEAD",
+        "result": "+2.02%/trade."
+      },
+      {
+        "name": "exit on EMA reclaim",
+        "verdict": "REJECT",
+        "result": "Halves expectancy everywhere."
+      }
+    ]
+  },
+  {
+    "id": "S093",
+    "slug": "etf-quality-pullback-reclaim",
+    "title": "Quality-ETF pullback + 4H 200-EMA reclaim (LEAP swing blueprint, ETF leg)",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "user",
+    "source": "A research blueprint I was sent",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "SPY",
+      "QQQ",
+      "IWM",
+      "DIA",
+      "sector SPDRs",
+      "SMH",
+      "SOXX",
+      "IGV",
+      "GLD",
+      "SLV",
+      "TLT",
+      "HYG",
+      "LQD"
+    ],
+    "products": [
+      "ETF"
+    ],
+    "timeframe": "4H bars",
+    "data": "IBKR 4H 2010-08→2026-08 (21 ETFs); options layer blocked — no IBKR option history",
+    "tested": "2026-08-22",
+    "verdict": "LEAD",
+    "verdict_label": "🔎 Open lead, not validated",
+    "headline": "Technical-exit version flat vs its duration-matched null (t=+0.13). A fixed 3-month hold: n=50, +7.39%/trade, t=+2.35 vs its own null, 82% win, DSR 1.000 over the 4 hold lengths.",
+    "why": "A coherent front-loaded shape (6/9/12-month holds decay), but it was found after 20+ exploratory looks — needs its own pre-registration.",
+    "lesson": "Compare each holding period with a null of the same length; a single 252-day baseline hid this and mis-judged every short hold.",
+    "summary": "Buying quality ETFs after a pullback and a 200-EMA reclaim, then simply holding three months, is our most interesting swing lead: +7.4% per trade and clearly better than random. It came out of an exploratory search, so it still needs a clean pre-registered test.",
+    "variants": [
+      {
+        "name": "technical exit (~18-day hold)",
+        "verdict": "REJECT",
+        "result": "+0.82%/trade, t=+0.13 vs matched null; DSR 0.860."
+      },
+      {
+        "name": "fixed 3-month hold",
+        "verdict": "LEAD",
+        "result": "+7.39%/trade, t=+2.35 vs matched null."
+      },
+      {
+        "name": "6 / 9 / 12-month holds",
+        "verdict": "REJECT",
+        "result": "t=+0.98 / +0.54 / −0.36 vs matched nulls."
+      },
+      {
+        "name": "SPY regime filter",
+        "verdict": "REJECT",
+        "result": "Counterproductive — dropping it raises expectancy to 1.73%."
+      },
+      {
+        "name": "'buy extreme fear' (VIX > 30)",
+        "verdict": "REJECT",
+        "result": "Worst bucket, −1.62%/trade."
+      }
+    ]
+  },
+  {
+    "id": "S094",
+    "slug": "multi-asset-tsmom-book",
+    "title": "Multi-asset daily trend (time-series momentum) book as a diversifier",
+    "family": "trend-following",
+    "family_title": "Trend following & moving averages",
+    "source_type": "paper",
+    "source": "Moskowitz, Ooi & Pedersen 2012",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "XAUUSD",
+      "EURUSD",
+      "GBPUSD",
+      "BTCUSD"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1d, always in market",
+    "data": "22–25y daily (Yahoo, cross-checked vs MT5); BTC Binance",
+    "tested": "2026-06-05",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "OOS book Sharpe +0.60 (4/4 legs) but drawdown 9.9% > 5% cap and DSR 0.755. Adding it to the existing book cut FTMO pass probability from 75.6% to 22–31%.",
+    "why": "An always-on sleeve dilutes the per-day mean and adds its own drawdown; for a prop challenge, fewer high-conviction days beat many always-on ones.",
+    "lesson": null,
+    "summary": "A classic trend-following book on gold, FX and Bitcoin looked like a good diversifier on paper, but adding it would have cut the chance of passing a prop challenge from ~76% to ~25–30%.",
+    "variants": [
+      {
+        "name": "gold trend (25y)",
+        "verdict": "REJECT",
+        "result": "Below buy-and-hold; the 2-year strength was a bull artefact."
+      },
+      {
+        "name": "FX trend (22y)",
+        "verdict": "REJECT",
+        "result": "Dead since 2008."
+      },
+      {
+        "name": "BTC trend",
+        "verdict": "REJECT",
+        "result": "Robust alone (+0.79, 9/10 years) but carries the whole book."
+      }
+    ]
+  },
+  {
+    "id": "S095",
+    "slug": "futures-trend-momentum-flat-daily",
+    "title": "Trend & momentum rules on futures for a flat-by-close prop account (paper battery)",
+    "family": "trend-following",
+    "family_title": "Trend following & moving averages",
+    "source_type": "paper",
+    "source": "User's 478-file paper library",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "index",
+      "commodity and FX futures (ETF proxies)"
+    ],
+    "products": [
+      "futures",
+      "ETF"
+    ],
+    "timeframe": "1d signals, flat every day by 16:10 ET",
+    "data": "ETF proxies 2010–2026",
+    "tested": "2026-09-26",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "TSMOM12 gross t=+1.87 → prop-net t=−4.36. RAMOM, IMOM, MA200 L/S, EMA-180, up-day ratio, XS/commodity/FX momentum all net t ≤ −2.",
+    "why": "A flat-by-close rule forces a round trip every held day, which destroys any multi-day trend premium.",
+    "lesson": null,
+    "summary": "Trend-following rules from the academic literature cannot work on a prop account that must be flat every night: paying a round trip every day turned a mildly positive trend signal deeply negative.",
+    "variants": [
+      {
+        "name": "TSMOM12",
+        "verdict": "REJECT",
+        "result": "Gross t=+1.87, net t=−4.36."
+      },
+      {
+        "name": "RAMOM, IMOM, MA200 L/S, EMA-180, up-day ratio",
+        "verdict": "REJECT",
+        "result": "Net t ≤ −2."
+      },
+      {
+        "name": "cross-sectional, commodity and FX momentum",
+        "verdict": "REJECT",
+        "result": "Net t ≤ −2."
+      }
+    ]
+  },
+  {
+    "id": "S096",
+    "slug": "spxs-spxl-structural",
+    "title": "3× bull / bear ETF pair (SPXL / SPXS) structural study",
+    "family": "trend-following",
+    "family_title": "Trend following & moving averages",
+    "source_type": "internal",
+    "source": "Structural experiment",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US500 (synthetic 3× legs)"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "intraday",
+    "data": "synthesised on US500",
+    "tested": "2026-05-20",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "A positive-skew trend bet that choppy markets offset; not an edge and not tradeable on FTMO.",
+    "why": "Studied for its path properties, not as an alpha hypothesis.",
+    "lesson": null,
+    "summary": "Holding a 3× bull and 3× bear ETF pair is a bet on trending markets that chop erodes; it is not an edge.",
+    "variants": []
+  },
+  {
+    "id": "S100",
+    "slug": "pvrsa-volume-confirmed-sr-breakout",
+    "title": "PVRSA / Wyckoff — volume-confirmed support/resistance breakouts (swing)",
+    "family": "volume-order-flow",
+    "family_title": "Volume, breadth & order flow",
+    "source_type": "user",
+    "source": "Volume-price (PVRSA / Wyckoff) ideas I wanted tested",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "BTCUSD",
+      "XAUUSD"
+    ],
+    "products": [
+      "CFD",
+      "crypto"
+    ],
+    "timeframe": "1d, 3–5-day hold",
+    "data": "Binance BTC + IBKR gold daily (the only FTMO instruments with real volume)",
+    "tested": "2026-07-21",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Volume does add information (high-volume breaks +68.2bp vs low-volume +3.6bp, t=+1.78), but the Bitcoin leg inverted out of sample (−30.8bp) and drawdowns hit 47–74%; DSR 0.341.",
+    "why": "The effect is real in direction but does not survive an honest out-of-sample split, and gold alone has a Calmar of ~0.15.",
+    "lesson": null,
+    "summary": "High-volume breakouts of support and resistance really do follow through more than low-volume ones. But on Bitcoin the edge reversed out of sample, and on gold it is far too small to be worth the drawdowns.",
+    "variants": [
+      {
+        "name": "v1 screen, locked cell N=55 h=5",
+        "verdict": "NEAR_MISS",
+        "result": "Pooled t=+1.55 < 1.64, entirely Bitcoin-carried."
+      },
+      {
+        "name": "v2 walk-forward with k×ATR hard stop",
+        "verdict": "REJECT",
+        "result": "BTC TEST −30.8bp; DD 47.4% pooled; DSR 0.341."
+      },
+      {
+        "name": "gold-only fundability",
+        "verdict": "REJECT",
+        "result": "~2.5–3.6%/yr vs 20–26% drawdown — 30–50× short of a 10% target."
+      }
+    ]
+  },
+  {
+    "id": "S101",
+    "slug": "pvrsa-volume-climax-reversal",
+    "title": "PVRSA / Wyckoff — high-volume climax reversal at levels",
+    "family": "volume-order-flow",
+    "family_title": "Volume, breadth & order flow",
+    "source_type": "user",
+    "source": "Volume-price (PVRSA / Wyckoff) ideas I wanted tested",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "BTCUSD",
+      "XAUUSD"
+    ],
+    "products": [
+      "CFD",
+      "crypto"
+    ],
+    "timeframe": "1d",
+    "data": "Binance BTC + IBKR gold daily, 12 cells",
+    "tested": "2026-07-22",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "No cell has both legs positive. Bitcoin climax \"reversals\" lose −160.7bp (t=−3.9) to −508.7bp (t=−4.9) — price continues the break.",
+    "why": "On this venue a volume climax marks continuation, not exhaustion; the Wyckoff absorption thesis is false here.",
+    "lesson": null,
+    "summary": "The Wyckoff idea that a high-volume spike through a level marks exhaustion was backwards on Bitcoin: after those spikes price kept going.",
+    "variants": []
+  },
+  {
+    "id": "S102",
+    "slug": "crypto-peer-breadth-thrust",
+    "title": "Crypto \"peer breadth\" thrust (20-coin trading card)",
+    "family": "volume-order-flow",
+    "family_title": "Volume, breadth & order flow",
+    "source_type": "user",
+    "source": "A crypto trading card I was sent",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "Binance USDT pairs (82",
+      "incl. 28 delisted)"
+    ],
+    "products": [
+      "crypto"
+    ],
+    "timeframe": "1d, 7–21-day hold",
+    "data": "Binance 2017-08→2026-08, causal top-20 universe (4,407 trades)",
+    "tested": "2026-09-08",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "+1.811%/trade gross (t=+2.67), but a random top-20 coin on the same dates earns +1.756% (62.7th percentile). Win rate 5.79% vs the bracket's 25% null; the breadth condition adds +0.376% (t=+0.57).",
+    "why": "The profit is being long crypto; the coin pick and the breadth trigger add nothing, and the short leg is five days.",
+    "lesson": "A random control must match every filter the signal passed — an unmatched version reported the signal as worse than random.",
+    "summary": "A crypto \"breadth thrust\" signal made money — but so did picking a random top-20 coin on the same days. The gains were just from being long crypto.",
+    "variants": []
+  },
+  {
+    "id": "S103",
+    "slug": "chaikin-money-flow-gold",
+    "title": "Chaikin Money Flow on daily gold",
+    "family": "volume-order-flow",
+    "family_title": "Volume, breadth & order flow",
+    "source_type": "internal",
+    "source": "Reference result from an external write-up",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "XAUUSD"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1d",
+    "data": "XAUUSD daily",
+    "tested": "2026-05-27",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Every in-sample grid cell negative; the reference's headline Sharpe did not reproduce.",
+    "why": "No money-flow continuation effect on daily gold.",
+    "lesson": null,
+    "summary": "A Chaikin Money Flow system on daily gold lost money at every setting in-sample, so we stopped there.",
+    "variants": []
+  },
+  {
+    "id": "S110",
+    "slug": "spy-qqq-0dte-orb-options-bot",
+    "title": "0DTE SPY/QQQ opening-range breakout options bot",
+    "family": "options",
+    "family_title": "Options structures & premium selling",
+    "source_type": "user",
+    "source": "A 0DTE options bot I was sent",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "SPY",
+      "QQQ"
+    ],
+    "products": [
+      "option",
+      "ETF"
+    ],
+    "timeframe": "1m underlying, 0DTE options",
+    "data": "SPY 4.5y / QQQ 1y 1m underlying (IBKR); option P&L via Black-Scholes approximation",
+    "tested": "2026-07-02",
+    "verdict": "PARKED",
+    "verdict_label": "⏸️ Parked",
+    "headline": "SPY underlying direction edge is genuine (broad plateau, survives 2022, drop-top-1 3.6%); QQQ none. Translated through modelled 0DTE option economics, every variant loses (t=−3.8 to −13.9).",
+    "why": "Theta and the spread eat a real but small underlying edge; the option leg was modelled, not quoted, so it is parked rather than disproven.",
+    "lesson": null,
+    "summary": "An opening-range breakout on SPY has a real directional edge in the underlying — but buying 0DTE options to express it lost money in every version we modelled, because time decay costs more than the move pays.",
+    "variants": [
+      {
+        "name": "QQQ underlying",
+        "verdict": "REJECT",
+        "result": "No direction edge; OR-width filter insignificant."
+      },
+      {
+        "name": "SPY underlying",
+        "verdict": "LEAD",
+        "result": "Robust zero-cost direction edge over 4.5 years."
+      },
+      {
+        "name": "SPY 0DTE options (modelled, single barrier and tiered TP ladder)",
+        "verdict": "REJECT",
+        "result": "t=−3.8 to −13.9 at every cost."
+      }
+    ]
+  },
+  {
+    "id": "S111",
+    "slug": "qqq-orb-fvg-1-2dte-journal",
+    "title": "QQQ 5m ORB + FVG traded with 1–2 DTE options (my trading journal)",
+    "family": "options",
+    "family_title": "Options structures & premium selling",
+    "source_type": "user",
+    "source": "My own trading journal",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "QQQ"
+    ],
+    "products": [
+      "option",
+      "ETF"
+    ],
+    "timeframe": "1m, 5m opening range, 0–2-day holds",
+    "data": "QQQ 1m (IBKR); option P&L via Black-Scholes approximation",
+    "tested": "2026-08-15",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Best config (fixed 3R) t=+0.90; the journal's scale-out ladder underperformed a plain fixed target at every horizon; early half negative on every config. Options at realistic cost net-negative.",
+    "why": "The mechanical entry has no significant edge; the journal's profits look like small sample plus discretion.",
+    "lesson": null,
+    "summary": "I turned my own ORB + FVG trading journal (QQQ, 1–2 DTE options) into a mechanical rule. The rule had no significant edge on the underlying, my scale-out ladder did worse than a plain fixed target, and the options version lost at realistic costs. The journal's profits were small-sample plus discretion.",
+    "variants": []
+  },
+  {
+    "id": "S112",
+    "slug": "sell-0dte-call-verticals-after-drop",
+    "title": "Sell 0DTE call credit spreads after a down move (my live bot)",
+    "family": "options",
+    "family_title": "Options structures & premium selling",
+    "source_type": "user",
+    "source": "My own live 0DTE bot",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "SPY",
+      "QQQ"
+    ],
+    "products": [
+      "option"
+    ],
+    "timeframe": "intraday, 4 decision times",
+    "data": "SPY 4.5y / QQQ 1m underlying; option P&L via Black-Scholes on realized vol",
+    "tested": "2026-08-23",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "At every decision time and all three drop measures, selling after a drop did worse than selling every day, and selling after a rise did best. Representative config −$0.52/spread.",
+    "why": "After an intraday drop the fast upside reversal risk is higher, not lower; any live edge would have to come from implied vol, which this model cannot see.",
+    "lesson": null,
+    "summary": "My live bot sells 0DTE call spreads after the market drops, on the idea that premium is richer then. In a model of the underlying, selling after a drop did worse than selling every day, and selling after a rise did best. If the bot has an edge, it comes from implied volatility, not from the drop.",
+    "variants": []
+  },
+  {
+    "id": "S113",
+    "slug": "qqq-0dte-put-credit-spreads",
+    "title": "QQQ / SPY 0DTE vertical credit spreads — every entry time, width and trigger",
+    "family": "options",
+    "family_title": "Options structures & premium selling",
+    "source_type": "user",
+    "source": "My own options trading",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "QQQ",
+      "SPY"
+    ],
+    "products": [
+      "option"
+    ],
+    "timeframe": "0DTE, 10:00 and ~13:30–14:00 ET entries",
+    "data": "Databento OPRA 1m NBBO 2022-11→2026-08 (46 months, ~184M rows) + IBKR 1m underlying",
+    "tested": "2026-08-30",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "10am entry: 48-combo grid, every TRAIN t ≤ 0.50. Afternoon put spreads looked strong until split: the edge is FOMC-day vol crush (n=24, 100% win). Non-FOMC t=1.09, DSR 0.097.",
+    "why": "The apparent edge came from selectivity — rich-premium days, mostly FOMC. Trading by delta on ~65% of days loses.",
+    "lesson": "For many-small-wins / rare-big-loss payoffs the t-stat is misleading — report worst loss as a % of max beside it.",
+    "summary": "We tested selling 0DTE QQQ and SPY credit spreads on 46 months of real quotes. The only strong result came from Fed-announcement days; on ordinary days it lost. Huge t-stats in this kind of trade usually mean the big loss has not happened yet.",
+    "variants": [
+      {
+        "name": "10:00 entry, 48 combos, calls and puts",
+        "verdict": "REJECT",
+        "result": "Best TRAIN t=0.50 → TEST t=−0.78."
+      },
+      {
+        "name": "13:30–14:00 put spread, no stop",
+        "verdict": "REJECT",
+        "result": "88% win; driven by FOMC days."
+      },
+      {
+        "name": "FOMC days only (~8/yr)",
+        "verdict": "LEAD",
+        "result": "Replicates on SPY (t=9.93) but the tail is unsampled."
+      },
+      {
+        "name": "wider spreads $5 / $10",
+        "verdict": "REJECT",
+        "result": "t rises with width because it is walking toward a naked put."
+      },
+      {
+        "name": "debit spreads (buying)",
+        "verdict": "REJECT",
+        "result": "−$11/trade — confirms the cost model."
+      },
+      {
+        "name": "delta-based entry",
+        "verdict": "REJECT",
+        "result": "Negative at all deltas, n=589."
+      },
+      {
+        "name": "iron condor / call spreads",
+        "verdict": "REJECT",
+        "result": "No edge."
+      }
+    ]
+  },
+  {
+    "id": "S114",
+    "slug": "letf-put-selling-napkin",
+    "title": "\"Napkin\" leveraged-ETF put selling (EMA clouds + 5% red day, 30 DTE, GTC 50%)",
+    "family": "options",
+    "family_title": "Options structures & premium selling",
+    "source_type": "social",
+    "source": "A viral social-media post",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "TQQQ",
+      "UPRO",
+      "SOXL"
+    ],
+    "products": [
+      "option"
+    ],
+    "timeframe": "30 DTE, ~11-day mean hold",
+    "data": "synthetic 3× funds from real QQQ/SPY/SOXX daily 2010-08→2026-08; puts priced off 3× VXN/VIX with skew",
+    "tested": "2026-09-18",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "92.3% win rate but CAGR +1.66% with a −46.2% drawdown vs buy-and-hold +19.71%. Worst trade −63.5%.",
+    "why": "Even if every trade won, the capped credit caps the book at +11.9%/yr — below buy-and-hold — so no option-price assumption can save it.",
+    "lesson": "For fixed-credit, capped-take premium selling, compute the no-loss ceiling against buy-and-hold first.",
+    "summary": "Selling puts on TQQQ/UPRO/SOXL after a 5% red day wins 92% of the time and still made just 1.7% a year with a 46% drawdown. Even a world with zero losing trades would trail simply holding QQQ.",
+    "variants": []
+  },
+  {
+    "id": "S115",
+    "slug": "spy-0dte-rsi-1m-scalp",
+    "title": "SPY 0DTE 1-minute RSI(30/70) scalp, 15% TP/SL, ≤10 min",
+    "family": "options",
+    "family_title": "Options structures & premium selling",
+    "source_type": "social",
+    "source": "A viral social-media setup card",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "SPY"
+    ],
+    "products": [
+      "option"
+    ],
+    "timeframe": "1m, 0DTE ATM",
+    "data": "real OPRA 1m bid/ask 2022-11→2026-08 (939 sessions, 6,635 trades)",
+    "tested": "2026-09-18",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Net −$5.09/contract (t=−16.6); −$2.58 even at mid. A random entry loses −$2.71; the RSI signal sits at the 37th percentile of random.",
+    "why": "A long 0DTE ATM option held a few minutes loses to theta before any spread; the RSI cross carries no information.",
+    "lesson": "Draw placebo entries at the same minute on other days — a window around the signal is conditioned on its path and gave a false 100th percentile.",
+    "summary": "A viral SPY 0DTE scalp — buy calls under RSI 30, puts over 70, 15% target and stop — lost $5 per contract on real quotes. Buying a 0DTE option at a random minute loses almost as much; the RSI signal adds nothing.",
+    "variants": []
+  },
+  {
+    "id": "S116",
+    "slug": "spy-0dte-whole-dollar-level-rsi",
+    "title": "SPY 0DTE whole-dollar level + 1m RSI fade",
+    "family": "options",
+    "family_title": "Options structures & premium selling",
+    "source_type": "social",
+    "source": "A well-known 0DTE trader on X",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "SPY"
+    ],
+    "products": [
+      "option"
+    ],
+    "timeframe": "1m, 09:30–11:15 ET, 1-strike-OTM 0DTE, +20% / −12.5% bracket",
+    "data": "ThetaData SPY 0DTE 1m NBBO 2020-01→2025-09 (in-sample; holdout sealed)",
+    "tested": "2026-09-19",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "1,501 trades at −$1.36/trade (95% CI −2.97 to +0.25); no better than following, random direction, or no signal at all.",
+    "why": "The level + RSI condition carries no information; the bracket loses to the spread and theta.",
+    "lesson": null,
+    "summary": "Fading SPY at round-dollar levels with a 1-minute RSI confirmation and 0DTE options lost money across 1,500 trades on real quotes, and did no better than random entries.",
+    "variants": []
+  },
+  {
+    "id": "S117",
+    "slug": "squeeze-box-call-options",
+    "title": "Squeeze-box call options (v2 rules) on real option quotes",
+    "family": "options",
+    "family_title": "Options structures & premium selling",
+    "source_type": "vendor",
+    "source": "A trading-education site (same site as S022)",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "SPY",
+      "QQQ"
+    ],
+    "products": [
+      "option"
+    ],
+    "timeframe": "hourly signal, 28-DTE calls, ≤10-day hold",
+    "data": "ThetaData 1m NBBO 2020-01→2026-08; IBKR 1m underlying",
+    "tested": "2026-09-23",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Site rules +11.2%/trade (t=+2.08) — reproduces their +11.9% — but random entries with the same contract and exits make +3.9%; beats random at t=+1.28 < 1.64.",
+    "why": "Mostly what a long 28-day call earned in a rising 2020–2026 market; the box timing is indistinguishable from noise.",
+    "lesson": "Pick expiries only from those quoted on the trade date — vendor expiry lists include contracts that did not exist yet.",
+    "summary": "A vendor's squeeze-box call-option results reproduce on real quotes (+11% per trade). But buying the same calls on random days made about +4%, and the difference is not significant — it is mostly a bull market.",
+    "variants": []
+  },
+  {
+    "id": "S120",
+    "slug": "discovery-cross-sectional-daily",
+    "title": "Systematic discovery — 41 cross-sectional daily features × 3 universes (Runs 001–002)",
+    "family": "factors",
+    "family_title": "Factors & cross-sectional stock selection",
+    "source_type": "internal",
+    "source": "Clean-slate discovery engine",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "236 US equities",
+      "109 ETFs",
+      "27 sector ETFs"
+    ],
+    "products": [
+      "stock",
+      "ETF"
+    ],
+    "timeframe": "1d, 1–21-day holds",
+    "data": "16y IBKR daily, 392 symbols; untouched 5.6y holdout",
+    "tested": "2026-08-10",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "3,084 pre-specified hypotheses plus a 2,547-cell timing search: zero cleared the gate. Five locked candidates all failed the holdout and three inverted.",
+    "why": "The binding constraint is power — a holdout Sharpe of 0.10–0.13 needs 256–370 years of daily data to establish.",
+    "lesson": "Years needed for t=2 is (2/Sharpe)² — compute it before searching. Dollar-neutral is not market-neutral.",
+    "summary": "We searched over 3,000 cross-sectional stock and ETF signals on 16 years of data. Nothing survived an untouched holdout, and the two best candidates reversed. At the effect sizes involved, 16 years is nowhere near enough data to tell.",
+    "variants": [
+      {
+        "name": "Run 001 — breadth (41 features × 4 targets × 3 universes)",
+        "verdict": "REJECT",
+        "result": "0 survivors; 2 locked candidates inverted out of sample."
+      },
+      {
+        "name": "Run 002 — combination + holding period",
+        "verdict": "REJECT",
+        "result": "Both fixes work mechanically; in-sample t never above 1.60."
+      },
+      {
+        "name": "Amihud illiquidity",
+        "verdict": "REJECT",
+        "result": "+3.05bp/day t=2.44 → −0.41bp t=−0.21 on holdout."
+      },
+      {
+        "name": "low volatility on sector ETFs",
+        "verdict": "REJECT",
+        "result": "+5.07bp/day t=3.00 → −3.01bp t=−1.16 on holdout."
+      }
+    ]
+  },
+  {
+    "id": "S121",
+    "slug": "price-volume-alignment-factor",
+    "title": "\"Price-Volume Alignment\" formulaic factor (WorldQuant Alpha#3 variant, X)",
+    "family": "factors",
+    "family_title": "Factors & cross-sectional stock selection",
+    "source_type": "social",
+    "source": "A quant-factor account on X",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "236 US equities",
+      "109 ETFs"
+    ],
+    "products": [
+      "stock",
+      "ETF"
+    ],
+    "timeframe": "1d",
+    "data": "IBKR daily TRAIN 2010-08→2020-12 (holdout never opened)",
+    "tested": "2026-08-21",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Stocks: real and in the claimed direction (+1.88bp/day, t=+1.81) but break-even cost 1.02bp vs a measured 2.27bp half-spread. ETFs' +4.89bp (t=+3.00) was an artefact — the factor is undefined for most names on most days.",
+    "why": "Too small to collect on stocks; on ETFs the days where it is defined are a biased market state.",
+    "lesson": "A feature whose definedness depends on the data can silently select market states — always report days used and coverage.",
+    "summary": "A price-volume \"alignment\" alpha formula from X is real on US stocks but smaller than the bid-ask spread. Its impressive ETF result came from the formula only being defined on unusual days.",
+    "variants": []
+  },
+  {
+    "id": "S122",
+    "slug": "opening-deviation-volume-structure-factor",
+    "title": "\"Opening Deviation × Volume-Price Structure\" formulaic factor (X)",
+    "family": "factors",
+    "family_title": "Factors & cross-sectional stock selection",
+    "source_type": "social",
+    "source": "A quant-factor account on X",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "236 US equities",
+      "109 ETFs"
+    ],
+    "products": [
+      "stock",
+      "ETF"
+    ],
+    "timeframe": "1d",
+    "data": "IBKR daily TRAIN 2010-08→2020-12 (holdout never opened)",
+    "tested": "2026-08-21",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Gross +2.59bp/day (t=+3.38), but 56% of it is a nominal share-price tilt from an un-normalised dollar term. Scale-free version t=+0.40; ETFs t=+0.03.",
+    "why": "The formula ranks share price by accident; the genuine part is zero among liquid names.",
+    "lesson": "An un-normalised units term inside a RANK is a bug, not a factor — test the scale-free version alongside the literal one.",
+    "summary": "A complex alpha formula from X looked significant, but more than half its signal came from accidentally ranking stocks by share price. Fix that and nothing is left.",
+    "variants": []
+  },
+  {
+    "id": "S123",
+    "slug": "smart-beta-value-quality",
+    "title": "Long-only smart beta — value / quality fundamentals + ML (SSRN 3904097)",
+    "family": "factors",
+    "family_title": "Factors & cross-sectional stock selection",
+    "source_type": "paper",
+    "source": "Shishlenin, Harke & Koppisetti 2019, SSRN 3904097",
+    "source_url": null,
+    "paper": "P035",
+    "instruments": [
+      "S&P 500 constituents"
+    ],
+    "products": [
+      "stock"
+    ],
+    "timeframe": "monthly",
+    "data": "none — rejected at intake from the paper's own tables",
+    "tested": "2026-09-22",
+    "verdict": "NOT_TESTED",
+    "verdict_label": "⚪ Not tested",
+    "headline": "The paper's best leg returned 8.5% CAGR vs the S&P's 12.0%; its S&P drawdown figure (12.3%) disagrees with the real −20.2%.",
+    "why": "Needs point-in-time fundamentals (paid data), and the evidence is weak even on the paper's own numbers.",
+    "lesson": null,
+    "summary": "A \"smart beta beats the index\" paper lost to the S&P 500 on its own headline numbers, so we did not spend money on the fundamentals data needed to test it.",
+    "variants": []
+  },
+  {
+    "id": "S130",
+    "slug": "vxn-vix-ratio-us100",
+    "title": "Long Nasdaq for 10 days when VXN/VIX is in its bottom quartile",
+    "family": "cross-asset",
+    "family_title": "Pairs, carry & cross-asset state",
+    "source_type": "internal",
+    "source": "Discovery Run 006 (exogenous cross-asset state)",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "QQQ"
+    ],
+    "products": [
+      "CFD",
+      "ETF"
+    ],
+    "timeframe": "1d, 10-day hold",
+    "data": "CBOE VXN/VIX (VXN from 2009-09); 685 candidates screened",
+    "tested": "2026-08-10",
+    "verdict": "LEAD",
+    "verdict_label": "🔎 Open lead, not validated",
+    "headline": "Train 67 trades +68.6bp (t=+2.81); holdout 83 trades +114.4bp (t=+2.51), beta-adjusted alpha +57.0bp (t=+2.79). Best of 685 (never cleared FDR) and fails drop-top-1 (t 2.54 → 1.11).",
+    "why": "The only live lead of 4,286 discovery hypotheses; cost is not binding, frequency is (~11 trades/yr). Now in a pre-registered forward test.",
+    "lesson": null,
+    "summary": "Our systematic search found one lead: go long the Nasdaq when its implied volatility is cheap relative to the S&P's. It held up on unseen data but rests on about 150 trades, so it is in a pre-registered forward test, not in use.",
+    "variants": [
+      {
+        "name": "US100 leg (original)",
+        "verdict": "LEAD",
+        "result": "Frozen baseline: 163 trades, +85.97bp, t=+3.40."
+      },
+      {
+        "name": "Amendment 1 — measurement leg moved to QQQ",
+        "verdict": "LEAD",
+        "result": "Pre-registered; ETF cross-section already 0/164, not re-swept."
+      },
+      {
+        "name": "beat buy-and-hold criterion (IBKR)",
+        "verdict": "LEAD",
+        "result": "Pre-registered; in-sample edge over B&H is ~+0.01, so failing it is expected."
+      }
+    ]
+  },
+  {
+    "id": "S131",
+    "slug": "futures-carry",
+    "title": "Futures carry — commodity basis and FX forward discount (paper battery)",
+    "family": "cross-asset",
+    "family_title": "Pairs, carry & cross-asset state",
+    "source_type": "paper",
+    "source": "User's 478-file paper library",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "8 commodity futures",
+      "4 currency futures"
+    ],
+    "products": [
+      "futures"
+    ],
+    "timeframe": "1d",
+    "data": "real futures front/next curves 2010–2026 (Databento)",
+    "tested": "2026-09-26",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Gross t=+0.14 (commodity basis) / −1.27 (FX forward discount); prop-net t ≈ −6.5.",
+    "why": "No carry premium on this small universe even before costs.",
+    "lesson": null,
+    "summary": "Commodity and currency carry strategies showed no premium on real futures curves from 2010 to 2026, even before trading costs.",
+    "variants": []
+  },
+  {
+    "id": "S132",
+    "slug": "fx-carry-jpy-funded",
+    "title": "FX carry — JPY-funded G10 basket (static, vol-timed, drawdown breaker)",
+    "family": "cross-asset",
+    "family_title": "Pairs, carry & cross-asset state",
+    "source_type": "paper",
+    "source": "Fama 1984; Lustig & Verdelhan 2007; Menkhoff et al. 2012",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "AUDJPY",
+      "GBPJPY",
+      "USDJPY",
+      "USDMXN",
+      "USDZAR",
+      "USDSEK"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "multi-year hold",
+    "data": "26.3y daily; today's verified FTMO swap rates as proxy",
+    "tested": "2026-07-12",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Premium real (+74.87% over 26 years, 3/3 legs) but a 61.0% drawdown in 2008. Vol-timing: DD 18.86% > 15%. Hard breaker: 45–52% DD at every threshold.",
+    "why": "A carry unwind is sudden; lagging volatility and price stops cannot react in time and whipsaw instead.",
+    "lesson": null,
+    "summary": "Yen-funded FX carry really does pay over 26 years — with a 61% drawdown in 2008. Neither volatility timing nor a hard stop could bring that inside a prop firm's limits.",
+    "variants": [
+      {
+        "name": "EM basket",
+        "verdict": "REJECT",
+        "result": "Swap asymmetry — carry income 0.09–0.19bp/night vs 5–10bp spread."
+      },
+      {
+        "name": "static G10 JPY-funded",
+        "verdict": "REJECT",
+        "result": "+74.87%, max DD 61.0%."
+      },
+      {
+        "name": "vol-timed exit (12% threshold)",
+        "verdict": "REJECT",
+        "result": "TEST +21.51%, DD 18.86%."
+      },
+      {
+        "name": "hard DD circuit breaker (5–12%)",
+        "verdict": "REJECT",
+        "result": "TRAIN DD 44.9–51.7% at every X; TEST never read."
+      }
+    ]
+  },
+  {
+    "id": "S133",
+    "slug": "eur-gbp-pairs",
+    "title": "EURUSD / GBPUSD hedged spread (EUR/GBP pairs)",
+    "family": "cross-asset",
+    "family_title": "Pairs, carry & cross-asset state",
+    "source_type": "internal",
+    "source": "FX / gold / crypto directional EDA",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "EURUSD",
+      "GBPUSD"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "1d",
+    "data": "~26 months FTMO + deep daily",
+    "tested": "2026-06-02",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Fewer than 20 round trips in 18 months of training data — too few to test.",
+    "why": "The daily signal is too infrequent; the directional FX/gold/crypto battery before it found no stable effect either.",
+    "lesson": null,
+    "summary": "A euro-vs-pound spread trade looked promising but fired too rarely to evaluate.",
+    "variants": []
+  },
+  {
+    "id": "S134",
+    "slug": "cop-eog-pairs",
+    "title": "COP / EOG stat-arb pairs trade (LinkedIn)",
+    "family": "cross-asset",
+    "family_title": "Pairs, carry & cross-asset state",
+    "source_type": "social",
+    "source": "A LinkedIn post",
+    "source_url": null,
+    "paper": "P008",
+    "instruments": [
+      "COP",
+      "EOG"
+    ],
+    "products": [
+      "stock"
+    ],
+    "timeframe": "1d",
+    "data": "15y IBKR daily",
+    "tested": "2026-06-14",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Not cointegrated (ADF t=−1.94, half-life ~315 days). The apparent edge was a look-ahead hedge ratio; causal ratio net Sharpe ~−1.3.",
+    "why": "Fitting the hedge ratio on the whole sample leaks the future into every trade.",
+    "lesson": null,
+    "summary": "An oil-stock pairs trade shared on LinkedIn only worked because its hedge ratio was fitted on future data. Computed honestly, it lost money.",
+    "variants": []
+  },
+  {
+    "id": "S135",
+    "slug": "kalman-ou-pairs",
+    "title": "Kalman-filter OU pairs (Reddit)",
+    "family": "cross-asset",
+    "family_title": "Pairs, carry & cross-asset state",
+    "source_type": "social",
+    "source": "A Reddit algo-trading post",
+    "source_url": null,
+    "paper": "P012",
+    "instruments": [
+      "US100",
+      "US500",
+      "US30",
+      "EURUSD",
+      "GBPUSD"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "intraday / daily",
+    "data": "FTMO CFD + deep daily",
+    "tested": "2026-06-20",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Index pairs are a Kalman-tracking artefact (ADF t≈−44), destroyed by costs; EURUSD/GBPUSD +0.095 pts over 6.7 years, gone at 2× cost.",
+    "why": "The author's edge is breadth (2,392 assets → a few pairs); a 7-instrument venue cannot run that funnel.",
+    "lesson": null,
+    "summary": "A Kalman-filter pairs system produced spreads that looked perfectly mean-reverting — because the filter tracks them by construction. After costs there was nothing left.",
+    "variants": []
+  },
+  {
+    "id": "S136",
+    "slug": "intraday-index-dispersion",
+    "title": "Beta-hedged intraday spread between US indices",
+    "family": "cross-asset",
+    "family_title": "Pairs, carry & cross-asset state",
+    "source_type": "internal",
+    "source": "Project EDA",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "5m",
+    "data": "445 sessions, ~1,150–1,220 events per pair",
+    "tested": "2026-06-03",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "A 2σ dislocation reverts ~0.3bp; half-life 750–2,000 bars.",
+    "why": "The hedged spread between the indices barely mean-reverts intraday.",
+    "lesson": null,
+    "summary": "When the Nasdaq and S&P drift apart intraday, they do not snap back in any tradeable way.",
+    "variants": []
+  },
+  {
+    "id": "S137",
+    "slug": "xs-commodity-seasonality",
+    "title": "Cross-sectional commodity seasonality (long/short by calendar month)",
+    "family": "cross-asset",
+    "family_title": "Pairs, carry & cross-asset state",
+    "source_type": "internal",
+    "source": "Clean-sheet FTMO payout session",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "8 commodities",
+      "14 indices",
+      "10 FX pairs"
+    ],
+    "products": [
+      "CFD"
+    ],
+    "timeframe": "monthly",
+    "data": "~25y Yahoo daily (front-month futures)",
+    "tested": "2026-06-06",
+    "verdict": "PARKED",
+    "verdict_label": "⏸️ Parked",
+    "headline": "Commodities net Sharpe +0.59 (t=+2.59), both halves positive, ~14/20 years positive. Indices +0.03, FX −0.18.",
+    "why": "Never re-priced for roll yield and CFD swap over a month-long hold; not pursued because it trades monthly.",
+    "lesson": null,
+    "summary": "Ranking commodities by their typical performance in each calendar month showed a promising signal over 20 years. We parked it before accounting for futures roll and CFD financing, which could erase it.",
+    "variants": []
+  }
+]
+</script>
+<script>
+(function () {
+  const studies = JSON.parse(document.getElementById("data").textContent);
+
+  const VERDICTS = {
+    PASS:           { label: "Passed",                c: "var(--pass)" },
+    CANDIDATE:      { label: "Borderline pass",       c: "var(--cand)" },
+    SHELVED:        { label: "Passed, shelved",       c: "var(--cand)" },
+    LEAD:           { label: "Open lead",             c: "var(--lead)" },
+    NEAR_MISS:      { label: "Near miss",             c: "var(--lead)" },
+    FORWARD_FAILED: { label: "Failed forward test",   c: "var(--fail)" },
+    REJECT:         { label: "Rejected",              c: "var(--fail)" },
+    PARKED:         { label: "Parked",                c: "var(--neutral)" },
+    NOT_TESTED:     { label: "Not tested",            c: "var(--neutral)" },
+    EXAMPLE:        { label: "Example",               c: "var(--neutral)" },
+    PENDING:        { label: "Pending",               c: "var(--neutral)" },
+  };
+  const VERDICT_ORDER = Object.keys(VERDICTS);
+  const SURVIVED = new Set(["PASS", "CANDIDATE", "SHELVED", "LEAD", "NEAR_MISS"]);
+  const SOURCES = {
+    paper: "Published paper", vendor: "Vendor", social: "Social media",
+    user: "Sent to me / my own", internal: "My own research",
+  };
+  const FAMILY_ORDER = [
+    "orb-momentum", "ict-smc", "intraday-mean-reversion", "dip-buying", "calendar-events",
+    "trend-following", "volume-order-flow", "options", "factors", "cross-asset",
+  ];
+
+  const state = { q: "", verdicts: new Set(), sources: new Set() };
+  try {
+    const saved = JSON.parse(localStorage.getItem("btlog-filters") || "null");
+    if (saved) {
+      state.verdicts = new Set(saved.verdicts || []);
+      state.sources = new Set(saved.sources || []);
+    }
+  } catch (e) { /* storage unavailable: start unfiltered */ }
+
+  const el = (tag, attrs = {}, ...kids) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === "class") n.className = v;
+      else if (k === "style") n.setAttribute("style", v);
+      else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+      else n.setAttribute(k, v);
+    }
+    for (const kid of kids.flat()) if (kid != null) n.append(kid);
+    return n;
+  };
+  const vc = v => (VERDICTS[v] || VERDICTS.PENDING).c;
+  const vl = v => (VERDICTS[v] || VERDICTS.PENDING).label;
+  const anchor = s => s.id.toLowerCase();
+
+  // Stats
+  const nVariants = studies.reduce((a, s) => a + s.variants.length, 0);
+  const nPass = studies.filter(s => s.verdict === "PASS").length;
+  const nReject = studies.filter(s => s.verdict === "REJECT" || s.verdict === "FORWARD_FAILED").length;
+  const statsEl = document.getElementById("stats");
+  [[studies.length, "studies"], [nVariants, "named variants"], [nReject, "rejected"], [nPass, "passed the full test"]]
+    .forEach(([n, t]) => statsEl.append(el("span", {}, el("b", {}, String(n)), " " + t)));
+
+  // Tape + legend
+  const tape = document.getElementById("tape");
+  const ordered = [...studies].sort((a, b) =>
+    FAMILY_ORDER.indexOf(a.family) - FAMILY_ORDER.indexOf(b.family) || a.id.localeCompare(b.id));
+  ordered.forEach(s => {
+    tape.append(el("button", {
+      type: "button", role: "listitem", style: `--c:${vc(s.verdict)}`,
+      title: `${s.id} · ${vl(s.verdict)} · ${s.title}`, "aria-label": `${s.id}: ${s.title} (${vl(s.verdict)})`,
+      "data-id": s.id, onclick: () => openStudy(s.id, true),
+    }));
+  });
+  const legend = document.getElementById("legend");
+  const legendGroups = [["Passed", "var(--pass)"], ["Borderline / shelved", "var(--cand)"],
+    ["Lead / near miss", "var(--lead)"], ["Rejected", "var(--fail)"], ["Parked / other", "var(--neutral)"]];
+  legendGroups.forEach(([t, c]) => legend.append(el("span", { style: `--c:${c}` }, t)));
+
+  // Filter chips
+  const counts = (key) => studies.reduce((m, s) => (m[s[key]] = (m[s[key]] || 0) + 1, m), {});
+  const vCounts = counts("verdict"), sCounts = counts("source_type");
+  function chip(group, value, label, n) {
+    const b = el("button", { type: "button", class: "chip", "aria-pressed": String(group.has(value)) },
+      label, el("span", { class: "n" }, String(n)));
+    b.addEventListener("click", () => {
+      group.has(value) ? group.delete(value) : group.add(value);
+      b.setAttribute("aria-pressed", String(group.has(value)));
+      save(); render();
+    });
+    return b;
+  }
+  const vRow = document.getElementById("verdicts");
+  VERDICT_ORDER.filter(v => vCounts[v]).forEach(v => vRow.append(chip(state.verdicts, v, vl(v), vCounts[v])));
+  const sRow = document.getElementById("sources");
+  Object.keys(SOURCES).filter(k => sCounts[k]).forEach(k => sRow.append(chip(state.sources, k, SOURCES[k], sCounts[k])));
+
+  function save() {
+    try {
+      localStorage.setItem("btlog-filters", JSON.stringify({ verdicts: [...state.verdicts], sources: [...state.sources] }));
+    } catch (e) { /* ignore */ }
+  }
+
+  const haystack = s => [s.id, s.title, s.source, s.family_title, s.headline, s.why, s.lesson || "", s.summary,
+    s.instruments.join(" "), s.products.join(" "), s.timeframe, s.paper || "",
+    ...s.variants.map(v => v.name + " " + v.result)].join(" ").toLowerCase();
+  const hay = new Map(studies.map(s => [s.id, haystack(s)]));
+  const matches = s =>
+    (!state.verdicts.size || state.verdicts.has(s.verdict)) &&
+    (!state.sources.size || state.sources.has(s.source_type)) &&
+    (!state.q || state.q.split(/\s+/).every(w => hay.get(s.id).includes(w)));
+
+  function studyNode(s) {
+    const d = el("details", { class: "study", id: anchor(s) });
+    d.append(el("summary", {},
+      el("span", { class: "sid" }, s.id),
+      el("span", { class: "stitle" }, s.title),
+      el("span", { class: "pill", style: `--c:${vc(s.verdict)}` }, vl(s.verdict)),
+      el("span", { class: "ssource" },
+        (s.source_type === "paper" ? s.source : s.source) +
+        " · " + s.instruments.slice(0, 6).join(", ") + (s.instruments.length > 6 ? "…" : "") +
+        " · " + s.tested.slice(0, 7)),
+    ));
+    const body = el("div", { class: "body" });
+    body.append(el("p", { class: "summary" }, s.summary));
+    const facts = el("dl", { class: "facts" });
+    const fact = (k, v, cls) => { if (v) facts.append(el("dt", {}, k), el("dd", cls ? { class: cls } : {}, v)); };
+    fact("Result", s.headline, "num");
+    fact("Why", s.why);
+    fact("Markets", s.instruments.join(", ") + " · " + s.products.join(", "));
+    fact("Timeframe", s.timeframe);
+    fact("Data", s.data);
+    fact("Source", s.source + (s.source_url ? "" : ""));
+    body.append(facts);
+    if (s.source_url) body.append(el("div", { class: "link-row" },
+      el("a", { href: s.source_url, target: "_blank", rel: "noopener" }, "Read the paper")));
+    if (s.lesson) body.append(el("p", { class: "lesson" }, el("b", {}, "Lesson"), s.lesson));
+    if (s.variants.length) {
+      const t = el("table", {},
+        el("thead", {}, el("tr", {}, el("th", {}, "Variant"), el("th", {}, "Verdict"), el("th", {}, "Result"))),
+        el("tbody", {}, s.variants.map(v => el("tr", {},
+          el("td", {}, v.name),
+          el("td", { class: "v", style: `--c:${vc(v.verdict)}` }, vl(v.verdict)),
+          el("td", { class: "num" }, v.result)))));
+      body.append(el("div", { class: "tbl" }, t));
+    }
+    const copyBtn = el("button", { type: "button", class: "copy" }, "Copy link to this study");
+    copyBtn.addEventListener("click", () => {
+      const url = location.href.split("#")[0] + "#" + anchor(s);
+      const done = () => { copyBtn.textContent = "Link copied"; setTimeout(() => copyBtn.textContent = "Copy link to this study", 1600); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done, () => { copyBtn.textContent = url; });
+      } else { copyBtn.textContent = url; }
+    });
+    body.append(el("div", { class: "link-row" }, el("span", { class: "sid" }, s.slug), copyBtn));
+    d.append(body);
+    return d;
+  }
+
+  const familiesEl = document.getElementById("families");
+  const nodes = new Map();
+  function render() {
+    familiesEl.textContent = "";
+    let shown = 0;
+    for (const fam of FAMILY_ORDER) {
+      const all = studies.filter(s => s.family === fam);
+      if (!all.length) continue;
+      const vis = all.filter(matches);
+      if (!vis.length) continue;
+      shown += vis.length;
+      const survived = all.filter(s => SURVIVED.has(s.verdict)).length;
+      const sec = el("section", { class: "family" },
+        el("h2", {}, all[0].family_title),
+        el("p", { class: "fam-meta" },
+          el("b", {}, String(all.length)), " studies · ",
+          el("b", {}, String(survived)), survived === 1 ? " still standing" : " still standing",
+          vis.length !== all.length ? ` · showing ${vis.length}` : ""));
+      const list = el("div", { class: "list" });
+      vis.forEach(s => {
+        if (!nodes.has(s.id)) nodes.set(s.id, studyNode(s));
+        list.append(nodes.get(s.id));
+      });
+      sec.append(list);
+      familiesEl.append(sec);
+    }
+    if (!shown) familiesEl.append(el("p", { class: "empty" }, "No studies match. Clear a filter or change the search."));
+    document.getElementById("count").textContent = `${shown} of ${studies.length}`;
+    tape.querySelectorAll("button").forEach(b => {
+      const s = studies.find(x => x.id === b.dataset.id);
+      b.classList.toggle("dim", !matches(s));
+    });
+  }
+
+  function openStudy(id, scroll) {
+    let node = nodes.get(id);
+    if (!node || !node.isConnected) {
+      state.q = ""; state.verdicts.clear(); state.sources.clear();
+      document.getElementById("q").value = "";
+      document.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", "false"));
+      save(); render(); node = nodes.get(id);
+    }
+    if (!node) return;
+    node.open = true;
+    if (scroll) node.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  }
+
+  const q = document.getElementById("q");
+  q.addEventListener("input", () => { state.q = q.value.trim().toLowerCase(); render(); });
+
+  render();
+  const hash = location.hash.replace("#", "").toUpperCase();
+  if (/^S\d{3}$/.test(hash)) openStudy(hash, true);
+})();
+</script>

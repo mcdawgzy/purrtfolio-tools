@@ -1,0 +1,322 @@
+# Daily dip-buying & short-term reversal. Edit here; run scripts/build_strategy_catalogue.py.
+- id: S050
+  slug: daily-reversal-connors-rsi2
+  title: Daily RSI(2) dip-buy on US index CFDs (daily_reversal)
+  family: dip-buying
+  mechanism: daily-short-term-reversal
+  source: {type: paper, name: "Connors & Alvarez 2008; Jegadeesh 1990"}
+  paper: P002
+  strategies: [daily_reversal]
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1d, multi-day hold
+  data: 15y IBKR/MT5 deep daily; real FTMO swap rates
+  tested: 2026-06-03
+  verdict: PASS
+  headline: >-
+    Second strategy to clear the full gate. OOS pooled Sharpe +0.547 (3/3 positive), drawdown 1.81%,
+    drop-top-1 survives, DSR 0.995 after adding real overnight swap. ~9–28 trades/yr.
+  why: A long-documented short-term reversal premium in US equity indices that survives costs because the hold is multi-day.
+  variants:
+    - {name: "RSI(2) < 5 / 10 / 15 entry sweep", verdict: PASS, result: "Pre-registered 3-value sweep; DSR computed against it."}
+    - {name: "SMA(200) trend filter on", verdict: REJECT, result: "Worse than no filter; shipped without it."}
+    - {name: "re-verified with real swap (2026-07-10)", verdict: PASS, result: "OOS Sharpe +0.547, DSR 0.995."}
+  refs: {scripts: [scripts/backtest_wf_daily_reversal.py, scripts/backtest_wf_daily_reversal_swing.py, scripts/daily_reversal_sizing.py]}
+  visibility: public
+  public_summary: >-
+    Buying the Nasdaq, S&P and Dow after a sharp two-day drop (RSI(2) oversold) and holding a few days
+    passed our full out-of-sample test, including real overnight financing costs.
+
+- id: S051
+  slug: dip-intraday
+  title: Same-day dip leg — long open→close the morning after RSI(2) < 5 (dip_intraday)
+  family: dip-buying
+  mechanism: daily-short-term-reversal
+  source: {type: internal, name: "40-condition same-day sweep"}
+  strategies: [dip_intraday]
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1m intraday, open→close
+  data: deep daily + 2.1y FTMO CFD 1m venue confirm
+  tested: 2026-07-02
+  verdict: CANDIDATE
+  headline: >-
+    All six hard criteria pass (OOS t=+3.08, crash-guard DD 2.46%, direction TRUE +18.2bp ≫ FADE −22.0);
+    DSR marginal under program-level deflation. 100% of its days are daily_reversal holding days.
+  why: The same edge without the overnight hold — an alternative expression, not additional alpha.
+  lesson: "The sweep's #1 signal (gap continuation) vanished on real CFD opens — cash-index daily opens are stale prints."
+  variants:
+    - {name: "RSI(2) < 5 fixed a priori", verdict: CANDIDATE, result: "All hard criteria pass; DSR 0.96–0.98 mechanism-level, 0.85–0.88 at n=40."}
+    - {name: "tight 1% stop", verdict: REJECT, result: "Fires on ~30% of dip days and destroys the edge."}
+    - {name: "gap-continuation (sweep #1)", verdict: REJECT, result: "Stale-open artefact in cash-index daily bars."}
+  refs: {scripts: [scripts/eda_intraday_edge_sweep.py, scripts/backtest_wf_dip_intraday.py, scripts/eda_dip_day_cfd_confirm.py, scripts/eda_dip_day_gate_map.py]}
+  visibility: public
+  public_summary: >-
+    The same oversold-dip signal, traded only from the next day's open to its close, passes every hard
+    test but falls just short on our strictest robustness measure. It is the same edge as the
+    multi-day version, just without the overnight risk.
+
+- id: S052
+  slug: prior-day-fade-every-day
+  title: Fade the prior session every day (prior_day_fade)
+  family: dip-buying
+  mechanism: daily-short-term-reversal
+  source: {type: internal, name: "Top rule of the 134-test time-of-day sweep"}
+  strategies: [prior_day_fade]
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: open→close every session
+  data: FTMO index CFD 1m + deep daily
+  tested: 2026-07-04
+  closed: 2026-07-04
+  verdict: REJECT
+  headline: TRAIN Sharpe +0.87 → OOS US100 −1.26, US500 −2.40.
+  why: The reversal premium exists only at the oversold extreme, never unconditionally every day.
+  refs: {scripts: [scripts/eda_tod_window_sweep.py]}
+  visibility: public
+  public_summary: >-
+    Fading yesterday's direction every single day looked good in-sample and lost out of sample. The
+    reversal effect only shows up after unusually sharp drops.
+
+- id: S053
+  slug: iv-gated-dip-buy
+  title: Implied-vol-gated dip-buy (crackingmarkets)
+  public_title: "Implied-vol-gated dip-buy"
+  family: dip-buying
+  mechanism: daily-short-term-reversal
+  source: {type: vendor, name: "crackingmarkets.com"}
+  public_source: "A trading-education blog (same author as S006)"
+  paper: P014
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1d
+  data: 15y IBKR daily; CBOE VXN/VIX/VXD as the IV proxy
+  tested: 2026-06-21
+  closed: 2026-06-21
+  verdict: REJECT
+  headline: Real alpha (TRUE +$30.99/trade t=+1.88 > RANDOM +$8.84 > FADE −$30.33) but return correlation +0.83 to +0.94 with daily_reversal.
+  why: A higher-frequency restatement of the same edge, and worse in crashes (US30 −629 pts below the 200-day average vs +128 for daily_reversal).
+  refs: {scripts: [scripts/eda_iv_reversal.py]}
+  visibility: public
+  public_summary: >-
+    Gating dip-buys on implied volatility produced a real edge, but it was the same edge as plain RSI(2)
+    dip-buying and did worse in crashes — the opposite of the author's claim.
+
+- id: S054
+  slug: buy-the-dip-index
+  title: '"Buy the Dip" — close > SMA200 + RSI(5) < 20, hold 5 days, on indices'
+  family: dip-buying
+  mechanism: daily-short-term-reversal
+  source: {type: vendor, name: "crackingmarkets.com"}
+  public_source: "A trading-education blog (same author as S006)"
+  paper: P015
+  instruments: [US100, US500, US30]
+  products: [CFD]
+  timeframe: 1d
+  data: 15y IBKR daily (n=248 pooled)
+  tested: 2026-06-21
+  closed: 2026-06-21
+  verdict: REJECT
+  headline: Edge real (+74.2bp/trade, t=+5.00; ATR-strength claim replicates) but correlated with daily_reversal (0.41–0.70) and lower frequency.
+  why: The SMA200 filter avoids bear markets by not trading them, rather than improving bear-market results.
+  refs: {scripts: [scripts/eda_buy_the_dip.py]}
+  visibility: public
+  public_summary: >-
+    The classic "buy the dip above the 200-day" rule works on index CFDs (+74bp per trade), but it is a
+    slower, correlated version of RSI(2) dip-buying rather than a new edge.
+
+- id: S055
+  slug: buy-the-dip-cross-sectional-stocks
+  title: '"Buy the Dip" on 260 US single stocks (IBKR, the article''s native design)'
+  family: dip-buying
+  mechanism: daily-short-term-reversal
+  source: {type: vendor, name: "crackingmarkets.com"}
+  public_source: "A trading-education blog (same author as S006)"
+  paper: P015
+  instruments: [US single stocks (260), SPY]
+  products: [stock]
+  timeframe: 1d, 5-day hold
+  data: IBKR daily 2010→2026, TRAIN/TEST split
+  tested: 2026-08-20
+  closed: 2026-08-20
+  verdict: REJECT
+  headline: >-
+    Edge real (DSR 0.972, TRUE +32.2bp > RANDOM +16.9 > FADE −44.3) but portfolio Sharpe 0.56 vs SPY
+    0.73; CAPM alpha +2.65%/yr at t=0.47.
+  why: It does not beat buy-and-hold, and Sharpe is leverage-invariant so sizing up cannot fix it. The edge also lives in survivors.
+  lesson: The first result where cost was not the binding constraint — the strategy failed on merit.
+  variants:
+    - {name: "ATR-selectivity (top decile)", verdict: LEAD, result: "Replicates OOS (+117bp top-bottom, t=+3.13) but higher mean comes with higher risk."}
+    - {name: "article's $1,000/trade sizing", verdict: REJECT, result: "IBKR $0.35 minimum makes it cost-hostile (Sharpe 0.37)."}
+  refs:
+    prereg: [docs/prereg/2026-08-20_buy_the_dip_ibkr_xs.md]
+    scripts: [scripts/eda_buy_the_dip_ibkr_xs.py, scripts/eda_buy_the_dip_ibkr_attribution.py, scripts/eda_buy_the_dip_ibkr_atr_stability.py]
+    prs: [193]
+  visibility: public
+  public_summary: >-
+    Buying oversold US stocks works — but over 2010–2026 it earned less than just holding SPY, with a
+    similar amount of risk. Its genuine strength is defence: in 2022 it lost 9.7% against SPY's 19.5%.
+
+- id: S056
+  slug: reddit-momentum-universe-dips
+  title: Reddit momentum-universe dip-buy (re-rank every 2 weeks, buy RSI dips)
+  family: dip-buying
+  mechanism: daily-short-term-reversal
+  source: {type: social, name: "Reddit r/ai_trading"}
+  public_source: "A Reddit algo-trading post"
+  paper: P009
+  instruments: [US stock CFDs]
+  products: [CFD]
+  timeframe: 1d, ~3.5-day hold
+  data: FTMO stock-CFD universe probe
+  tested: 2026-06-15
+  closed: 2026-06-15
+  verdict: REJECT
+  headline: Only 26 long-tradeable US stock CFDs on FTMO vs a pre-registered floor of ~30. No edge work done.
+  why: The venue was too thin for a cross-sectional ranking; the mechanism itself was not refuted (see S057).
+  visibility: public
+  public_summary: >-
+    We could not test this Reddit stock-ranking strategy on FTMO: the broker lists too few US stocks
+    for a cross-sectional ranking to make sense.
+
+- id: S057
+  slug: xs-stock-reversal
+  title: Cross-sectional short-term reversal on US large-caps (46 FTMO stock CFDs)
+  family: dip-buying
+  mechanism: daily-short-term-reversal
+  source: {type: paper, name: "Jegadeesh 1990; Lehmann 1990; de Groot, Huij & Zhou 2012"}
+  paper: P024
+  instruments: [US single-stock CFDs (44)]
+  products: [CFD]
+  timeframe: 1d, 1–5-day hold
+  data: median 15y IBKR daily
+  tested: 2026-07-11
+  closed: 2026-07-11
+  verdict: REJECT
+  headline: >-
+    Strongest Step-0 net signal catalogued: +53.5bp/trade (t=+4.89, n=1,607), positive 14/15 years.
+    Failed on distinctiveness (corr +0.669 with daily_reversal) and frequency (112 entries/yr < 250).
+  why: Real but redundant — 31% of entries fall on index dip days and carry most of the profit.
+  variants:
+    - {name: "momentum-tier (pre-registered)", verdict: REJECT, result: "+53.5bp t=+4.89; redundant and too infrequent."}
+    - {name: "all names", verdict: REJECT, result: "276/yr but corr +0.832 and negative at 2× cost."}
+    - {name: "idiosyncratic days only", verdict: REJECT, result: "Distinct by construction but negative at 2× cost."}
+  refs: {scripts: [scripts/eda_xs_stock_reversal.py, scripts/backtest_wf_xs_stock_reversal.py]}
+  visibility: public
+  public_summary: >-
+    Buying oversold large-cap stocks produced one of the strongest signals we have measured
+    (+53bp per trade, positive in 14 of 15 years) — but it mostly fires on the same days as
+    index dip-buying, so it adds little.
+
+- id: S058
+  slug: daily-reversal-fx-gold-crypto
+  title: Daily RSI(2) reversal on FX, gold and Bitcoin
+  family: dip-buying
+  mechanism: daily-short-term-reversal
+  source: {type: internal, name: "Extension of daily_reversal to non-index instruments"}
+  instruments: [XAUUSD, EURUSD, GBPUSD, BTCUSD]
+  products: [CFD]
+  timeframe: 1d
+  data: IBKR/MT5 daily; BTCUSD 8.8y; real FTMO swap rates
+  tested: 2026-07-12
+  closed: 2026-07-17
+  verdict: REJECT
+  headline: >-
+    Pooled net +3.85bp (t=+0.26), EURUSD/GBPUSD negative. BTCUSD alone passed PRIMARY (+80.56bp/trade)
+    but drawdown 29.14% vs a 15% cap and DSR 0.582.
+  why: The premium is a US-equity phenomenon; Bitcoin's version is real but its fat tails breach any prop drawdown limit.
+  variants:
+    - {name: "first pass on gold / FX / BTC (2026-06-05)", verdict: REJECT, result: "All thin, t 0.1–1.4; catastrophic loss years in each."}
+    - {name: "4-instrument pooled screen", verdict: REJECT, result: "+3.85bp t=+0.26; re-run on rebuilt FX bars +7.14bp t=+0.42."}
+    - {name: "BTCUSD walk-forward", verdict: REJECT, result: "TEST +80.56bp t=+1.24, DD 29.14%, DSR 0.582."}
+    - {name: "BTCUSD regime-gated v2", verdict: REJECT, result: "DD 22–33%, DSR 0.328."}
+  refs:
+    prereg: [docs/prereg/2026-07-17_daily_reversal_btcusd_regime_gate.md]
+    scripts: [scripts/eda_daily_reversal_fx_metals_crypto.py, scripts/backtest_wf_daily_reversal_btcusd.py, scripts/backtest_wf_daily_reversal_btcusd_regime.py]
+  visibility: public
+  public_summary: >-
+    The RSI(2) dip-buy did not carry over to FX or gold. On Bitcoin it made money but with drawdowns
+    of 22–33%, far beyond what a prop account allows.
+
+- id: S059
+  slug: daily-reversal-international-indices
+  title: Daily RSI(2) reversal on GER40, UK100, JP225, US2000
+  family: dip-buying
+  mechanism: daily-short-term-reversal
+  source: {type: internal, name: "Extension of daily_reversal to non-US indices"}
+  instruments: [GER40, UK100, JP225, US2000]
+  products: [CFD]
+  timeframe: 1d
+  data: MT5 daily 2017-12→2026-07; IBKR N225 2012–2017 for JP225 confirmation
+  tested: 2026-07-11
+  closed: 2026-07-11
+  verdict: REJECT
+  headline: >-
+    Pooled +3.45bp (t=+0.17), 1/4 legs positive; bear years invert (GER40 −110bp, US2000 −126bp).
+    JP225 +58bp (t=+1.74) but pooled 14.5y t=+1.67 < the 2.50 multiplicity bar.
+  why: The reversal premium does not travel outside US large-cap indices on this venue.
+  variants:
+    - {name: "4-index screen", verdict: REJECT, result: "3-of-5 criteria fail."}
+    - {name: "JP225 independent confirmation", verdict: REJECT, result: "Unseen 2012–17 slice +74bp t=+2.16, but pooled t=+1.67 < 2.50."}
+    - {name: "JP225 walk-forward", verdict: REJECT, result: "Venue-proxy gate failed."}
+  refs: {scripts: [scripts/eda_daily_reversal_intl.py, scripts/eda_daily_reversal_jp225_confirm.py, scripts/backtest_wf_daily_reversal_jp225.py]}
+  visibility: public
+  public_summary: >-
+    RSI(2) dip-buying on the DAX, FTSE, Nikkei and Russell 2000 did not work; in bear years it lost
+    money. Japan came closest but fell short of our bar for a best-of-four pick.
+
+- id: S060
+  slug: connors-rsi2-equity-etfs
+  title: Connors RSI(2) < 5 / exit RSI(2) > 70 on SPY, QQQ, IWM, DIA (cash ETFs)
+  family: dip-buying
+  mechanism: daily-short-term-reversal
+  source: {type: user, name: "User /goal request (classic Connors rule)"}
+  public_source: "A classic rule I wanted tested (Connors RSI(2))"
+  instruments: [SPY, QQQ, IWM, DIA]
+  products: [ETF]
+  timeframe: 1d
+  data: IBKR daily, TRAIN 2010-08→2020-12, TEST 2021-01→2026-08
+  tested: 2026-08-29
+  verdict: PASS
+  headline: >-
+    PRIMARY 4/4 legs positive, DSR 1.000, drop-top-1 survives. Blended Sharpe beats buy-and-hold on
+    SPY (0.92 vs 0.85), QQQ (0.85 vs 0.77), IWM (0.94 vs 0.45), ties DIA — at about a third of the drawdown.
+  why: Same premium as daily_reversal, on a venue with no spread or swap; the four legs are one correlated bet.
+  lesson: Caveats — ~27–42 TEST trades per leg, no stop tested, filter choice made in-session.
+  variants:
+    - {name: "SMA(200) filter off (selected)", verdict: PASS, result: "Beats buy-and-hold Sharpe on 3/4 legs."}
+    - {name: "SMA(200) filter on", verdict: REJECT, result: "Lower TRAIN Sharpe."}
+  refs: {scripts: [scripts/eda_connors_rsi2_spy.py, scripts/backtest_wf_connors_rsi2_equity_etfs.py, scripts/generate_connors_rsi2_tearsheet.py], prs: [204]}
+  visibility: public
+  public_summary: >-
+    The textbook Connors RSI(2) rule on SPY, QQQ, IWM and DIA beat buy-and-hold on a risk-adjusted
+    basis from 2021 to 2026, with roughly a third of the drawdown, while invested only 11–14% of the time.
+
+- id: S061
+  slug: long-equity-daily-rules-battery
+  title: Long-equity daily rules on index futures (paper battery)
+  family: dip-buying
+  mechanism: daily-short-term-reversal
+  source: {type: paper, name: "User's 478-file paper library (Connors, Micaletti, Huck and others)"}
+  instruments: [ES, NQ (ETF proxies)]
+  products: [futures, ETF]
+  timeframe: 1d
+  data: ETF proxies 2010–2026
+  tested: 2026-09-26
+  closed: 2026-09-26
+  verdict: REJECT
+  headline: Raw t≈2.1–2.4, but alpha over volatility-scaled buy-and-hold t=0.4–1.3.
+  why: On a futures prop account these rules are mostly index beta, not edge.
+  variants:
+    - {name: "RSI(2) dip", verdict: REJECT, result: "Beta, not alpha, once benchmarked."}
+    - {name: "buy after a red day", verdict: REJECT, result: "Beta, not alpha."}
+    - {name: "Micaletti MTSI", verdict: REJECT, result: "Beta, not alpha."}
+    - {name: "Huck day-of-week rotation", verdict: REJECT, result: "Beta, not alpha."}
+  refs:
+    prereg: [docs/prereg/2026-09-26_paper_library_futures_battery.md]
+    scripts: [scripts/battery_daily_2026_09_26.py, scripts/_battery_stats.py]
+    prs: [231]
+  visibility: public
+  public_summary: >-
+    Several published "buy the index" daily rules looked significant on their own, but once compared with
+    simply holding the index at the same risk, their extra return was not distinguishable from zero.
