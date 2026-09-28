@@ -32,12 +32,17 @@ scanners/13f/charts_*.html
 scanners/13f/charts_*.json
 scanners/13f/exports/
 scanners/13f/exports.zip
-scanners/short-interest/exports/
-scanners/short-interest/data/
+scanners/short_interest_scanner/exports/
+scanners/form4_insider_trading/data/
+scanners/price_momentum/*.db.gz
 snapshots/market/output/
 snapshots/macro/output/
 
 # Scraped data
-scanners/short-interest/data/
 scanners/economic-calendar/exports/
+scanners/*/exports/
+
+# Tool caches
+.ruff_cache/
+.pytest_cache/
 mock_ua_server.py

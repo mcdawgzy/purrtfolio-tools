@@ -8,6 +8,7 @@ from __future__ import annotations
 import sqlite3
 import json
 import logging
+import re
 from pathlib import Path
 from contextlib import contextmanager
 from datetime import date
@@ -198,22 +199,27 @@ def get_corr_to_pivot(
     if not date_str:
         return []
 
-    # Build the JSON path safely — only allow alphanumeric ticker chars.
-    pivot_clean = pivot.upper().replace("-", "_").replace(".", "_")
-    json_path = f"$.{pivot_clean}"
+    # Ticker symbols only (e.g. ^GSPC, DX-Y.NYB, CL=F). The JSON path is bound
+    # as a parameter and the key quoted, so symbols with '.'/'-' match exactly.
+    pivot_clean = pivot.upper()
+    if not re.fullmatch(r"[A-Z0-9^=.\-]{1,20}", pivot_clean):
+        return []
+    json_path = f'$."{pivot_clean}"'
 
     with get_db_readonly() as conn:
-        rows = conn.execute(f"""
-            SELECT cm.ticker, t.name, t.category,
-                   json_extract(cm.corr_json, '{json_path}') AS corr
-            FROM corr_matrices cm
-            LEFT JOIN tickers t ON cm.ticker = t.ticker
-            WHERE cm.window = ? AND cm.date = ?
-              AND json_extract(cm.corr_json, '{json_path}') IS NOT NULL
-              AND ABS(json_extract(cm.corr_json, '{json_path}')) >= ?
-            ORDER BY ABS(json_extract(cm.corr_json, '{json_path}')) DESC
-            LIMIT ?
-        """, (window, date_str, min_abs, limit)).fetchall()
+        rows = conn.execute("""
+            SELECT ticker, name, category, corr FROM (
+                SELECT cm.ticker, t.name, t.category,
+                       json_extract(cm.corr_json, :path) AS corr
+                FROM corr_matrices cm
+                LEFT JOIN tickers t ON cm.ticker = t.ticker
+                WHERE cm.window = :window AND cm.date = :date
+            )
+            WHERE corr IS NOT NULL AND ABS(corr) >= :min_abs
+            ORDER BY ABS(corr) DESC
+            LIMIT :limit
+        """, {"path": json_path, "window": window, "date": date_str,
+              "min_abs": min_abs, "limit": limit}).fetchall()
     return [dict(r) for r in rows]
 
 

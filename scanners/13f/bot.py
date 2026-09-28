@@ -45,7 +45,7 @@ class ScannerBot(commands.Bot):
         await super().close()
 
 
-def create_bot(db_path: str = "C:/Users/cho_i/purrtfolio.db") -> ScannerBot:
+def create_bot(db_path: str = os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db"))) -> ScannerBot:
     """Factory function to create bot instance."""
     return ScannerBot(db_path)
 
@@ -604,7 +604,7 @@ if __name__ == "__main__":
     import asyncio
     
     parser = argparse.ArgumentParser(description="Run 13F Scanner Discord Bot")
-    parser.add_argument("--db", default="C:/Users/cho_i/purrtfolio.db", help="Database path")
+    parser.add_argument("--db", default=os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db")), help="Database path")
     parser.add_argument("--token", required=True, help="Discord bot token")
     parser.add_argument("--admins", help="Comma-separated Discord user IDs for admin commands")
     args = parser.parse_args()

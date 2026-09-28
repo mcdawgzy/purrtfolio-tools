@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import List, Optional, Tuple
 import sys
+import os
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -329,7 +330,7 @@ if __name__ == "__main__":
     import json
     
     parser = argparse.ArgumentParser(description="Compute QoQ 13F holding changes")
-    parser.add_argument("--db", default="C:/Users/cho_i/purrtfolio.db", help="SQLite database path")
+    parser.add_argument("--db", default=os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db")), help="SQLite database path")
     parser.add_argument("--quarter", help="Quarter end date YYYY-MM-DD (default: latest)")
     parser.add_argument("--fund", help="Single fund CIK (optional)")
     parser.add_argument("--backfill", action="store_true", help="Compute all historical quarter pairs")

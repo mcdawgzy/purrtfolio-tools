@@ -5,8 +5,10 @@ import json
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import os
+from pathlib import Path
 
-DB = "C:/Users/cho_i/purrtfolio.db"
+DB = os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db"))
 
 def fetch_consensus_data(quarter="2026-06-30", prev_quarter="2026-03-31", limit=20):
     """Fetch consensus buys/sells - FIXED: order by ASC for sells"""

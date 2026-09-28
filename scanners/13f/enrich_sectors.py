@@ -19,8 +19,9 @@ import time
 from pathlib import Path
 
 import yfinance as yf
+import os
 
-DEFAULT_DB = Path(r"C:\Users\cho_i\purrtfolio.db")
+DEFAULT_DB = Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db"))
 
 
 def get_latest_quarter(conn: sqlite3.Connection) -> str | None:

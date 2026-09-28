@@ -12,7 +12,7 @@ REFERENCES_DIR = BASE_DIR / "references"
 SCRIPTS_DIR = BASE_DIR / "scripts"
 
 # Database — uses the unified purrtfolio.db
-DB_PATH = Path("C:/Users/cho_i/purrtfolio.db")
+DB_PATH = Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db"))
 
 # Watchlist — curated tickers for Form 4 scanning (same universe as short interest)
 WATCHLIST_PATH = Path(__file__).resolve().parent / "ticker_watchlist.json"

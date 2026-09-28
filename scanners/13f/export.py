@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import List, Dict, Optional, Any
 import sys
 import shutil
+import os
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -39,7 +40,7 @@ class ExcelExporter:
                              output_path: str, top_n: int = None) -> str:
         """Single fund, single quarter — formatted for review."""
         fund = self.conn.execute(
-            "SELECT name FROM funds_13f WHERE cik = ?", (fund_cik,)
+            "SELECT name FROM funds WHERE cik = ?", (fund_cik,)
         ).fetchone()
         fund_name = fund['name'] if fund else fund_cik
         
@@ -123,7 +124,7 @@ class ExcelExporter:
                             prev_period: date, output_path: str) -> str:
         """Side-by-side comparison with NEW/CLOSED/INCREASED/DECREASED tabs."""
         fund = self.conn.execute(
-            "SELECT name FROM funds_13f WHERE cik = ?", (fund_cik,)
+            "SELECT name FROM funds WHERE cik = ?", (fund_cik,)
         ).fetchone()
         fund_name = fund['name'] if fund else fund_cik
         
@@ -271,7 +272,7 @@ class ExcelExporter:
                 SUM(hc.value_change_usd) AS net_value_change_usd,
                 GROUP_CONCAT(DISTINCT f.name || ':' || hc.status) AS fund_actions
             FROM holding_changes_13f hc
-            JOIN funds_13f f ON hc.fund_cik = f.cik
+            JOIN funds f ON hc.fund_cik = f.cik
             WHERE hc.curr_report_period = ? AND hc.put_call = ''
             GROUP BY hc.ticker, hc.issuer_name
             HAVING funds_total >= ?
@@ -351,7 +352,7 @@ class ExcelExporter:
                     ROUND(h.market_value_usd * 100.0 / SUM(h.market_value_usd) OVER (PARTITION BY h.fund_cik), 2) AS weight_pct,
                     ROW_NUMBER() OVER (PARTITION BY h.fund_cik ORDER BY h.market_value_usd DESC) AS rn
                 FROM holdings_13f h
-                JOIN funds_13f f ON h.fund_cik = f.cik
+                JOIN funds f ON h.fund_cik = f.cik
                 WHERE h.report_period = ? AND h.put_call = ''
             """
             df = pd.read_sql(query, self.conn, params=[qtr])
@@ -440,7 +441,7 @@ class ExcelExporter:
                 COUNT(*) as total_positions,
                 SUM(h.market_value_usd) as total_value_usd
             FROM holdings_13f h
-            JOIN funds_13f f ON h.fund_cik = f.cik
+            JOIN funds f ON h.fund_cik = f.cik
             WHERE h.report_period = ? AND h.put_call = ''
             GROUP BY f.strategy
             ORDER BY total_value_usd DESC
@@ -471,7 +472,7 @@ class ExcelExporter:
                 COUNT(DISTINCT h.ticker) as tickers,
                 SUM(h.market_value_usd) as total_value_usd
             FROM holdings_13f h
-            JOIN funds_13f f ON h.fund_cik = f.cik
+            JOIN funds f ON h.fund_cik = f.cik
             JOIN sectors s ON h.ticker = s.ticker
             WHERE h.report_period = ? AND h.put_call = '' 
               AND s.sector IS NOT NULL
@@ -506,7 +507,7 @@ class ExcelExporter:
                 COUNT(DISTINCT h.fund_cik) as funds_holding,
                 GROUP_CONCAT(DISTINCT f.name) as fund_names
             FROM holdings_13f h
-            JOIN funds_13f f ON h.fund_cik = f.cik
+            JOIN funds f ON h.fund_cik = f.cik
             JOIN sectors s ON h.ticker = s.ticker
             WHERE h.report_period = ? AND h.put_call = '' AND s.sector IS NOT NULL
             GROUP BY s.sector, h.ticker, h.issuer_name
@@ -659,7 +660,7 @@ def run_export(db_path: str, quarter: str = None, fund: str = None,
         if not fund_cik:
             # Resolve by name
             row = exporter.conn.execute(
-                "SELECT cik FROM funds_13f WHERE name LIKE ? LIMIT 1", (f"%{fund}%",)
+                "SELECT cik FROM funds WHERE name LIKE ? LIMIT 1", (f"%{fund}%",)
             ).fetchone()
             if row:
                 fund_cik = row['cik']
@@ -692,7 +693,7 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description="Export 13F analysis to Excel")
-    parser.add_argument("--db", default="C:/Users/cho_i/purrtfolio.db", help="SQLite database path")
+    parser.add_argument("--db", default=os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db")), help="SQLite database path")
     parser.add_argument("--quarter", help="Quarter end date YYYY-MM-DD")
     parser.add_argument("--fund", help="Fund name or CIK (for fund-specific exports)")
     parser.add_argument("--package", action="store_true", help="Generate full quarterly package (zip)")

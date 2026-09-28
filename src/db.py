@@ -21,8 +21,14 @@ from typing import Any, Iterator
 # Default to the user's home purrtfolio.db. Override with PURRTFOLIO_DB env var.
 _DEFAULT_DB = Path.home() / "purrtfolio.db"
 
-# GitHub Release asset URL for production DB
-_RELEASE_ASSET = "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-28/purrtfolio.db.gz"
+# GitHub Release holding the production DBs. The tag is bumped on each DB
+# release (keep render.yaml in sync); override with DB_RELEASE_BASE if needed.
+RELEASE_BASE = os.environ.get(
+    "DB_RELEASE_BASE",
+    "https://github.com/mcdawgzy/purrtfolio-tools/releases/download/db-v2026-09-28",
+)
+_RELEASE_ASSET = f"{RELEASE_BASE}/purrtfolio.db.gz"
+MOMENTUM_RELEASE_ASSET = f"{RELEASE_BASE}/momentum_data.db.gz"
 
 logger = logging.getLogger(__name__)
 
@@ -252,7 +258,6 @@ def get_fund_holdings(
         "value": "market_value_usd",
         "shares": "shares",
         "ticker": "ticker",
-        "change": "share_change",
         "cusip": "cusip",
     }.get(sort_by, "market_value_usd")
     sort_dir_sql = "DESC" if sort_dir.lower() != "asc" else "ASC"
@@ -392,7 +397,7 @@ def get_ticker_holders(ticker: str) -> dict:
                 ON hc.fund_cik = fl.fund_cik
                 AND hc.cusip = h.cusip
                 AND hc.curr_report_period = fl.report_period
-            WHERE h.ticker = ?
+            WHERE h.ticker = ? AND h.put_call = ''
             ORDER BY fl.report_period DESC, h.market_value_usd DESC
         """, (ticker,)).fetchall()
 
@@ -433,11 +438,20 @@ def get_ticker_holders(ticker: str) -> dict:
             key = r["cik"]
             if key not in per_fund:
                 per_fund[key] = dict(r)
+        # A fund is a *current* holder only if the ticker is in its latest filing;
+        # otherwise the row is its last position before exiting.
+        latest_by_fund = dict(c.execute("""
+            SELECT fund_cik, MAX(report_period) FROM filings_13f
+            WHERE has_infotable = 1 GROUP BY fund_cik
+        """).fetchall())
+        for h in per_fund.values():
+            h["is_current"] = h["report_period"] == latest_by_fund.get(h["cik"])
         holders = sorted(
             per_fund.values(),
-            key=lambda x: x["market_value_usd"],
+            key=lambda x: (x["is_current"], x["market_value_usd"] or 0),
             reverse=True,
         )
+        current = [h for h in holders if h["is_current"]]
         # Quarter-by-quarter history (each quarter, total value across all funds)
         history_rows = c.execute("""
             SELECT report_period,
@@ -445,7 +459,7 @@ def get_ticker_holders(ticker: str) -> dict:
                    SUM(market_value_usd) as total_value_usd,
                    SUM(shares) as total_shares
             FROM holdings_13f
-            WHERE ticker = ?
+            WHERE ticker = ? AND put_call = ''
             GROUP BY report_period ORDER BY report_period
         """, (ticker,)).fetchall()
 
@@ -453,8 +467,8 @@ def get_ticker_holders(ticker: str) -> dict:
             "ticker": ticker,
             "found": True,
             "issuer_name": rows[0]["issuer_name"],
-            "current_holders": len(holders),
-            "total_current_value_usd": sum(h["market_value_usd"] for h in holders),
+            "current_holders": len(current),
+            "total_current_value_usd": sum(h["market_value_usd"] or 0 for h in current),
             "holders": holders,
             "history": _row_dicts(history_rows),
             "latest_si": latest_si,
@@ -652,7 +666,7 @@ def get_factor_meta() -> dict:
         covered = c.execute("""
             SELECT SUM(h.market_value_usd) AS covered
             FROM holdings_13f h JOIN ticker_factors tf ON h.ticker = tf.ticker
-            WHERE h.report_period=?
+            WHERE h.report_period=? AND h.put_call=''
         """, (quarter,)).fetchone()[0] or 0
         n = c.execute("SELECT COUNT(*) FROM ticker_factors").fetchone()[0]
         last = c.execute(
@@ -807,7 +821,7 @@ def get_factor_exposure(quarter: str | None = None) -> dict:
         covered = c.execute("""
             SELECT SUM(h.market_value_usd) FROM holdings_13f h
             JOIN ticker_factors tf ON h.ticker = tf.ticker
-            WHERE h.report_period=?
+            WHERE h.report_period=? AND h.put_call=''
         """, (quarter,)).fetchone()[0] or 0
         return {
             "quarter": quarter,
@@ -906,7 +920,8 @@ def _ct_table_exists(c) -> bool:
     ).fetchone() is not None
 
 
-def get_crowded_trades_latest(limit: int = 100, min_score: float | None = None) -> dict:
+def get_crowded_trades_latest(limit: int = 100, min_score: float | None = None,
+                              signal: str | None = None) -> dict:
     """Latest multi-signal crowded trades scan from scanners/crowded_trades.
 
     Reads from the `crowded_trades` table (written by the daily cron job).
@@ -919,30 +934,36 @@ def get_crowded_trades_latest(limit: int = 100, min_score: float | None = None) 
         latest = c.execute("SELECT MAX(date) FROM crowded_trades").fetchone()[0]
         if not latest:
             return {"latest_date": None, "rows": [], "signal_counts": {}}
-        params = [latest]
+        where, params = ["date = ?"], [latest]
         if min_score is not None:
+            where.append("crowdedness_score >= ?")
             params.append(min_score)
-        params.append(limit)
-        rows = _row_dicts(c.execute("""
+        if signal:
+            where.append("signal = ?")
+            params.append(signal)
+        rows = _row_dicts(c.execute(f"""
             SELECT ticker, crowdedness_score AS total_score, crowd_direction AS direction, signal,
                    short_crowd, options_crowd, iv_crowd, momentum_crowd,
                    pcr_crowd, corr_crowd, signal_details
             FROM crowded_trades
-            WHERE date = ?{score_clause}
+            WHERE {" AND ".join(where)}
             ORDER BY crowdedness_score DESC, ticker
             LIMIT ?
-        """.format(score_clause=" AND crowdedness_score >= ?" if min_score else ""), params).fetchall())
+        """, [*params, limit]).fetchall())
         for r in rows:
             try:
                 details = json.loads(r.pop("signal_details")) if r.get("signal_details") else {}
             except (json.JSONDecodeError, TypeError):
                 details = {}
             r["details"] = details
+        # Counts cover the whole scan, not just the returned page
         counts = {"HIGH": 0, "MEDIUM": 0, "NEUTRAL": 0}
-        for r in rows:
-            sig = r.get("signal", "NEUTRAL")
+        for sig, cnt in c.execute(
+            "SELECT signal, COUNT(*) FROM crowded_trades WHERE date = ? GROUP BY signal",
+            (latest,)
+        ).fetchall():
             if sig in counts:
-                counts[sig] += 1
+                counts[sig] = cnt
         return {
             "latest_date": latest,
             "signal_counts": counts,
@@ -954,7 +975,7 @@ def get_crowded_trades_meta() -> dict:
     """Metadata for the multi-signal crowded trades page."""
     with db_conn() as c:
         if not _ct_table_exists(c):
-            return {"latest_date": None, "tickers_scanned": 0,
+            return {"latest_date": None, "total_tickers": 0,
                     "signal_counts": {}, "last_ingestion": None}
         latest = c.execute("SELECT MAX(date) FROM crowded_trades").fetchone()[0]
         ticker_count = 0
@@ -1337,10 +1358,9 @@ def get_iv_history(ticker: str, days: int = 300) -> dict:
             return {"ticker": ticker.upper(), "rows": []}
         rows = _row_dicts(c.execute("""
             SELECT date, ticker, iv, iv_rank, iv_pctile, signal
-            FROM iv_rank
-            WHERE ticker = ?
+            FROM (SELECT * FROM iv_rank WHERE ticker = ?
+                  ORDER BY date DESC LIMIT ?)
             ORDER BY date ASC
-            LIMIT ?
         """, (ticker.upper(), days)))
         return {"ticker": ticker.upper(), "rows": rows}
 
@@ -1420,10 +1440,9 @@ def get_ua_history(ticker: str, limit: int = 100) -> dict:
             SELECT date, activity_type, call_put, expiry, strike,
                    volume, voi_ratio, notional_usd, iv_pct, price,
                    vol_ratio, severity_score, signal
-            FROM unusual_activity
-            WHERE ticker = ?
+            FROM (SELECT * FROM unusual_activity WHERE ticker = ?
+                  ORDER BY date DESC LIMIT ?)
             ORDER BY date ASC
-            LIMIT ?
         """, (ticker.upper(), limit)))
         return {"ticker": ticker.upper(), "rows": rows}
 # ---------------------------------------------------------------------------
@@ -1440,9 +1459,7 @@ def get_snapshot_dir() -> Path:
     env_dir = os.environ.get("SNAPSHOT_OUTPUT_DIR")
     if env_dir:
         p = Path(env_dir)
-        if p.is_absolute():
-            return p
-        return Path.cwd() / "13f-scanner-web" / "snapshots" / "macro" / "output"
+        return p if p.is_absolute() else Path(__file__).resolve().parent.parent / p
     # Local development: macro pipeline output
     local_dir = Path(__file__).resolve().parent.parent / "snapshots" / "macro" / "output"
     if local_dir.exists():
@@ -1457,12 +1474,16 @@ def _find_latest_report_json(out_dir: Path) -> Path | None:
     Checks for both dated names (market_report_YYYYMMDD.json) and
     the latest symlink/copy (market_report_latest.json).
     """
-    import glob
-    # Prefer dated files (newest first), then fall back to _latest
-    files = sorted(glob.glob(str(out_dir / "market_report_*.json")), reverse=True)
-    if files:
-        return Path(files[0])
-    return None
+    # Prefer dated files (newest first), then fall back to _latest.
+    # Filter to digits: "market_report_latest.json" sorts after any date.
+    dated = sorted(
+        (p for p in out_dir.glob("market_report_*.json") if p.stem[len("market_report_"):].isdigit()),
+        reverse=True,
+    )
+    if dated:
+        return dated[0]
+    latest = out_dir / "market_report_latest.json"
+    return latest if latest.exists() else None
 
 
 def _resolve_snapshot_filenames(out_dir: Path, date_str: str) -> tuple[str, str]:
@@ -1654,7 +1675,7 @@ def health() -> dict:
         si_latest = c.execute(
             "SELECT MAX(settlement_date) FROM short_interest"
         ).fetchone()[0]
-    return {"ok": ok, "db_path": str(get_db_path()), "si_latest_settlement": si_latest}
+    return {"ok": ok, "db_file": get_db_path().name, "si_latest_settlement": si_latest}
 
 
 # ---------------------------------------------------------------------------
@@ -2072,10 +2093,10 @@ def get_news_ticker(ticker: str) -> dict | None:
             SELECT source, title, url, published_at,
                    sentiment_score, sentiment_label
             FROM news_headlines
-            WHERE tickers_mentioned LIKE ?
+            WHERE ',' || REPLACE(tickers_mentioned, ' ', '') || ',' LIKE ?
             ORDER BY published_at DESC
             LIMIT 50
-        """, (f"%{ticker}%",)))
+        """, (f"%,{ticker.upper()},%",)))
         if not agg and not headlines:
             return None
         rows = _row_dicts(agg)

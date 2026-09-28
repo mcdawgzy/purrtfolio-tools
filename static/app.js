@@ -11,10 +11,23 @@
 |*/
 'use strict';
 
-// API base URL — uses local server in dev, production otherwise
-const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
-  ? ''
-  : 'https://one3f-tracker-wpj6.onrender.com';
+// API base URL — override with ?api=<url> or <meta name="api-base" content="...">;
+// otherwise the local server in dev, production elsewhere.
+const API = (() => {
+  // ?api= is a dev convenience: only local or Render hosts, so a shared link
+  // can't point the public site at an arbitrary data source.
+  let fromQuery = new URLSearchParams(location.search).get('api');
+  try {
+    const host = fromQuery != null ? new URL(fromQuery).hostname : '';
+    if (!/^(localhost|127\.0\.0\.1|[\w-]+\.onrender\.com)$/.test(host)) fromQuery = null;
+  } catch (e) { fromQuery = null; }
+  const fromMeta = document.querySelector('meta[name="api-base"]')?.content;
+  const override = fromQuery ?? fromMeta;
+  if (override != null) return override.trim().replace(/\/+$/, '');
+  return (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+    ? ''
+    : 'https://one3f-tracker-wpj6.onrender.com';
+})();
 
 const state = {
   view:   'funds',
@@ -132,6 +145,32 @@ function ensureChartJS() {
   return _chartJsPromise;
 }
 
+const COLD_START_MSG = 'Waking the server (free-tier host, can take ~30s)…';
+
+// While any request is in its retry loop, show a small cold-start notice.
+// It lives outside #app so render() doesn't wipe it.
+let _coldStartWaits = 0;
+let _booting = true;  // boot() shows its own wake-up message in #app
+function updateColdStartHint() {
+  const n = document.getElementById('cold-start-hint');
+  if (_coldStartWaits > 0 && !n && !_booting) {
+    document.body.appendChild(el('div', { id: 'cold-start-hint', class: 'cold-start-hint', role: 'status' }, COLD_START_MSG));
+  } else if (_coldStartWaits === 0 && n) {
+    n.remove();
+  }
+}
+
+async function _retryApi(path, params, attempt) {
+  const retry = async () => {
+    await new Promise(res => setTimeout(res, 2000 * Math.pow(2, attempt - 1)));
+    return api(path, params, attempt + 1);
+  };
+  if (attempt !== 1) return retry();
+  _coldStartWaits++; updateColdStartHint();
+  try { return await retry(); }
+  finally { _coldStartWaits--; updateColdStartHint(); }
+}
+
 // Retry transient failures (network errors from Render free-tier cold starts,
 // and 5xx/429/408) with exponential backoff so a single spin-up hiccup doesn't
 // surface as "Failed to fetch". 5 attempts with 2s base covers ~30s cold starts.
@@ -146,14 +185,12 @@ async function api(path, params = {}, _attempt = 1) {
   } catch (e) {
     // Network-level failure (instance asleep / DNS / connection reset).
     if (_attempt >= 5) throw e;
-    await new Promise(res => setTimeout(res, 2000 * Math.pow(2, _attempt - 1)));
-    return api(path, params, _attempt + 1);
+    return _retryApi(path, params, _attempt);
   }
   if (!r.ok) {
     // Retry transient server-side errors; fail fast on real 4xx client errors.
     if (_attempt < 5 && (r.status >= 500 || r.status === 408 || r.status === 429)) {
-      await new Promise(res => setTimeout(res, 2000 * Math.pow(2, _attempt - 1)));
-      return api(path, params, _attempt + 1);
+      return _retryApi(path, params, _attempt);
     }
     const body = await r.text();
     throw new Error(`HTTP ${r.status}: ${body.slice(0, 200)}`);
@@ -238,6 +275,17 @@ function el(tag, attrs = {}, ...children) {
   return e;
 }
 
+// Only allow http(s) links from scraped data (blocks javascript:, data:, etc.).
+function safeUrl(u) {
+  if (!u) return '#';
+  try {
+    const url = new URL(String(u));
+    return (url.protocol === 'http:' || url.protocol === 'https:') ? url.href : '#';
+  } catch (e) {
+    return '#';
+  }
+}
+
 // ---------------- routing ----------------
 function parseHash() {
   const h = location.hash.replace(/^#\/?/, '') || '';
@@ -253,7 +301,7 @@ function parseHash() {
     if (rest === 'signals') return { view: 'insider', insiderTab: 'signals' };
     return { view: 'insider', insiderTab: 'ticker', insiderTicker: rest.toUpperCase() };
   }
-  if (h.startsWith('short-interest') || h === 'short-interest/') return { view: 'shortinterest' };
+  if (h === 'short-interest' || h === 'short-interest/') return { view: 'shortinterest' };
   if (h.startsWith('short-interest/')) {
     const rest = h.slice('short-interest/'.length);
     if (rest === 'signals') return { view: 'shortinterest', siTab: 'signals' };
@@ -282,7 +330,9 @@ function parseHash() {
   if (h.startsWith('put-call-ratio/')) {
     const rest = h.slice('put-call-ratio/'.length);
     if (rest === 'history') return { view: 'putcallratio', pcrTab: 'history' };
-    return { view: 'putcallratio', pcrTab: 'ticker', pcrTicker: rest.toUpperCase() };
+    if (rest === 'signals') return { view: 'putcallratio', pcrTab: 'signals' };
+    // PCR is per-series, not per-ticker; unknown sub-routes fall back to Latest.
+    return { view: 'putcallratio', pcrTab: 'latest' };
   }
   if (h === 'iv-rank' || h === 'iv-rank/') return { view: 'ivrank' };
   if (h.startsWith('iv-rank/')) {
@@ -560,7 +610,12 @@ window.addEventListener('unhandledrejection', (e) => {
   console.error('Unhandled promise rejection:', e.reason);
 });
 
+// Incremented on every navigation; a loader that finishes after a newer
+// navigation started must not render over the newer view.
+let _routeToken = 0;
+
 async function handleRoute() {
+  const token = ++_routeToken;
   const r = parseHash();
   state.view = r.view;
   // Drop the momentum cache when leaving the view so re-entry refetches fresh
@@ -594,30 +649,53 @@ async function handleRoute() {
     state.ctMeta = null;
     state.ctLatest = null;
   }
+  const loaders = {
+    funds:        () => loadFunds(),
+    fund:         () => loadFund(r.cik, r.tab),
+    ticker:       () => loadTicker(r.ticker),
+    consensus:    () => loadConsensus(),
+    sectors:      () => loadSectors(),
+    shortinterest: () => loadShortInterest(r),
+    economic:     () => loadEconomicCalendar(),
+    snapshot:     () => loadSnapshot(),
+    insider:      () => loadInsider(r),
+    momentum:     () => loadMomentum(r),
+    correlation:  () => loadCorrelation(r),
+    factors:      () => loadFactors(r),
+    putcallratio: () => loadPutCallRatio(r),
+    ivrank:       () => loadIVRank(r),
+    unusualactivity: () => loadUnusualActivity(r),
+    screener:     () => loadScreener(r),
+    news:         () => loadNews(r),
+    quotes:       () => loadQuotes(r),
+    earningsrevisions: () => loadEarningsRevisions(r),
+    crowdedtrades: () => loadCrowdedTrades(r),
+  };
+  const loader = loaders[r.view];
+  if (!loader) {
+    // API-free page (calculators/explainers): render immediately.
+    state.loading = false;
+    state.routeLoading = false;
+    state.error = null;
+    render();
+    return;
+  }
+  // Show LOADING… (without the new view's body, whose data isn't loaded yet).
+  // Deferred briefly so fast/cached loads don't flash the indicator.
+  state.loading = true;
+  state.routeLoading = true;
+  const showLoading = setTimeout(() => {
+    if (token === _routeToken && state.routeLoading) render();
+  }, 150);
   try {
-    if (r.view === 'funds')        await loadFunds();
-    else if (r.view === 'fund')    await loadFund(r.cik, r.tab);
-    else if (r.view === 'ticker')  await loadTicker(r.ticker);
-    else if (r.view === 'consensus') await loadConsensus();
-    else if (r.view === 'sectors') await loadSectors();
-    else if (r.view === 'shortinterest') await loadShortInterest(r);
-    else if (r.view === 'economic') await loadEconomicCalendar();
-    else if (r.view === 'snapshot') await loadSnapshot();
-    else if (r.view === 'insider') await loadInsider(r);
-    else if (r.view === 'momentum') await loadMomentum(r);
-    else if (r.view === 'correlation') await loadCorrelation(r);
-    else if (r.view === 'factors')     await loadFactors(r);
-    else if (r.view === 'putcallratio') await loadPutCallRatio(r);
-    else if (r.view === 'ivrank')        await loadIVRank(r);
-    else if (r.view === 'unusualactivity') await loadUnusualActivity(r);
-    else if (r.view === 'screener')       await loadScreener(r);
-    else if (r.view === 'news')        await loadNews(r);
-    else if (r.view === 'quotes')      await loadQuotes(r);
-    else if (r.view === 'earningsrevisions') await loadEarningsRevisions(r);
-    else if (r.view === 'crowdedtrades') await loadCrowdedTrades(r);
+    await loader();
   } catch (e) {
     state.error = 'Navigation error: ' + e.message;
   }
+  clearTimeout(showLoading);
+  if (token !== _routeToken) return;  // superseded by a newer navigation
+  state.routeLoading = false;
+  state.loading = false;
   render();
 }
 
@@ -625,6 +703,7 @@ async function handleRoute() {
 async function loadMeta() {
   if (state.meta) return state.meta;
   state.meta = await api('/api/meta');
+  state.bootError = null;
   return state.meta;
 }
 
@@ -751,7 +830,9 @@ async function loadEconomicCalendar() {
 async function loadShortInterest(r) {
   state.error = null;
   state.loading = true;
-  state.siActiveTab = r.siTab || (r.siTicker ? 'history' : 'latest');
+  // The ticker drill-down renders under the 'history' tab (see renderShortInterest).
+  state.siActiveTab = r.siTicker ? 'history' : (r.siTab || 'latest');
+  state.siTicker = null;
   try {
     await loadMeta();
     // Batch all three calls in parallel instead of sequential
@@ -765,10 +846,7 @@ async function loadShortInterest(r) {
     state.siSignals = signals;
     state.siLatest.rows = latestResp.rows || latestResp;
     state.siLatest.total = state.siLatest.rows.length;
-    if (r.siTicker) {
-      state.siActiveTab = 'history';
-      state.siTicker = tickerResp;
-    }
+    if (r.siTicker) state.siTicker = tickerResp;
   } catch (e) {
       state.error = e.message;
     } finally {
@@ -912,23 +990,6 @@ async function loadFactors(r) {
   }
 }
 
-async function reloadFactorTab(tab) {
-  state.factorActiveTab = tab;
-  state.loading = true;
-  try {
-    if (tab === 'drift' && !state.factorExposure) {
-      state.factorExposure = await api('/api/factors/exposure');
-    }
-    if (tab === 'crowded' && !state.crowdedTrades) {
-      state.crowdedTrades = await api('/api/factors/crowded');
-    }
-  } catch (e) {
-    state.error = e.message;
-  } finally {
-    state.loading = false;
-  }
-}
-
 async function reloadFundTab(cik, tab) {
   state.fundTab = tab;
   state.error = null;
@@ -964,11 +1025,25 @@ async function loadPutCallRatio(r) {
     state.pcrMeta = meta;
     state.pcrLatest = latest;
     state.pcrSignals = signals;
+    if (state.pcrActiveTab === 'history') await loadPcrHistory();
   } catch (e) {
     state.error = e.message;
   } finally {
     state.loading = false;
   }
+}
+
+async function loadPcrHistory() {
+  state.pcrHistory = await api('/api/pcr/history/' + encodeURIComponent(state.pcrHistorySeries || 'TOTAL'),
+    { days: state.pcrHistoryDays });
+}
+
+// Load (or reload) the PCR history for the selected series, then re-render.
+async function refreshPcrHistory() {
+  state.loading = true; state.error = null; render();
+  try { await loadPcrHistory(); }
+  catch (e) { state.error = e.message; }
+  finally { state.loading = false; render(); }
 }
 // ---------------- IV Rank loader ----------------
 async function loadIVRank(r) {
@@ -1119,7 +1194,8 @@ async function loadRandomQuote() {
 
 function changeQuoteCategory(cat) {
   state.quoteCategory = cat;
-  loadQuotes({ category: cat });
+  state.loading = true; render();
+  loadQuotes({ category: cat }).then(render);
 }
 
 async function loadEarningsRevisions(r) {
@@ -1166,12 +1242,16 @@ function render() {
   root.innerHTML = '';
   root.appendChild(renderMasthead());
   root.appendChild(renderNav());
+  if (state.bootError) {
+    root.appendChild(el('div', { class: 'error' }, state.bootError));
+  }
   if (state.error) {
     root.appendChild(el('div', { class: 'error' }, state.error));
   }
-  if (state.loading) {
+  if (state.loading || state.routeLoading) {
     root.appendChild(el('div', { class: 'loading' }, 'LOADING…'));
   }
+  if (state.routeLoading) return;  // route data still loading; see handleRoute
   const _desc = renderPageDescription(state.view);
   if (_desc) root.appendChild(_desc);
   if (state.view === 'funds')        root.appendChild(renderFunds());
@@ -1824,12 +1904,12 @@ function renderHoldingsTab(cik) {
   const chartTableWrap = el('div', { style: { display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' } });
   
   // Chart canvas
-  const chartWrap = el('div', { style: { flex: '1 1 350px', minWidth: '300px', maxHeight: '400px' } });
+  const chartWrap = el('div', { style: { flex: '1 1 350px', minWidth: 'min(300px, 100%)', maxHeight: '400px' } });
   chartWrap.appendChild(el('canvas', { id: 'fund-holdings-chart' }));
   chartTableWrap.appendChild(chartWrap);
 
   // Holdings table
-  const tableWrap = el('div', { class: 'table-wrap', style: { flex: '1 1 400px', minWidth: '400px' } });
+  const tableWrap = el('div', { class: 'table-wrap', style: { flex: '1 1 400px', minWidth: 'min(400px, 100%)' } });
   if (!state.holdings.holdings || state.holdings.holdings.length === 0) {
     tableWrap.appendChild(el('div', { class: 'empty' }, 'No holdings match these filters.'));
     wrap.appendChild(tableWrap);
@@ -2103,12 +2183,12 @@ function renderTicker() {
     const chartTableWrap = el('div', { style: { display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' } });
 
     // Chart canvas
-    const chartWrap = el('div', { style: { flex: '1 1 350px', minWidth: '300px', maxHeight: '400px' } });
+    const chartWrap = el('div', { style: { flex: '1 1 350px', minWidth: 'min(300px, 100%)', maxHeight: '400px' } });
     chartWrap.appendChild(el('canvas', { id: 'ticker-holders-chart' }));
     chartTableWrap.appendChild(chartWrap);
 
     // Table
-    const tableWrap = el('div', { class: 'table-wrap', style: { flex: '1 1 400px', minWidth: '400px' } });
+    const tableWrap = el('div', { class: 'table-wrap', style: { flex: '1 1 400px', minWidth: 'min(400px, 100%)' } });
     const table = el('table');
     const thead = el('thead');
     const trh = el('tr');
@@ -2119,7 +2199,8 @@ function renderTicker() {
   thead.appendChild(trh);
   table.appendChild(thead);
   const tbody = el('tbody');
-  for (const h of t.holders || []) {
+  // is_current is false for funds whose latest filing no longer holds the ticker
+  for (const h of (t.holders || []).filter(h => h.is_current !== false)) {
     const tr = el('tr', {
       style: { cursor: 'pointer' },
       onclick: () => setHash('#/fund/' + h.cik),
@@ -2206,11 +2287,11 @@ function renderConsensusView() {
   ));
 
   // Chart + Table container for buys
-  const buysChartWrap = el('div', { style: { flex: '1 1 350px', minWidth: '300px', maxHeight: '400px' } });
+  const buysChartWrap = el('div', { style: { flex: '1 1 350px', minWidth: 'min(300px, 100%)', maxHeight: '400px' } });
   buysChartWrap.appendChild(el('canvas', { id: 'consensus-buys-chart' }));
 
   // Chart + Table container for sells
-  const sellsChartWrap = el('div', { style: { flex: '1 1 350px', minWidth: '300px', maxHeight: '400px' } });
+  const sellsChartWrap = el('div', { style: { flex: '1 1 350px', minWidth: 'min(300px, 100%)', maxHeight: '400px' } });
   sellsChartWrap.appendChild(el('canvas', { id: 'consensus-sells-chart' }));
 
   const chartsWrap = el('div', { style: { display: 'flex', gap: '24px', flexWrap: 'wrap', marginBottom: '24px' } });
@@ -2298,12 +2379,12 @@ function renderConsensusColumn(title, rows, isBuy) {
       const chartTableWrap = el('div', { style: { display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' } });
 
       // Bar chart canvas
-      const chartWrap = el('div', { style: { flex: '1 1 350px', minWidth: '300px', maxHeight: '400px' } });
+      const chartWrap = el('div', { style: { flex: '1 1 350px', minWidth: 'min(300px, 100%)', maxHeight: '400px' } });
       chartWrap.appendChild(el('canvas', { id: 'sectors-chart' }));
       chartTableWrap.appendChild(chartWrap);
 
       // Table
-      const tableWrap = el('div', { class: 'table-wrap', style: { flex: '1 1 400px', minWidth: '400px' } });
+      const tableWrap = el('div', { class: 'table-wrap', style: { flex: '1 1 400px', minWidth: 'min(400px, 100%)' } });
       const table = el('table');
       const thead = el('thead');
       const trh = el('tr');
@@ -3798,9 +3879,11 @@ function renderPutCallRatio() {
   const stats = el('div', { class: 'stats' });
   stats.appendChild(stat('As of', dateFmt));
   stats.appendChild(stat('Series', m.series_count || latest.rows?.length || 0, 'brass'));
-  stats.appendChild(stat('Signals', m.extreme_count || 0));
-  if (m.last_update) {
-    const lu = `${String(m.last_update).slice(5, 7)}/${String(m.last_update).slice(8, 10)}/${String(m.last_update).slice(0, 4)}`;
+  stats.appendChild(stat('Signals', m.extreme_count ?? state.pcrSignals?.signals?.length ?? 0));
+  // /api/pcr/meta returns last_update as an ingestion-log object
+  const luRaw = m.last_update && (m.last_update.started_at || m.last_update.date || m.last_update);
+  if (luRaw && typeof luRaw === 'string') {
+    const lu = `${luRaw.slice(5, 7)}/${luRaw.slice(8, 10)}/${luRaw.slice(0, 4)}`;
     stats.appendChild(stat('Last Update', lu, 'brass'));
   }
   wrap.appendChild(stats);
@@ -3815,7 +3898,12 @@ function renderPutCallRatio() {
   for (const t of tabLabels) {
     tabs.appendChild(el('div', {
       class: 'tab' + (state.pcrActiveTab === t.key ? ' active' : ''),
-      onclick: () => { state.pcrActiveTab = t.key; render(); },
+      onclick: () => {
+        state.pcrActiveTab = t.key;
+        const wantSeries = state.pcrHistorySeries || 'TOTAL';
+        if (t.key === 'history' && (!state.pcrHistory || state.pcrHistory.series !== wantSeries)) refreshPcrHistory();
+        else render();
+      },
     }, t.label));
   }
   wrap.appendChild(tabs);
@@ -3932,11 +4020,6 @@ function renderPcrHistory() {
   const h = state.pcrHistory;
   const wrap = el('div', { class: 'section' });
 
-  if (!h || !h.rows || !h.rows.length) {
-    wrap.appendChild(el('div', { class: 'empty' }, 'No historical data available.'));
-    return wrap;
-  }
-
   // Series selector
   const selWrap = el('div', { class: 'filters' });
   selWrap.appendChild(el('div', { class: 'filter-group' },
@@ -3944,12 +4027,17 @@ function renderPcrHistory() {
     el('select', {
       onchange: (e) => {
         state.pcrHistorySeries = e.target.value;
-        render();
+        refreshPcrHistory();
       },
     }, ...['TOTAL', 'INDEX', 'EQUITY', 'ETP', 'VIX'].map(s =>
       el('option', { value: s, selected: s === (state.pcrHistorySeries || 'TOTAL') }, PCR_SERIES_LABELS[s] || s)
     ))));
   wrap.appendChild(selWrap);
+
+  if (!h || !h.rows || !h.rows.length) {
+    if (!state.loading) wrap.appendChild(el('div', { class: 'empty' }, 'No historical data available.'));
+    return wrap;
+  }
 
   // Chart container
   const chartWrap = el('div', { style: { flex: '1 1 600px', height: '400px', width: '100%' } });
@@ -3957,13 +4045,15 @@ function renderPcrHistory() {
   wrap.appendChild(chartWrap);
 
   // Render chart after DOM ready
-  setTimeout(() => {
+  setTimeout(async () => {
+    await ensureChartJS();
     const rows = h.rows;
     const labels = rows.map(r => r.date ? `${String(r.date).slice(5, 7)}/${String(r.date).slice(8, 10)}` : '');
     const ratios = rows.map(r => r.ratio);
     const ma5 = rows.map(r => r.ma5);
 
     const ctx = document.getElementById('pcr-history-chart');
+    if (!ctx) return;  // view re-rendered/navigated away before Chart.js loaded
     if (charts['pcr-history-chart']) charts['pcr-history-chart'].destroy();
     charts['pcr-history-chart'] = new Chart(ctx, {
       type: 'line',
@@ -4423,10 +4513,10 @@ function renderNewsHeadlines() {
     tr.appendChild(el('td', { class: 'sm mut' }, row.source || '—'));
     const linkCell = el('td');
     const link = el('a', {
-      href: row.url || '#',
+      href: safeUrl(row.url),
       target: '_blank',
+      rel: 'noopener noreferrer',
       class: 'link',
-      onclick: (e) => { e.preventDefault(); window.open(row.url || '#', '_blank'); },
     }, row.title);
     linkCell.appendChild(link);
     if (row.tickers_mentioned) {
@@ -4565,8 +4655,9 @@ function renderNewsTicker() {
       const tr = el('tr');
       tr.appendChild(el('td', { class: 'sm mut' }, row.source || '—'));
       const link = el('a', {
-        href: row.url || '#',
+        href: safeUrl(row.url),
         target: '_blank',
+        rel: 'noopener noreferrer',
         class: 'link',
       }, row.title);
       tr.appendChild(el('td', {}, link));
@@ -5609,7 +5700,7 @@ function renderScreener() {
     ));
   });
   table.appendChild(tbody);
-  wrap.appendChild(table);
+  wrap.appendChild(el('div', { class: 'table-wrap' }, table));
 
   return wrap;
 }
@@ -5738,7 +5829,7 @@ function renderEarningsRevisions() {
     ));
   });
   table.appendChild(tbody);
-  wrap.appendChild(table);
+  wrap.appendChild(el('div', { class: 'table-wrap' }, table));
 
   return wrap;
 }
@@ -5889,10 +5980,11 @@ function renderUnusualActivity() {
 function fmtNotional(n) {
   if (n === null || n === undefined || Number.isNaN(n)) return '—';
   const abs = Math.abs(n);
-  if (abs >= 1e9)  return '$' + (abs / 1e9).toFixed(1) + 'B';
-  if (abs >= 1e6)  return '$' + (abs / 1e6).toFixed(0) + 'M';
-  if (abs >= 1e3)  return '$' + (abs / 1e3).toFixed(0) + 'K';
-  return '$' + abs.toLocaleString();
+  const sign = n < 0 ? '-' : '';
+  if (abs >= 1e9)  return sign + '$' + (abs / 1e9).toFixed(1) + 'B';
+  if (abs >= 1e6)  return sign + '$' + (abs / 1e6).toFixed(0) + 'M';
+  if (abs >= 1e3)  return sign + '$' + (abs / 1e3).toFixed(0) + 'K';
+  return sign + '$' + abs.toLocaleString();
 }
 
 function renderUATable(rows) {
@@ -6060,10 +6152,17 @@ function renderUAHistory() {
 
 // ---------------- boot ----------------
 async function boot() {
-  await loadMeta();
+  document.getElementById('app').replaceChildren(el('div', { class: 'loading' }, COLD_START_MSG));
+  try {
+    await loadMeta();
+  } catch (e) {
+    // Keep the shell usable: calculator/explainer pages don't need the API.
+    state.bootError = 'Could not reach the data server (' + e.message + '). Data pages may fail to load; calculators still work.';
+  }
+  _booting = false;
   await handleRoute();
 }
 boot().catch(e => {
-  document.getElementById('app').innerHTML =
-    '<div class="error">Failed to start: ' + e.message + '</div>';
+  document.getElementById('app').replaceChildren(
+    el('div', { class: 'error' }, 'Failed to start: ' + e.message));
 });

@@ -32,8 +32,9 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import yfinance as yf
+import os
 
-DEFAULT_DB = Path(r"C:/Users/cho_i/purrtfolio.db")
+DEFAULT_DB = Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db"))
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("enrich_factors")
 

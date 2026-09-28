@@ -23,6 +23,7 @@ import shutil
 from datetime import date
 from pathlib import Path
 import sys
+import os
 
 
 def fetch_sec_table_total(cik: str, accession: str) -> int | None:
@@ -40,7 +41,7 @@ def fetch_sec_table_total(cik: str, accession: str) -> int | None:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--db", default="C:/Users/cho_i/purrtfolio.db")
+    parser.add_argument("--db", default=os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db")))
     parser.add_argument("--skip-backup", action="store_true",
                         help="Skip the backup (you already have one)")
     parser.add_argument("--skip-sec-check", action="store_true",

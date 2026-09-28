@@ -9,8 +9,9 @@ from datetime import date
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import sys
+import os
 
-DB_PATH = Path(r"C:\Users\cho_i\purrtfolio.db")
+DB_PATH = Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db"))
 
 # Fund groups for strategy-level analysis (names must match funds.name in DB)
 FUND_GROUPS = {

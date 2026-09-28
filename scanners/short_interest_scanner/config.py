@@ -10,7 +10,7 @@ DATA_DIR = BASE_DIR / "data"
 EXPORTS_DIR = BASE_DIR / "exports"
 REFERENCES_DIR = BASE_DIR / "references"
 
-DB_PATH = Path("C:/Users/cho_i/purrtfolio.db")
+DB_PATH = Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db"))
 WATCHLIST_PATH = BASE_DIR / "ticker_watchlist.json"
 
 # FINRA CDN
