@@ -20,7 +20,7 @@ jobs:
         run: pip install -r requirements.txt pytest httpx
 
       - name: Compile all Python
-        run: python -m compileall -q src scanners scripts snapshots tests
+        run: python -m compileall -q src scanners scripts snapshots tests cron
 
       - name: API imports
         run: python -c "import src.api"
