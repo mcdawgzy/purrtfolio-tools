@@ -11,6 +11,8 @@ cron jobs finish, this script:
   4. Creates a GitHub Release tagged db-vYYYY-MM-DD with both assets
   5. Updates version tag references in src/config.py and render.yaml
      (audit_qa_bot.py reads the tag from src/config.py)
+  6. Commits just those files and pushes to master, which redeploys Render
+     with the new release (set PUBLISH_PUSH=0 to skip, e.g. for manual runs)
 
 Idempotent: skips release creation if the tag already exists.
 Only updates source references when the tag changes.
@@ -186,6 +188,59 @@ def create_gh_release(tag: str, assets: list[str]):
     return True
 
 
+def _git(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(["git", "-C", str(WEBROOT), *args],
+                          capture_output=True, text=True, encoding="utf-8", errors="replace")
+
+
+def deploy_tag_refs(new_tag: str) -> bool:
+    """Commit the tag-reference files and push them to master (Render autodeploys
+    on push). Only those files are committed; other working-tree changes are
+    left alone. Safe to re-run: a commit left unpushed by an earlier run is
+    pushed on the next one."""
+    if os.environ.get("PUBLISH_PUSH", "1") == "0":
+        log("PUBLISH_PUSH=0 — not committing/pushing tag refs")
+        return True
+    branch = _git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
+    if branch != "master":
+        log(f"Checkout is on '{branch}', not master — not pushing")
+        return False
+
+    files = [str(f.relative_to(WEBROOT)) for f, _, _ in TAG_REFS if f.exists()]
+    if _git("status", "--porcelain", "--", *files).stdout.strip():
+        commit = _git("commit", "-m", f"chore: deploy DB release {new_tag}", "-o", "--", *files)
+        if commit.returncode != 0:
+            log(f"Commit failed: {(commit.stdout + commit.stderr).strip()[:300]}")
+            return False
+    _git("fetch", "-q", "origin", "master")
+    if not _git("rev-list", "origin/master..HEAD", "--", *files).stdout.strip():
+        log("Tag refs already on origin/master — nothing to deploy")
+        return True
+
+    for attempt in (1, 2):
+        # Never autostash a local edit into a file that also changed upstream:
+        # the stash pop would leave conflict markers in the cron checkout.
+        _git("fetch", "-q", "origin", "master")
+        dirty = {line[3:] for line in _git("status", "--porcelain").stdout.splitlines()
+                 if not line.startswith("??")}
+        upstream = set(_git("diff", "--name-only", "HEAD...origin/master").stdout.split())
+        if dirty & upstream:
+            log(f"Local changes overlap upstream ({', '.join(sorted(dirty & upstream))}) — "
+                "not rebasing; committed locally, push needs a manual pull")
+            return False
+        pull = _git("pull", "--rebase", "--autostash", "origin", "master")
+        if pull.returncode != 0:
+            _git("rebase", "--abort")
+            log(f"Rebase onto origin/master failed: {pull.stderr.strip()[:300]}")
+            return False
+        push = _git("push", "origin", "HEAD:master")
+        if push.returncode == 0:
+            log(f"Pushed tag refs for {new_tag} — Render will redeploy")
+            return True
+        log(f"Push attempt {attempt} failed: {push.stderr.strip()[:300]}")
+    return False
+
+
 def update_tag_refs(new_tag: str):
     """Update all files that reference the old release tag."""
     log(f"Updating version references to {new_tag}...")
@@ -220,11 +275,14 @@ def main() -> int:
         # 2. Check if release already exists (idempotent)
         if gh_release_exists(new_tag):
             log(f"Release {new_tag} already exists — skipping creation.")
-            # Still update source references in case they're stale
+            # Still update source references in case they're stale, and retry
+            # the deploy push if an earlier run couldn't complete it
             update_tag_refs(new_tag)
-            print(f"Status: ok")
+            deployed = deploy_tag_refs(new_tag)
+            print(f"Status: {'ok' if deployed else 'error'}")
             print(f"Release: {new_tag} (already existed)")
-            return 0
+            print(f"Deploy: {'pushed/up to date' if deployed else 'FAILED to push tag refs'}")
+            return 0 if deployed else 1
 
         # 3. Compress main DB
         main_gz = tmpdir / "purrtfolio.db.gz"
@@ -248,12 +306,16 @@ def main() -> int:
         # 6. Update version references in source files
         updated = update_tag_refs(new_tag)
 
-        print(f"Status: ok")
+        # 7. Commit + push the new tag so Render serves this release
+        deployed = deploy_tag_refs(new_tag)
+
+        print(f"Status: {'ok' if deployed else 'error'}")
         print(f"Release: {new_tag}")
+        print(f"Deploy: {'pushed' if deployed else 'FAILED to push tag refs'}")
         print(f"Files updated: {len(updated)}")
         for f in updated:
             print(f"  - {f}")
-        return 0
+        return 0 if deployed else 1
 
     except Exception as e:
         log(f"ERROR: {e}")
