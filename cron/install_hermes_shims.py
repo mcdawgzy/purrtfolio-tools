@@ -54,6 +54,7 @@ runpy.run_path(TARGET, run_name="__main__")
 
 SH_SHIM = '''#!/bin/bash
 # Hermes shim: runs {target}. {marker} (originals in _pre_repo_backup/).
+export PYTHONUTF8=1 PYTHONIOENCODING=utf-8
 exec "{python}" "{target}" "$@"
 '''
 

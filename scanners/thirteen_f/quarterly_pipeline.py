@@ -19,7 +19,10 @@ def run_cmd(cmd, desc):
     print(f"  {desc}")
     print(f"  Command: {cmd}")
     print(f"{'='*60}")
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=REPO)
+    # UTF-8 for child output (steps print ✓ etc.; the Windows default codepage can't)
+    env = {**os.environ, "PYTHONUTF8": "1", "PYTHONIOENCODING": "utf-8"}
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True,
+                            encoding="utf-8", errors="replace", cwd=REPO, env=env)
     if result.stdout:
         print(result.stdout)
     if result.stderr:
