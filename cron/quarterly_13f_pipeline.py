@@ -19,8 +19,8 @@ import subprocess
 import sys
 
 
-WORKDIR = REPO / "scanners" / "13f"
-PIPELINE = WORKDIR / "quarterly_pipeline.py"
+WORKDIR = REPO  # run as a module from the repo root
+PIPELINE = REPO / "scanners" / "thirteen_f" / "quarterly_pipeline.py"
 PURRTFOLIO_DB = Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db"))
 
 
@@ -42,11 +42,11 @@ def main() -> int:
     print(f"Unified DB: {PURRTFOLIO_DB} ({PURRTFOLIO_DB.stat().st_size:,} bytes)")
 
     proc = subprocess.run(
-        [sys.executable, str(PIPELINE)],
+        [sys.executable, "-m", "scanners.thirteen_f.quarterly_pipeline"],
         cwd=str(WORKDIR),
         env=env,
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
     )
     if proc.stdout:
         print(proc.stdout)

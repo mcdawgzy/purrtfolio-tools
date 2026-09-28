@@ -2,13 +2,13 @@
 Form 4 Insider Trading Scanner — Main CLI Entry Point
 
 Usage:
-  python -m form4_insider_trading --db C:/Users/cho_i/purrtfolio.db init
-  python -m form4_insider_trading --db C:/Users/cho_i/purrtfolio.db ingest latest
-  python -m form4_insider_trading --db C:/Users/cho_i/purrtfolio.db ingest backfill 2024Q1 2026Q2
-  python -m form4_insider_trading --db C:/Users/cho_i/purrtfolio.db analyze ticker AAPL
-  python -m form4_insider_trading --db C:/Users/cho_i/purrtfolio.db analyze signals
-  python -m form4_insider_trading --db C:/Users/cho_i/purrtfolio.db analyze summary
-  python -m form4_insider_trading --db C:/Users/cho_i/purrtfolio.db status
+  python -m scanners.form4_insider_trading --db C:/Users/cho_i/purrtfolio.db init
+  python -m scanners.form4_insider_trading --db C:/Users/cho_i/purrtfolio.db ingest latest
+  python -m scanners.form4_insider_trading --db C:/Users/cho_i/purrtfolio.db ingest backfill 2024Q1 2026Q2
+  python -m scanners.form4_insider_trading --db C:/Users/cho_i/purrtfolio.db analyze ticker AAPL
+  python -m scanners.form4_insider_trading --db C:/Users/cho_i/purrtfolio.db analyze signals
+  python -m scanners.form4_insider_trading --db C:/Users/cho_i/purrtfolio.db analyze summary
+  python -m scanners.form4_insider_trading --db C:/Users/cho_i/purrtfolio.db status
 """
 import argparse
 import sys
@@ -16,9 +16,6 @@ import json
 import sqlite3
 from pathlib import Path
 import os
-
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 # Allow --db BEFORE subcommand (like 13f scanner's main.py)
 def main():

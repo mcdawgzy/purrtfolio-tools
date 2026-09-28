@@ -17,8 +17,10 @@ import os
 from pathlib import Path
 from typing import Dict, List
 
+from ..common import DB_PATH as COMMON_DB_PATH
+
 # ── Database ──────────────────────────────────────────────
-DB_PATH = Path(os.environ.get("PURRTFOLIO_DB", str(Path.home() / "purrtfolio.db")))
+DB_PATH = COMMON_DB_PATH  # PURRTFOLIO_DB, else ~/purrtfolio.db (scanners/common.py)
 
 # ── Watchlist ─────────────────────────────────────────────
 # The crowded-trades universe is the curated short-interest watchlist

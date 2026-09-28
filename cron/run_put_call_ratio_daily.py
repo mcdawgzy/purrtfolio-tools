@@ -24,9 +24,9 @@ import sys
 import json
 
 # Make the package importable when run from any cwd (Hermes runs from its own workdir)
-sys.path.insert(0, str(REPO / "scanners"))
+sys.path.insert(0, str(REPO))
 
-from put_call_ratio.scheduler import run_once  # noqa: E402
+from scanners.put_call_ratio.scheduler import run_once  # noqa: E402
 
 
 def main() -> int:

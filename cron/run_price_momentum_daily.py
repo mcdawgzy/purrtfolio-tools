@@ -24,9 +24,9 @@ import json
 
 # Make the scanners package importable when run from any cwd (Hermes runs from
 # its own workdir; our script lives under ~/AppData/Local/hermes/scripts/)
-sys.path.insert(0, str(REPO / "scanners"))
+sys.path.insert(0, str(REPO))
 
-from price_momentum.ingest import run_once  # noqa: E402
+from scanners.price_momentum.ingest import run_once  # noqa: E402
 
 
 def main() -> int:

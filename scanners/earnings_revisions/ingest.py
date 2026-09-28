@@ -13,22 +13,14 @@ Stores results in the unified purrtfolio.db SQLite database.
 import logging
 import math
 import sqlite3
-import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date
 from pathlib import Path
 
 import yfinance as yf
 
-SCANNERS_DIR = Path(__file__).resolve().parent.parent
-if str(SCANNERS_DIR) not in sys.path:
-    sys.path.insert(0, str(SCANNERS_DIR))
-SRC_DIR = SCANNERS_DIR.parent / "src"
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
-
-from earnings_revisions.config import DB_PATH, WATCHLIST, MIN_QUARTERS, MAX_WORKERS
-from db import init_earnings_revisions
+from .config import DB_PATH, WATCHLIST, MIN_QUARTERS, MAX_WORKERS
+from .db import init_earnings_revisions
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

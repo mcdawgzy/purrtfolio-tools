@@ -1,4 +1,4 @@
-"""Smoke test: every GET route in src/api.py answers without a 5xx.
+"""Smoke test: every GET route of the app answers without a 5xx.
 
 Needs a real purrtfolio.db (PURRTFOLIO_DB or ~/purrtfolio.db); skipped otherwise.
 Run from the repo root:  python -m pytest tests -q
@@ -7,12 +7,18 @@ from __future__ import annotations
 
 import os
 import re
+import tempfile
 from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parent.parent
 DB = Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db"))
+
+# Set before src.api is imported (route collection below): the scanner modules
+# resolve their DB paths at import time. The slim momentum DB is downloaded on
+# startup; keep it out of $HOME.
+os.environ["PURRTFOLIO_DB"] = str(DB)
+os.environ.setdefault("MOMENTUM_DB", str(Path(tempfile.mkdtemp()) / "momentum_data.db"))
 
 pytestmark = pytest.mark.skipif(not DB.exists(), reason=f"no database at {DB}")
 
@@ -23,17 +29,18 @@ QUERY = {"/api/si/search": "?q=AA", "/api/insider/search": "?q=AA", "/api/moment
 
 
 def _routes() -> list[str]:
-    src = (ROOT / "src" / "api.py").read_text(encoding="utf-8")
-    return re.findall(r'@app\.get\("([^"]+)"', src)
+    # Imports the app at collection time (no startup/DB access happens on import).
+    from src.api import app
+
+    api = [r.path for r in app.routes
+           if "GET" in getattr(r, "methods", set()) and r.path.startswith("/api")]
+    return api + ["/"]
 
 
 @pytest.fixture(scope="module")
-def client(tmp_path_factory):
+def client():
     from fastapi.testclient import TestClient
 
-    os.environ["PURRTFOLIO_DB"] = str(DB)
-    # The slim momentum DB is downloaded on startup; keep it out of $HOME
-    os.environ.setdefault("MOMENTUM_DB", str(tmp_path_factory.mktemp("db") / "momentum_data.db"))
     from src.api import app
 
     with TestClient(app) as c:

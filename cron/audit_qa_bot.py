@@ -39,12 +39,22 @@ EXECUTIONS_DB = CRON_DIR / "executions.db"
 WEBROOT = REPO
 SCRIPTS_DIR = Path.home() / "AppData" / "Local" / "hermes" / "scripts"
 SNAPSHOT_DIR = WEBROOT / "snapshots" / "macro" / "output"
-# The deployed release tag lives in the API source (bumped by publish_db_release.py)
-_TAG_FILE = WEBROOT / "src" / "db.py"
+# The deployed release tag lives in src/config.py (bumped by publish_db_release.py)
+_TAG_FILE = WEBROOT / "src" / "config.py"
 _m = re.search(r"db-v\d{4}-\d{2}-\d{2}", _TAG_FILE.read_text(encoding="utf-8")) if _TAG_FILE.exists() else None
 GH_RELEASE_TAG = _m.group(0) if _m else "db-v0000-00-00"
 RENDER_API = "https://one3f-tracker-wpj6.onrender.com"
 GITHUB_PAGES = "https://mcdawgzy.github.io/purrtfolio-tools/"
+
+
+def _frontend_files() -> list[str]:
+    """Frontend source files (relative to static/) that CI mirrors into docs/.
+    Snapshots are excluded: the macro job commits those to both trees itself."""
+    root = WEBROOT / "static"
+    return sorted(
+        f.relative_to(root).as_posix() for f in root.rglob("*")
+        if f.is_file() and f.relative_to(root).parts[0] != "snapshots"
+    )
 
 # SPA page -> API endpoint mapping for live data verification
 # (page_title, api_endpoint, legit_empty_if_no_qualifying_events)
@@ -355,7 +365,7 @@ def check_data_freshness() -> list[dict]:
 # ── 2. Cron Job Health ──────────────────────────────────────────────
 def check_cron_health() -> list[dict]:
     rows = []
-    with open(JOBS_JSON) as f:
+    with open(JOBS_JSON, encoding="utf-8") as f:
         jobs_data = json.load(f)
     jobs = jobs_data.get("jobs", [])
 
@@ -611,7 +621,7 @@ def check_data_quality() -> list[dict]:
             "category": "ops",
             "check": "No automated DB publish step",
             "detail": f"Local DB has data through {local_update} but GitHub Release is {GH_RELEASE_TAG} — web API serves stale data",
-            "fix": "Add a post-ingest step to compress and upload purrtfolio.db to a new GitHub Release, then update all version tag references in src/db.py, src/api.py, scripts/download_db.sh, render.yaml",
+            "fix": "Add a post-ingest step to compress and upload purrtfolio.db to a new GitHub Release, then update all version tag references in src/config.py and render.yaml",
         })
 
     conn.close()
@@ -649,7 +659,7 @@ def check_known_issues() -> list[dict]:
             })
 
     # Price Momentum & Correlation deliver to local only
-    with open(JOBS_JSON) as f:
+    with open(JOBS_JSON, encoding="utf-8") as f:
         jobs_data = json.load(f)
     for job in jobs_data.get("jobs", []):
         if job.get("deliver") == "local" and job.get("script"):
@@ -700,7 +710,7 @@ def check_website_quality() -> list[dict]:
     issues = []
 
     # 1. Mirror sync: docs/ should track static/
-    for fname in ("app.js", "styles.css", "index.html"):
+    for fname in _frontend_files():
         sf = WEBROOT / "static" / fname
         df = WEBROOT / "docs" / fname
         if sf.exists() and df.exists():
@@ -791,18 +801,6 @@ def suggest_new_items() -> list[str]:
     except Exception:
         pass
 
-    # Check for large JS bundle (opportunity to code-split)
-    try:
-        app_js = WEBROOT / "static" / "app.js"
-        if app_js.exists():
-            size_kb = app_js.stat().st_size / 1024
-            if size_kb > 100:
-                suggestions.append(
-                    f"**Code-split static/app.js** — {size_kb:.0f}KB bundle is large; "
-                    "consider splitting by scanner route for faster initial load."
-                )
-    except Exception:
-        pass
 
     return suggestions
 
@@ -883,7 +881,7 @@ def auto_fix_issues() -> list[dict]:
     # (Skip — requires careful URL verification, leave for human)
 
     # ── Fix 5: Sync docs/ mirror from static/ ──
-    for fname in ("app.js", "styles.css", "index.html"):
+    for fname in _frontend_files():
         static_file = WEBROOT / "static" / fname
         docs_file = WEBROOT / "docs" / fname
         if static_file.exists() and docs_file.exists():

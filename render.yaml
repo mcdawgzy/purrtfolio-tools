@@ -22,6 +22,10 @@ services:
         value: /opt/render/purrtfolio.db
       - key: MOMENTUM_DB
         value: /opt/render/momentum_data.db
+      # Let the API replace a stale DB file with the latest release (off by default
+      # so a local API never overwrites the cron host's master DB)
+      - key: DB_AUTO_REFRESH
+        value: "1"
       - key: CORS_ALLOWED_ORIGINS
         value: "https://mcdawgzy.github.io,https://purrtfolio.onrender.com"
     # Render free tier: 750 hrs/mo, spins down after 15min idle, cold-start ~30s

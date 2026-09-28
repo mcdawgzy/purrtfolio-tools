@@ -21,9 +21,9 @@ import sys
 
 
 SCRIPTS_DIR = Path(__file__).parent
-WORKDIR = REPO / "scanners" / "13f"
+WORKDIR = REPO  # run as a module from the repo root
 PURRTFOLIO_DB = Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db"))
-ENRICH_SCRIPT = WORKDIR / "enrich_sectors.py"
+ENRICH_SCRIPT = REPO / "scanners" / "thirteen_f" / "enrich_sectors.py"
 
 
 def main() -> int:
@@ -47,13 +47,13 @@ def main() -> int:
     print(f"Unified DB: {PURRTFOLIO_DB} ({PURRTFOLIO_DB.stat().st_size:,} bytes)")
 
     proc = subprocess.run(
-        [sys.executable, str(ENRICH_SCRIPT),
+        [sys.executable, "-m", "scanners.thirteen_f.enrich_sectors",
          "--db", str(PURRTFOLIO_DB),
          "--limit", str(args.limit)],
         cwd=str(WORKDIR),
         env=env,
         capture_output=True,
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
     )
     if proc.stdout:
         print(proc.stdout)

@@ -28,9 +28,9 @@ import sys
 
 
 SCRIPTS_DIR = Path(__file__).parent
-WORKDIR = REPO / "scanners" / "13f"
+WORKDIR = REPO  # run as a module from the repo root
 PURRTFOLIO_DB = Path(os.environ.get("PURRTFOLIO_DB", Path.home() / "purrtfolio.db"))
-ENRICH_SCRIPT = WORKDIR / "enrich_factors.py"
+ENRICH_SCRIPT = REPO / "scanners" / "thirteen_f" / "enrich_factors.py"
 
 
 def main() -> int:
@@ -53,7 +53,7 @@ def main() -> int:
     env = os.environ.copy()
     env["PURRTFOLIO_DB"] = str(PURRTFOLIO_DB)
 
-    cmd = [sys.executable, str(ENRICH_SCRIPT), "--db", str(PURRTFOLIO_DB)]
+    cmd = [sys.executable, "-m", "scanners.thirteen_f.enrich_factors", "--db", str(PURRTFOLIO_DB)]
     if args.limit:
         cmd += ["--limit", str(args.limit)]
     cmd += ["--stale-days", str(args.stale_days)]
@@ -65,7 +65,7 @@ def main() -> int:
     print(f"Unified DB: {PURRTFOLIO_DB} ({PURRTFOLIO_DB.stat().st_size:,} bytes)")
 
     proc = subprocess.run(
-        cmd, cwd=str(WORKDIR), env=env, capture_output=True, text=True,
+        cmd, cwd=str(WORKDIR), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     if proc.stdout:
         print(proc.stdout)
