@@ -17,6 +17,7 @@ and changes to the repo never require editing Hermes.
 | Price Momentum Daily Ingestion | `run_price_momentum_daily.py` |
 | Correlation Matrix Daily Computation | `run_correlation_matrix_daily.py` |
 | Audit/QA Bot Daily | `audit_qa_bot.py` |
+| QA Fixer Daily | `qa_fixer.py` — reads the QA report, has Claude Code (`claude -p`, on the logged-in subscription) fix what it can, opens one `qa-fix` PR (never merges); works in `~/qa-fixer-work` |
 | Put/Call Ratio Daily | `run_put_call_ratio_daily.py` |
 | DB Release Auto-Publish | `publish_db_release.py` |
 | News Sentiment Daily Ingestion | `run_news_sentiment_daily.py` |
