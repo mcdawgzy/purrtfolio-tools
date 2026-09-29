@@ -44,6 +44,35 @@ _TAG_FILE = WEBROOT / "src" / "config.py"
 _m = re.search(r"db-v\d{4}-\d{2}-\d{2}", _TAG_FILE.read_text(encoding="utf-8")) if _TAG_FILE.exists() else None
 GH_RELEASE_TAG = _m.group(0) if _m else "db-v0000-00-00"
 RENDER_API = "https://one3f-tracker-wpj6.onrender.com"
+
+# Data Freshness source -> the Hermes script that feeds it. A source whose job
+# is paused in Hermes is reported as paused instead of flagged stale.
+SOURCE_JOBS = {
+    "13F Filings":        "quarterly_pipeline.sh",
+    "Short Interest":     "run_short_interest_daily.py",
+    "Insider Trading":    "run_form4_insider_daily.py",
+    "Economic Calendar":  "run_economic_calendar_daily.py",
+    "Price History":      "run_price_momentum_daily.py",
+    "Momentum Signals":   "run_price_momentum_daily.py",
+    "Correlation Matrix": "run_correlation_matrix_daily.py",
+    "Factor Exposure":    "enrich_factors_cron.py",
+    "Sector Enrichment":  "enrich_sectors_cron.py",
+    "Market Snapshots":   "macro_market_update.py",
+}
+
+
+def is_paused(job: dict) -> bool:
+    return job.get("state") == "paused" or not job.get("enabled", True)
+
+
+def paused_scripts() -> set[str]:
+    """Script names of the Hermes jobs that are currently paused."""
+    try:
+        with open(JOBS_JSON, encoding="utf-8") as f:
+            jobs = json.load(f).get("jobs", [])
+    except (OSError, ValueError):
+        return set()
+    return {j["script"] for j in jobs if j.get("script") and is_paused(j)}
 GITHUB_PAGES = "https://mcdawgzy.github.io/purrtfolio-tools/"
 
 
@@ -360,6 +389,12 @@ def check_data_freshness() -> list[dict]:
         "flag": flag,
         "note": "",
     })
+
+    paused = paused_scripts()
+    for r in rows:
+        if SOURCE_JOBS.get(r["source"]) in paused:
+            r["flag"] = "⏸️"
+            r["note"] = "Feeding job paused in Hermes — staleness not checked"
     return rows
 
 # ── 2. Cron Job Health ──────────────────────────────────────────────
@@ -420,9 +455,11 @@ def check_cron_health() -> list[dict]:
         if job.get("script") and deliver == "local":
             issues.append("Script job but no Discord delivery")
 
-        flag = "✅" if (not issues and enabled) else ("⚠️" if not issues and not enabled else "⚠️")
+        flag = "✅" if not issues else "⚠️"
         if any("429" in i or "Error" in i for i in issues):
             flag = "❌"
+        if is_paused(job):
+            flag, issues = "⏸️", ["Paused"]
 
         rows.append({
             "name": name,
@@ -662,7 +699,7 @@ def check_known_issues() -> list[dict]:
     with open(JOBS_JSON, encoding="utf-8") as f:
         jobs_data = json.load(f)
     for job in jobs_data.get("jobs", []):
-        if job.get("deliver") == "local" and job.get("script"):
+        if job.get("deliver") == "local" and job.get("script") and not is_paused(job):
             issues.append({
                 "severity": "info",
                 "category": "ops",
