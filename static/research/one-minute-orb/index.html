@@ -22,164 +22,23 @@
 <meta name="twitter:title" content="The one-minute ORB scalp at 3:1: claimed 34–36%, measured 26.1%">
 <meta name="twitter:description" content="A Reddit post claimed a 34–36% win rate scalping the first 1-minute range at 3:1. On real tick data it won 26.1%, which is what a coin flip gives a 3:1 trade.">
 <meta name="twitter:image" content="https://purrtfolio.onrender.com/research/one-minute-orb/og.png">
-<style>html{color-scheme:light}body{margin:0}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<style>
-:root {
-  --ground: #f2f3ef;
-  --surface: #ffffff;
-  --ink: #16202b;
-  --muted: #5b6470;
-  --faint: #8a919a;
-  --rule: #d9dcd4;
-  --accent: #0e6e74;
-  --accent-soft: #dcecec;
-  --pass: #2f7d4a;
-  --fail: #b0413e;
-  --neutral: #7a7f87;
-  --series: #008d9e;
-  --claim: #c23b3b;
-  --win: #2f7d4a;
-  --loss: #b0413e;
-  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
-  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --ground: #10151b; --surface: #171e26; --ink: #e4e8ec; --muted: #9aa4ae; --faint: #6f7883;
-    --rule: #2a333d; --accent: #5bb9be; --accent-soft: #1d3a3d; --pass: #62c283; --fail: #e27771;
-    --neutral: #8d949c; --series: #1a9ca6; --claim: #d95a53; --win: #62c283; --loss: #e27771;
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --ground: #10151b; --surface: #171e26; --ink: #e4e8ec; --muted: #9aa4ae; --faint: #6f7883;
-  --rule: #2a333d; --accent: #5bb9be; --accent-soft: #1d3a3d; --pass: #62c283; --fail: #e27771;
-  --neutral: #8d949c; --series: #1a9ca6; --claim: #d95a53; --win: #62c283; --loss: #e27771;
-}
-* { box-sizing: border-box; }
-body { background: var(--ground); color: var(--ink); font: 16px/1.6 var(--body); padding-inline: 16px; padding-block: 0 72px; }
-.wrap { max-width: 860px; margin: 0 auto; display: grid; gap: 56px; }
-a { color: var(--accent); }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-p { margin: 0; max-width: 66ch; }
-.eyebrow { font: 500 11.5px/1 var(--mono); text-transform: uppercase; letter-spacing: .09em; color: var(--faint); }
-h2 { font: 700 clamp(24px, 3.4vw, 30px)/1.12 var(--display); letter-spacing: -.015em; margin: 0; text-wrap: balance; }
-section { display: grid; gap: 18px; }
-
-/* Header */
-.crumbs { display: flex; flex-wrap: wrap; gap: 8px 14px; padding-block: 28px 0; font: 13px var(--mono); color: var(--muted); }
-.crumbs a { color: var(--muted); }
-header.hero { display: grid; gap: 18px; }
-.tags { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.verdict {
-  font: 700 12px/1 var(--body); letter-spacing: .06em; text-transform: uppercase;
-  color: var(--fail); border: 1.5px solid var(--fail); padding: 6px 9px; border-radius: 4px;
-}
-.tag { font: 12.5px var(--mono); color: var(--muted); border: 1px solid var(--rule); padding: 5px 8px; border-radius: 4px; background: var(--surface); }
-h1 { font: 800 clamp(38px, 7vw, 66px)/.98 var(--display); letter-spacing: -.03em; margin: 0; text-wrap: balance; }
-.claim {
-  display: grid; gap: 8px; padding: 18px 20px; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
-}
-.claim q { font: 600 clamp(18px, 2.6vw, 22px)/1.35 var(--display); quotes: "“" "”"; }
-.claim .who { font-size: 13.5px; color: var(--muted); }
-.answer { font-size: 18px; max-width: 62ch; }
-.answer b { color: var(--fail); }
-
-/* Mechanics */
-.mech { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 28px; align-items: start; }
-figure { margin: 0; display: grid; gap: 10px; }
-figcaption { font-size: 13.5px; color: var(--muted); max-width: 66ch; }
-.fig-box { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 10px; overflow-x: auto; }
-svg { display: block; width: 100%; height: auto; }
-ol.rules { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; counter-reset: r; }
-ol.rules li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; counter-increment: r; font-size: 15px; }
-ol.rules li::before {
-  content: counter(r); font: 600 13px/28px var(--mono); text-align: center; width: 28px; height: 28px;
-  border-radius: 50%; border: 1.5px solid var(--accent); color: var(--accent);
-}
-ol.rules b { display: block; }
-
-/* Why */
-.why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 22px; }
-.why-grid h3 { font: 600 15px/1.3 var(--body); margin: 0 0 6px; }
-.why-grid p { font-size: 15px; color: var(--muted); }
-.maths {
-  display: flex; flex-wrap: wrap; gap: 10px 26px; align-items: baseline; padding: 16px 18px;
-  border-left: 3px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0;
-}
-.maths .f { font: 500 17px var(--mono); }
-.maths span:not(.f) { font-size: 14.5px; color: var(--ink); }
-
-/* Explorer */
-.explorer { display: grid; gap: 14px; padding: 20px; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; }
-.explorer label { font-weight: 600; font-size: 15px; }
-.slider-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-input[type="range"] { flex: 1 1 240px; accent-color: var(--accent); }
-.rr-out { font: 600 22px var(--mono); min-width: 5ch; }
-.readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
-.readout div { display: grid; gap: 2px; }
-.readout .v { font: 600 26px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
-.readout .k { font-size: 13px; color: var(--muted); }
-
-/* Results */
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
-.tile { background: var(--surface); padding: 16px 16px 14px; display: grid; gap: 4px; }
-.tile .v { font: 600 30px/1 var(--mono); font-variant-numeric: tabular-nums; }
-.tile .v.bad { color: var(--fail); }
-.tile .k { font-size: 13px; color: var(--muted); }
-.chart-wrap { position: relative; }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); }
-.legend span { display: inline-flex; align-items: center; gap: 7px; }
-.sw-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--series); }
-.sw-line { width: 18px; height: 0; border-top: 2px dashed var(--neutral); }
-.sw-band { width: 12px; height: 12px; background: color-mix(in srgb, var(--claim) 25%, transparent); border: 1.5px solid var(--claim); }
-.tip {
-  position: absolute; pointer-events: none; background: var(--ink); color: var(--ground);
-  font: 12.5px/1.4 var(--body); padding: 7px 9px; border-radius: 6px; white-space: nowrap; transform: translate(-50%, calc(-100% - 12px));
-}
-details.table { font-size: 14px; }
-details.table summary { cursor: pointer; color: var(--accent); }
-.tbl { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: 14px; }
-th, td { text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
-th { font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: .07em; color: var(--faint); }
-td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; }
-td.bad { color: var(--fail); font-weight: 600; }
-td.ok { color: var(--pass); font-weight: 600; }
-
-.twist { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px; }
-.bar-compare { display: grid; gap: 10px; }
-.bc-row { display: grid; grid-template-columns: 140px 1fr 70px; gap: 10px; align-items: center; font-size: 14px; }
-.bc-track { height: 14px; background: color-mix(in srgb, var(--neutral) 15%, transparent); border-radius: 0 4px 4px 0; position: relative; }
-.bc-fill { height: 100%; border-radius: 0 4px 4px 0; }
-.bc-row .n { font-family: var(--mono); text-align: right; }
-
-.lesson { padding: 22px 24px; border-radius: 10px; background: var(--ink); color: var(--ground); display: grid; gap: 8px; }
-.lesson .eyebrow { color: color-mix(in srgb, var(--ground) 65%, transparent); }
-.lesson p { font: 600 clamp(19px, 2.8vw, 24px)/1.3 var(--display); max-width: 40ch; }
-.method { font-size: 14px; color: var(--muted); display: grid; gap: 8px; }
-.method p { max-width: 80ch; }
-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--faint); border-top: 1px solid var(--rule); padding-top: 16px; }
-
-@media (max-width: 720px) {
-  .mech { grid-template-columns: 1fr; }
-  .bc-row { grid-template-columns: 110px 1fr 60px; }
-}
-</style>
+<style>html{color-scheme:dark}body{margin:0}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<link rel="stylesheet" href="../../styles.css">
+<link rel="stylesheet" href="../research.css">
+<script type="module" src="../../js/site-nav.js"></script>
 </head>
 <body>
-<div class="wrap">
-  <div>
-    <nav class="crumbs" aria-label="Breadcrumb">
-      <a href="../../">Purrtfolio</a>
-      <span>/</span><a href="../">Research</a><span>/</span><span>Opening range &amp; intraday momentum</span>
-    </nav>
+<div class="app">
+  <div class="masthead">
+    <h1>Research</h1>
+    <div class="sub">Opening range &amp; intraday momentum</div>
   </div>
+  <nav class="nav" data-site-nav data-root="../../" aria-label="Site"></nav>
+
+<main class="research">
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <a href="../../">Purrtfolio</a><span>/</span><a href="../">Research</a><span>/</span><span>One-minute ORB scalp</span>
+  </nav>
 
   <header class="hero">
     <div class="tags">
@@ -206,35 +65,35 @@ footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10
                 <path d="M0 0 L10 5 L0 10 z" fill="currentColor"></path>
               </marker>
             </defs>
-            <g style="color: var(--muted)" font-family="IBM Plex Mono, monospace" font-size="11">
+            <g style="color: var(--text-dim)" fill="currentColor" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11">
               <!-- break window -->
-              <rect x="100" y="20" width="160" height="250" fill="var(--accent-soft)"></rect>
-              <text x="180" y="36" text-anchor="middle" fill="var(--accent)">break window 09:31–09:35</text>
+              <rect x="100" y="20" width="160" height="250" fill="var(--brass-dim)"></rect>
+              <text x="180" y="36" text-anchor="middle" fill="var(--brass)">break window 09:31–09:35</text>
               <!-- opening range box -->
-              <rect x="60" y="186.7" width="40" height="41.6" fill="color-mix(in srgb, var(--neutral) 22%, transparent)" stroke="var(--neutral)" stroke-width="1.5"></rect>
-              <text x="80" y="252" text-anchor="middle" fill="var(--muted)">1-min</text>
-              <text x="80" y="264" text-anchor="middle" fill="var(--muted)">range</text>
+              <rect x="60" y="186.7" width="40" height="41.6" fill="var(--panel-2)" stroke="var(--text-dim)" stroke-width="1.5"></rect>
+              <text x="80" y="252" text-anchor="middle" fill="var(--text-dim)">1-min</text>
+              <text x="80" y="264" text-anchor="middle" fill="var(--text-dim)">range</text>
               <!-- levels -->
-              <line x1="100" y1="53.3" x2="620" y2="53.3" stroke="var(--win)" stroke-width="1.5" stroke-dasharray="5 4"></line>
-              <text x="620" y="46" text-anchor="end" fill="var(--win)">target = entry + 3R</text>
-              <line x1="100" y1="228.3" x2="620" y2="228.3" stroke="var(--loss)" stroke-width="1.5" stroke-dasharray="5 4"></line>
-              <text x="620" y="244" text-anchor="end" fill="var(--loss)">stop = other side of range</text>
+              <line x1="100" y1="53.3" x2="620" y2="53.3" stroke="var(--green)" stroke-width="1.5" stroke-dasharray="5 4"></line>
+              <text x="620" y="46" text-anchor="end" fill="var(--green)">target = entry + 3R</text>
+              <line x1="100" y1="228.3" x2="620" y2="228.3" stroke="var(--red)" stroke-width="1.5" stroke-dasharray="5 4"></line>
+              <text x="620" y="244" text-anchor="end" fill="var(--red)">stop = other side of range</text>
               <!-- R brackets -->
               <line x1="44" y1="184.6" x2="44" y2="228.3" stroke="currentColor" stroke-width="1" marker-start="url(#ah)" marker-end="url(#ah)"></line>
-              <text x="36" y="210" text-anchor="end" fill="var(--ink)">1R</text>
+              <text x="36" y="210" text-anchor="end" fill="var(--text)">1R</text>
               <line x1="44" y1="53.3" x2="44" y2="184.6" stroke="currentColor" stroke-width="1" marker-start="url(#ah)" marker-end="url(#ah)"></line>
-              <text x="36" y="122" text-anchor="end" fill="var(--ink)">3R</text>
-              <line x1="44" y1="184.6" x2="148" y2="184.6" stroke="var(--accent)" stroke-width="1" stroke-dasharray="2 3"></line>
+              <text x="36" y="122" text-anchor="end" fill="var(--text)">3R</text>
+              <line x1="44" y1="184.6" x2="148" y2="184.6" stroke="var(--brass)" stroke-width="1" stroke-dasharray="2 3"></line>
               <!-- losing path -->
-              <polyline points="148,184.6 172,197 196,180 222,212 246,203 268,229" fill="none" stroke="var(--loss)" stroke-width="1.6" stroke-dasharray="3 3" opacity=".8"></polyline>
-              <text x="276" y="221" fill="var(--loss)">another day: stopped</text>
+              <polyline points="148,184.6 172,197 196,180 222,212 246,203 268,229" fill="none" stroke="var(--red)" stroke-width="1.6" stroke-dasharray="3 3" opacity=".8"></polyline>
+              <text x="276" y="221" fill="var(--red)">another day: stopped</text>
               <!-- main path -->
-              <polyline points="60,207 68,196 76,221 84,199 92,214 100,205 112,213 124,199 136,192 148,184.6 168,175 190,194 214,168 240,176 268,150 300,159 336,128 372,142 408,104 446,114 486,83 526,92 566,62 588,53.3" fill="none" stroke="var(--ink)" stroke-width="2"></polyline>
-              <circle cx="148" cy="184.6" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"></circle>
-              <text x="150" y="150" fill="var(--accent)">entry on the break</text>
-              <circle cx="588" cy="53.3" r="5" fill="var(--win)" stroke="var(--surface)" stroke-width="2"></circle>
+              <polyline points="60,207 68,196 76,221 84,199 92,214 100,205 112,213 124,199 136,192 148,184.6 168,175 190,194 214,168 240,176 268,150 300,159 336,128 372,142 408,104 446,114 486,83 526,92 566,62 588,53.3" fill="none" stroke="var(--text)" stroke-width="2"></polyline>
+              <circle cx="148" cy="184.6" r="5" fill="var(--brass)" stroke="var(--panel)" stroke-width="2"></circle>
+              <text x="150" y="150" fill="var(--brass)">entry on the break</text>
+              <circle cx="588" cy="53.3" r="5" fill="var(--green)" stroke="var(--panel)" stroke-width="2"></circle>
               <!-- time axis -->
-              <line x1="60" y1="270" x2="620" y2="270" stroke="var(--rule)" stroke-width="1"></line>
+              <line x1="60" y1="270" x2="620" y2="270" stroke="var(--line)" stroke-width="1"></line>
               <text x="60" y="286" text-anchor="middle">09:30</text>
                             <text x="260" y="286" text-anchor="middle">09:35</text>
               <text x="620" y="286" text-anchor="end">later that day</text>
@@ -307,14 +166,14 @@ footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10
       <figcaption>Every measured point sits on the coin-flip curve. The claimed win rate at 3:1 is outside the 95% confidence interval of what we measured (22.6%–29.9%).</figcaption>
       <details class="table">
         <summary>Show the numbers</summary>
-        <div class="tbl">
+        <div class="table-wrap">
           <table>
             <thead><tr><th>R:R</th><th>Coin flip</th><th>Measured</th></tr></thead>
             <tbody>
-              <tr><td class="n">1:1</td><td class="n">50.0%</td><td class="n">48.5%</td></tr>
-              <tr><td class="n">2:1</td><td class="n">33.3%</td><td class="n">33.6%</td></tr>
-              <tr><td class="n">3:1</td><td class="n">25.0%</td><td class="n">26.1%</td></tr>
-              <tr><td class="n">5:1</td><td class="n">16.7%</td><td class="n">15.6%</td></tr>
+              <tr><td class="mono">1:1</td><td class="mono">50.0%</td><td class="mono">48.5%</td></tr>
+              <tr><td class="mono">2:1</td><td class="mono">33.3%</td><td class="mono">33.6%</td></tr>
+              <tr><td class="mono">3:1</td><td class="mono">25.0%</td><td class="mono">26.1%</td></tr>
+              <tr><td class="mono">5:1</td><td class="mono">16.7%</td><td class="mono">15.6%</td></tr>
             </tbody>
           </table>
         </div>
@@ -327,10 +186,10 @@ footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10
     <h2 id="h-twist">The break direction does matter. It just isn't worth the spread.</h2>
     <div class="twist">
       <div class="bar-compare" role="img" aria-label="Average result per trade after costs: trading with the break minus 0.01R, random direction minus 0.16R, trading against the break minus 0.32R.">
-        <div class="bc-row"><span>With the break</span><div class="bc-track"><div class="bc-fill" style="width:4%;background:var(--series)"></div></div><span class="n">−0.01R</span></div>
-        <div class="bc-row"><span>Random direction</span><div class="bc-track"><div class="bc-fill" style="width:50%;background:var(--neutral)"></div></div><span class="n">−0.16R</span></div>
-        <div class="bc-row"><span>Against the break</span><div class="bc-track"><div class="bc-fill" style="width:100%;background:var(--claim)"></div></div><span class="n">−0.32R</span></div>
-        <p style="font-size:13px;color:var(--muted)">Average per trade after costs; bar length shows how far below zero. Same entries, stops and targets; only the direction changes.</p>
+        <div class="bc-row"><span>With the break</span><div class="bc-track"><div class="bc-fill" style="width:4%;background:var(--brass)"></div></div><span class="n">−0.01R</span></div>
+        <div class="bc-row"><span>Random direction</span><div class="bc-track"><div class="bc-fill" style="width:50%;background:var(--text-dim)"></div></div><span class="n">−0.16R</span></div>
+        <div class="bc-row"><span>Against the break</span><div class="bc-track"><div class="bc-fill" style="width:100%;background:var(--red)"></div></div><span class="n">−0.32R</span></div>
+        <p class="note">Average per trade after costs; bar length shows how far below zero. Same entries, stops and targets; only the direction changes.</p>
       </div>
       <div style="display:grid;gap:12px">
         <p>Trading with the break beat trading against it by <b>+0.31R per trade</b> (t = 2.50). So opening momentum is real.</p>
@@ -353,15 +212,15 @@ footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10
   <section aria-labelledby="h-var">
     <div class="eyebrow">Everything we tried</div>
     <h2 id="h-var">Variants</h2>
-    <div class="tbl">
+    <div class="table-wrap">
       <table>
         <thead><tr><th>Variant</th><th>Result</th><th>Verdict</th></tr></thead>
         <tbody>
-          <tr><td>Rules as posted, S&amp;P 500, tick data</td><td class="n">26.1% win, +0.008R, t = 0.10</td><td class="bad">Rejected</td></tr>
-          <tr><td>Nasdaq 100, tick data (129 sessions)</td><td class="n">+0.126R, t = 0.79</td><td class="bad">Rejected</td></tr>
-          <tr><td>S&amp;P, Nasdaq and Dow on 1-min bars (1,688 trades)</td><td class="n">+0.056R, t = 1.30</td><td class="bad">Rejected</td></tr>
-          <tr><td>Zero trading costs</td><td class="n">gross t = 1.57</td><td class="bad">Rejected</td></tr>
-          <tr><td>Other stops, windows and R:R (1:1 to 5:1)</td><td class="n">t between −1.65 and +0.19</td><td class="bad">Rejected</td></tr>
+          <tr><td>Rules as posted, S&amp;P 500, tick data</td><td class="mono">26.1% win, +0.008R, t = 0.10</td><td class="bad">Rejected</td></tr>
+          <tr><td>Nasdaq 100, tick data (129 sessions)</td><td class="mono">+0.126R, t = 0.79</td><td class="bad">Rejected</td></tr>
+          <tr><td>S&amp;P, Nasdaq and Dow on 1-min bars (1,688 trades)</td><td class="mono">+0.056R, t = 1.30</td><td class="bad">Rejected</td></tr>
+          <tr><td>Zero trading costs</td><td class="mono">gross t = 1.57</td><td class="bad">Rejected</td></tr>
+          <tr><td>Other stops, windows and R:R (1:1 to 5:1)</td><td class="mono">t between −1.65 and +0.19</td><td class="bad">Rejected</td></tr>
         </tbody>
       </table>
     </div>
@@ -372,10 +231,11 @@ footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10
     <p>FTMO S&amp;P 500 CFD tick data, 519 sessions (about 190 quotes a minute at the open), so the order in which the stop and target were hit is observed, not assumed, and every trade pays the real spread. The decision rule was written down before any results were looked at. Checked against the same trade in the opposite direction and with a random direction.</p>
   </section>
 
-  <footer>
+  <footer class="research-footer">
     <span><a href="https://x.com/Purrtfolio">Follow @Purrtfolio on X</a> for the next one</span>
     <span>Research, not financial advice. Backtests describe the past.</span>
   </footer>
+</main>
 </div>
 
 <script>
@@ -416,25 +276,25 @@ footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10
   const txt = (s, a) => { const n = mk("text", a); n.textContent = s; return n; };
   // grid + y axis
   [0, 10, 20, 30, 40, 50].forEach(v => {
-    mk("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "var(--rule)", "stroke-width": 1 });
-    txt(v + "%", { x: L - 8, y: y(v) + 4, "text-anchor": "end", fill: "var(--faint)", "font-size": 11, "font-family": "IBM Plex Mono, monospace" });
+    mk("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "var(--line)", "stroke-width": 1 });
+    txt(v + "%", { x: L - 8, y: y(v) + 4, "text-anchor": "end", fill: "var(--text-mut)", "font-size": 11, "font-family": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" });
   });
-  [1, 2, 3, 4, 5].forEach(k => txt(k + ":1", { x: x(k), y: H - B + 18, "text-anchor": "middle", fill: "var(--faint)", "font-size": 11, "font-family": "IBM Plex Mono, monospace" }));
-  txt("reward-to-risk", { x: (L + W - R) / 2, y: H - 6, "text-anchor": "middle", fill: "var(--muted)", "font-size": 11.5 });
+  [1, 2, 3, 4, 5].forEach(k => txt(k + ":1", { x: x(k), y: H - B + 18, "text-anchor": "middle", fill: "var(--text-mut)", "font-size": 11, "font-family": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" }));
+  txt("reward-to-risk", { x: (L + W - R) / 2, y: H - 6, "text-anchor": "middle", fill: "var(--text-dim)", "font-size": 11.5 });
   // claimed band at 3:1
-  mk("rect", { x: x(3) - 14, y: y(36), width: 28, height: y(34) - y(36), fill: "color-mix(in srgb, var(--claim) 25%, transparent)", stroke: "var(--claim)", "stroke-width": 1.5, rx: 2 });
-  txt("claimed 34–36%", { x: x(3) + 20, y: y(35) + 4, fill: "var(--claim)", "font-size": 12, "font-weight": 600 });
+  mk("rect", { x: x(3) - 14, y: y(36), width: 28, height: y(34) - y(36), fill: "var(--red-bg)", stroke: "var(--red)", "stroke-width": 1.5, rx: 2 });
+  txt("claimed 34–36%", { x: x(3) + 20, y: y(35) + 4, fill: "var(--red)", "font-size": 12, "font-weight": 600 });
   // coin-flip curve
   let d = "";
   for (let k = 1; k <= 5.5; k += 0.05) d += (d ? " L" : "M") + x(k).toFixed(1) + " " + y(coin(k)).toFixed(1);
-  mk("path", { d, fill: "none", stroke: "var(--neutral)", "stroke-width": 2, "stroke-dasharray": "6 5" });
-  txt("coin flip", { x: x(3.9), y: y(coin(3.9)) + 22, fill: "var(--muted)", "font-size": 12 });
+  mk("path", { d, fill: "none", stroke: "var(--text-dim)", "stroke-width": 2, "stroke-dasharray": "6 5" });
+  txt("coin flip", { x: x(3.9), y: y(coin(3.9)) + 22, fill: "var(--text-dim)", "font-size": 12 });
   // measured points
   const wrap = document.getElementById("chart-wrap"), tip = document.getElementById("tip");
   Object.entries(measured).forEach(([k, v]) => {
     k = +k;
-    mk("circle", { cx: x(k), cy: y(v), r: 6, fill: "var(--series)", stroke: "var(--surface)", "stroke-width": 2 });
-    if (k === 3) txt("measured 26.1%", { x: x(k) - 12, y: y(v) + 24, "text-anchor": "end", fill: "var(--ink)", "font-size": 12, "font-weight": 600 });
+    mk("circle", { cx: x(k), cy: y(v), r: 6, fill: "var(--brass)", stroke: "var(--panel)", "stroke-width": 2 });
+    if (k === 3) txt("measured 26.1%", { x: x(k) - 12, y: y(v) + 24, "text-anchor": "end", fill: "var(--text)", "font-size": 12, "font-weight": 600 });
     const hit = mk("circle", { cx: x(k), cy: y(v), r: 16, fill: "transparent", tabindex: 0, "aria-label": `${k}:1 measured ${v}%, coin flip ${coin(k).toFixed(1)}%` });
     const show = () => {
       const box = svg.getBoundingClientRect(), wb = wrap.getBoundingClientRect(), s = box.width / W;

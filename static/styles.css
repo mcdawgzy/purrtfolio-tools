@@ -171,6 +171,7 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--brass); out
 /* Top-level nav link styled like a dropdown label (no menu) */
 .nav-flat { text-decoration: none; }
 .nav-flat::after { content: none; }
+.nav-flat.active { color: var(--brass); border-bottom-color: var(--brass); }
 
 .nav-dropdown-menu {
   display: none;
