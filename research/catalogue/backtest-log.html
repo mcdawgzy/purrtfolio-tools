@@ -3910,6 +3910,70 @@ footer { padding-block: 36px 0; color: var(--faint); font-size: 13px; }
     "lesson": null,
     "summary": "Ranking commodities by their typical performance in each calendar month showed a promising signal over 20 years. We parked it before accounting for futures roll and CFD financing, which could erase it.",
     "variants": []
+  },
+  {
+    "id": "S138",
+    "slug": "zscore-scalein-qqq",
+    "title": "Z-score(5) scale-in dip-buy on QQQ — 3 tranches, exit above EMA(5)",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "social",
+    "source": "A trader's post on X",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "QQQ",
+      "SPY",
+      "IWM",
+      "DIA",
+      "US100"
+    ],
+    "products": [
+      "ETF",
+      "CFD",
+      "options"
+    ],
+    "timeframe": "1d, 1-7 day hold",
+    "data": "IBKR daily, TRAIN 2010-08→2020-12, TEST 2021-01→2026-09; ThetaData QQQ option NBBO 2020-2026",
+    "tested": "2026-09-30",
+    "verdict": "PASS",
+    "verdict_label": "✅ Passed the full gate",
+    "headline": "Parameters as posted, none swept. PRIMARY 4/4 ETF legs TEST-positive, DSR 0.990 program-level, drop-top-1 survives, survives next-open fills. QQQ TEST Sharpe 1.08 vs buy-and-hold 0.78 at a drawdown of −9.9% vs −35.6%; TRAIN weaker (0.60 vs 1.04). Options keep at most 40% of the share P&L.",
+    "why": "Buying a 5-day z-score dip in thirds and selling the first close above EMA(5) harvests the same short-term reversal premium as RSI(2) (daily-return correlation +0.80), more often (~22 campaigns/yr).",
+    "lesson": "The 87% win rate is averaging-down geometry (avg win +72bp vs avg loss −199bp). A random trigger with the same scale-in and exit already reaches Sharpe 0.65 (real at the 79th percentile); the trigger's value is in per-campaign return (100th percentile). Found and fixed a missing month (Aug 2021) in the QQQ daily store.",
+    "summary": "A post on X described buying QQQ in thirds after a 5-day z-score dip and selling on the first close above the 5-day EMA. It passed our full out-of-sample test on four ETFs, and on QQQ from 2021 it beat buy-and-hold on a risk-adjusted basis with a much smaller drawdown (−9.9% vs −35.6%). Expressing it through options gave up most of the profit; shares were the better vehicle.",
+    "variants": [
+      {
+        "name": "as posted, limit-on-close fills",
+        "verdict": "PASS",
+        "result": "4/4 ETF legs TEST-positive; FTMO US100 CFD with swap TEST Sharpe 1.03."
+      },
+      {
+        "name": "next-open fills",
+        "verdict": "PASS",
+        "result": "QQQ TEST Sharpe 0.92."
+      },
+      {
+        "name": "single full-size entry instead of thirds",
+        "verdict": "PASS",
+        "result": "Similar Sharpe, deeper drawdown (−14.6% vs −9.9%)."
+      },
+      {
+        "name": "deep-ITM call per tranche (~0.95×spot, ≥21 DTE)",
+        "verdict": "PASS",
+        "result": "+19bp/campaign vs +47bp in shares; beats random-entry null narrowly (Welch t=1.77)."
+      },
+      {
+        "name": "ATM call per tranche (≥14 DTE)",
+        "verdict": "REJECT",
+        "result": "+7.6bp/campaign, t=1.38; no better than random entries."
+      },
+      {
+        "name": "bull put spread per tranche (0.98/0.95×spot, ≥10 DTE)",
+        "verdict": "REJECT",
+        "result": "+3.6bp/campaign, t=1.01, despite a 91% win rate."
+      }
+    ]
   }
 ]
 </script>
