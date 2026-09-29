@@ -1,4 +1,4 @@
-// Top navigation (grouped dropdowns + ticker search) and per-page descriptions.
+// Top navigation (Research link + grouped dropdowns) and per-page descriptions.
 
 import { el } from './core/dom.js';
 import { state } from './core/state.js';
@@ -127,12 +127,11 @@ function navHref(item) {
 export function renderNav() {
   const nav = el('div', { class: 'nav' });
 
-  // Brand / logo
-  nav.appendChild(el('a', {
-    class: 'nav-brand',
-    href: '#/snapshot',
-    onclick: (e) => { e.preventDefault(); setHash('#/snapshot'); },
-  }, 'Purrtfolio'));
+  // Brand / logo — the home page is the Research hub
+  nav.appendChild(el('a', { class: 'nav-brand', href: './research/' }, 'Purrtfolio'));
+
+  // Published research write-ups (static pages under ./research/, not SPA routes)
+  nav.appendChild(el('a', { class: 'nav-dropdown-label nav-flat', href: './research/' }, 'Research'));
 
   // Dropdown groups
   for (const group of NAV_GROUPS) {
@@ -174,21 +173,6 @@ export function renderNav() {
     nav.appendChild(dropdown);
   }
 
-  // Published research write-ups (static pages under ./research/, not SPA routes)
-  nav.appendChild(el('a', { class: 'nav-dropdown-label nav-flat', href: './research/' }, 'Research'));
-
-  // Global ticker search (stays flat, outside dropdowns)
-  const search = el('input', {
-    class: 'nav-search',
-    type: 'search',
-    placeholder: 'Search ticker (e.g. NVDA) and press Enter…',
-    onkeydown: (e) => {
-      if (e.key === 'Enter' && e.target.value.trim()) {
-        setHash('#/ticker/' + e.target.value.trim().toUpperCase());
-      }
-    }
-  });
-  nav.appendChild(search);
   nav.appendChild(el('div', { class: 'nav-spacer' }));
   return nav;
 }

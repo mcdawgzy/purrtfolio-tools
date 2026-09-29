@@ -11,7 +11,13 @@ function buildNav(nav) {
   const root = nav.dataset.root || './';
   const route = view => root + (NAV_ROUTES[view] || '#/' + view);
 
-  nav.appendChild(el('a', { class: 'nav-brand', href: route('snapshot') }, 'Purrtfolio'));
+  nav.appendChild(el('a', { class: 'nav-brand', href: root + 'research/' }, 'Purrtfolio'));
+
+  nav.appendChild(el('a', {
+    class: 'nav-dropdown-label nav-flat active',
+    href: root + 'research/',
+    'aria-current': 'page',
+  }, 'Research'));
 
   for (const group of NAV_GROUPS) {
     const dropdown = el('div', { class: 'nav-dropdown' });
@@ -35,22 +41,6 @@ function buildNav(nav) {
     nav.appendChild(dropdown);
   }
 
-  nav.appendChild(el('a', {
-    class: 'nav-dropdown-label nav-flat active',
-    href: root + 'research/',
-    'aria-current': 'page',
-  }, 'Research'));
-
-  nav.appendChild(el('input', {
-    class: 'nav-search',
-    type: 'search',
-    placeholder: 'Search ticker (e.g. NVDA) and press Enter…',
-    onkeydown: (e) => {
-      if (e.key === 'Enter' && e.target.value.trim()) {
-        location.href = root + '#/ticker/' + encodeURIComponent(e.target.value.trim().toUpperCase());
-      }
-    },
-  }));
   nav.appendChild(el('div', { class: 'nav-spacer' }));
 }
 

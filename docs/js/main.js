@@ -19,6 +19,11 @@ window.addEventListener('unhandledrejection', (e) => {
 
 // ---------------- boot ----------------
 async function boot() {
+  // The bare site root is the Research hub; app pages all have a hash route.
+  if (!location.hash.replace(/^#\/?/, '')) {
+    location.replace('./research/');
+    return;
+  }
   document.getElementById('app').replaceChildren(el('div', { class: 'loading' }, COLD_START_MSG));
   try {
     await loadMeta();
