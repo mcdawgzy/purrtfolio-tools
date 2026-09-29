@@ -771,16 +771,19 @@ def check_data_quality() -> list[dict]:
         one=True,
     )
     local_update = local_update_q["d"][:10] if local_update_q and local_update_q["d"] else "unknown"
+    # Job logic lives in <repo>/cron/ (see cron/README.md); the files in the
+    # Hermes scripts dir are only shims that run it, so scan both.
     upload_found = False
-    for script_name in os.listdir(str(SCRIPTS_DIR)):
-        if script_name.endswith(".py") and script_name != "audit_qa_bot.py":
-            try:
-                content = (SCRIPTS_DIR / script_name).read_text(errors="replace")
-                if "gh release upload" in content or "gh release create" in content:
-                    upload_found = True
-                    break
-            except Exception:
-                pass
+    for runner in (*sorted((WEBROOT / "cron").glob("*.py")), *sorted(SCRIPTS_DIR.glob("*.py"))):
+        if runner.name == "audit_qa_bot.py":
+            continue
+        try:
+            content = runner.read_text(errors="replace")
+        except Exception:
+            continue
+        if "gh release upload" in content or "gh release create" in content:
+            upload_found = True
+            break
     if not upload_found:
         issues.append({
             "severity": "warning",
