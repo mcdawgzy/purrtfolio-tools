@@ -21,6 +21,8 @@ research/
 ```
 
 The published page for a study lives in `static/research/<slug>/` (with its `og.png`).
+When you publish one, add its card to `static/research/index.html` (the
+Research page linked from the site's main nav), newest first.
 
 ## Commands (from the repo root)
 
