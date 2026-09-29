@@ -168,6 +168,9 @@ input:focus-visible, select:focus-visible { outline: 2px solid var(--brass); out
   font-size: 9px;
   opacity: 0.5;
 }
+/* Top-level nav link styled like a dropdown label (no menu) */
+.nav-flat { text-decoration: none; }
+.nav-flat::after { content: none; }
 
 .nav-dropdown-menu {
   display: none;
