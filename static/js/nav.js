@@ -240,6 +240,9 @@ export function renderNav() {
     nav.appendChild(dropdown);
   }
 
+  // Published research write-ups (static pages under ./research/, not SPA routes)
+  nav.appendChild(el('a', { class: 'nav-dropdown-label nav-flat', href: './research/' }, 'Research'));
+
   // Global ticker search (stays flat, outside dropdowns)
   const search = el('input', {
     class: 'nav-search',
