@@ -27,6 +27,13 @@ and changes to the repo never require editing Hermes.
 | Earnings Revision Momentum Daily | `run_earnings_revisions_daily.py` |
 | Crowded Trades Daily Analysis | `run_crowded_trades_daily.py` |
 
+Since 2026-09-30 the site focuses on strategy research, and every data-ingestion
+and enrichment job above is **paused** in Hermes (the dashboards stay reachable by
+URL with their last data). Still active: Daily Macro Market Update (it also pulls
+this checkout), DB Release Auto-Publish (a no-op while data doesn't change),
+Audit/QA Bot, and the two Cron Doctor jobs. Resume one with
+`hermes cron resume <job_id>`; `hermes cron list` shows the ids.
+
 ## Installing the shims (one time)
 
 From the checkout Hermes uses (`C:\Users\cho_i\13f-scanner-web`), after

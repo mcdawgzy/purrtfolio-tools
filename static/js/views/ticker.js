@@ -47,7 +47,7 @@ export function renderTicker() {
   if (!t) return el('div', { class: 'empty' }, 'Loading…');
   if (!t.found) {
     return el('div', { class: 'section' },
-      el('a', { class: 'back', href: '#/', onclick: (e) => { e.preventDefault(); setHash('#/'); } },
+      el('a', { class: 'back', href: '#/funds', onclick: (e) => { e.preventDefault(); setHash('#/funds'); } },
         '← Funds'),
       el('div', { class: 'empty' }, `No holdings found for ticker "${state.ticker?.ticker || ''}"`));
   }

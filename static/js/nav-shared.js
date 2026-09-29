@@ -2,34 +2,10 @@
 // static research pages (site-nav.js). No imports, so static pages can load it
 // without pulling in the router and every view.
 
-// Nav link definitions grouped by category
+// Nav link definitions grouped by category. The site is focused on strategy
+// research, so only the calculators are listed. The data dashboards (13F,
+// scanners, explainers) are unlisted but still reachable by URL (NAV_ROUTES).
 export const NAV_GROUPS = [
-  {
-    label: 'Data Views',
-    items: [
-      { view: 'funds',     label: 'Funds' },
-      { view: 'consensus', label: 'Consensus' },
-      { view: 'sectors',   label: 'Sectors' },
-    ],
-  },
-  {
-    label: 'Scanners',
-    items: [
-      { view: 'snapshot',      label: 'Market Snapshot' },
-      { view: 'shortinterest', label: 'Short Interest' },
-      { view: 'economic',      label: 'Economic Calendar' },
-      { view: 'insider',       label: 'Insider Trading' },
-      { view: 'momentum',      label: 'Price Momentum' },
-      { view: 'correlation',   label: 'Correlation Matrix' },
-      { view: 'factors',       label: 'Factor Exposure' },
-      { view: 'putcallratio',  label: 'Put/Call Ratio' },
-      { view: 'ivrank',        label: 'IV Rank Tracker' },
-      { view: 'news',          label: 'News Sentiment' },
-      { view: 'screener',      label: 'Stock Screener' },
-      { view: 'earningsrevisions', label: 'Earnings Revision' },
-      { view: 'crowdedtrades', label: 'Crowded Trades' },
-    ],
-  },
   {
     label: 'Tools',
     items: [
@@ -37,8 +13,6 @@ export const NAV_GROUPS = [
       { view: 'drawdown',    label: 'Drawdown Simulator' },
       { view: 'payoff',      label: 'Options Payoff' },
       { view: 'greeks',      label: 'Greeks Explainer' },
-      { view: 'optionsexplainer', label: 'Options Explainer' },
-      { view: 'quotes',           label: 'Famous Trader Quotes' },
     ],
   },
 ];
