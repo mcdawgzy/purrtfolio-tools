@@ -8,7 +8,9 @@ markdown report delivered to the #audit-qa-bot Discord channel.
 Checks:
   1. Data Freshness   — every DB table + snapshot files + SI ingest log
   2. Cron Job Health  — jobs.json configs + executions.db recent run status
-  3. Web/API Health   — Render API health, GitHub Pages, DB release freshness
+  3. Web/API Health   — Render API health, GitHub Pages, DB release freshness;
+                        research site: test suite, pages render without JS
+                        errors (headless Edge), same-site links resolve
   4. Git Status       — uncommitted changes, stale repo stubs
   5. Data Quality     — orphans, legacy tables, stale stubs, empty-ticker rows
   6. Recommendations  — categorised findings + new items to build
@@ -74,16 +76,15 @@ def paused_scripts() -> set[str]:
         return set()
     return {j["script"] for j in jobs if j.get("script") and is_paused(j)}
 GITHUB_PAGES = "https://mcdawgzy.github.io/purrtfolio-tools/"
+SITE = "https://purrtfolio.onrender.com/"
 
 
-def _frontend_files() -> list[str]:
-    """Frontend source files (relative to static/) that CI mirrors into docs/.
-    Snapshots are excluded: the macro job commits those to both trees itself."""
-    root = WEBROOT / "static"
-    return sorted(
-        f.relative_to(root).as_posix() for f in root.rglob("*")
-        if f.is_file() and f.relative_to(root).parts[0] != "snapshots"
-    )
+def _db_stub() -> Path | None:
+    """A purrtfolio.db left in the checkout, unless it is the DB in use."""
+    stub = WEBROOT / "purrtfolio.db"
+    if stub.exists() and stub.resolve() != DB_PATH.resolve():
+        return stub
+    return None
 
 # SPA page -> API endpoint mapping for live data verification
 # (page_title, api_endpoint, legit_empty_if_no_qualifying_events)
@@ -181,6 +182,145 @@ def check_website_data():
             "detail": detail,
         })
 
+    return issues, results
+
+
+# ── Research site: tests, page rendering, links ─────────────────────
+def _browser_exe() -> str | None:
+    """Edge or Chrome for headless page checks (BROWSER_EXE overrides)."""
+    candidates = [
+        os.environ.get("BROWSER_EXE"),
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        shutil.which("msedge"), shutil.which("chrome"), shutil.which("google-chrome"),
+    ]
+    return next((c for c in candidates if c and Path(c).exists()), None)
+
+
+def _render_page(browser: str, url: str) -> tuple[str, list[str]]:
+    """Load url headless; return (rendered DOM, JS errors from the console)."""
+    import tempfile
+    with tempfile.TemporaryDirectory() as profile:
+        proc = subprocess.run(
+            [browser, "--headless", "--disable-gpu", f"--user-data-dir={profile}",
+             "--enable-logging=stderr", "--v=0", "--virtual-time-budget=10000",
+             "--dump-dom", url],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=90,
+        )
+    # Console lines look like: [pid:tid:time:INFO:CONSOLE:1] "Uncaught Error: x", source: ...
+    errors = [
+        m.group(1)[:160]
+        for m in (re.search(r':CONSOLE[^\]]*\] "(.*)", source:', line) for line in proc.stderr.splitlines())
+        if m and re.search(r"Uncaught|Failed to|Global error|Unhandled", m.group(1))
+    ]
+    return proc.stdout, errors
+
+
+def _research_pages() -> list[str]:
+    """Study page paths (relative to the site root), from the Research index cards."""
+    index = WEBROOT / "static" / "research" / "index.html"
+    html = index.read_text(encoding="utf-8") if index.exists() else ""
+    hrefs = re.findall(r'<a class="card" href="([^"]+)"', html)
+    return ["research/" + h for h in hrefs if "://" not in h]
+
+
+def _calculator_routes() -> list[str]:
+    """Hash routes of the pages listed in the site nav (NAV_GROUPS)."""
+    src = (WEBROOT / "static" / "js" / "nav-shared.js").read_text(encoding="utf-8")
+    groups = src.split("export const NAV_GROUPS", 1)[1].split("export const NAV_ROUTES", 1)[0]
+    routes = dict(re.findall(r"(\w+):\s*'(#/[^']+)'", src.split("export const NAV_ROUTES", 1)[1]))
+    return [routes.get(v, "#/" + v) for v in re.findall(r"view:\s*'(\w+)'", groups)]
+
+
+def _site_links(dom: str, page_url: str) -> set[str]:
+    """Same-site URLs referenced by a rendered page (fragments dropped)."""
+    from urllib.parse import urljoin, urldefrag
+    links = set()
+    refs = re.findall(r'(?:href|src)="([^"]+)"', dom)
+    refs += [c for c in re.findall(r'content="([^"]+)"', dom) if c.startswith("http")]  # og:image etc.
+    for ref in refs:
+        if ref.startswith(("data:", "mailto:", "#")):
+            continue
+        url = urldefrag(urljoin(page_url, ref))[0]
+        if url.startswith(SITE):
+            links.add(url)
+    return links
+
+
+def check_research_site() -> tuple[list[dict], list[dict]]:
+    """The research-focused site: test suite, every listed page renders without
+    JS errors, same-site links resolve, and every study page is on the index.
+
+    Returns (issues, results) like check_website_data().
+    """
+    issues, results = [], []
+
+    def result(check, target, ok, detail, severity="critical", fix=""):
+        results.append({"check": check, "target": target, "ok": ok, "detail": detail})
+        if not ok:
+            issues.append({"severity": severity, "category": "research", "check": f"{check}: {target}",
+                           "detail": detail, "fix": fix})
+
+    # 1. Test suite (includes the anonymisation guard on the public studies feed)
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "pytest", "tests", "research/catalogue", "-q", "-p", "no:cacheprovider"],
+            cwd=str(WEBROOT), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=600,
+        )
+        summary = (proc.stdout.strip().splitlines() or ["no output"])[-1]
+        result("Tests", "tests + research/catalogue", proc.returncode == 0, summary,
+               fix="Run `python -m pytest tests research/catalogue -q` in the checkout and fix the failures")
+    except subprocess.TimeoutExpired:
+        result("Tests", "tests + research/catalogue", False, "Timed out after 600s")
+
+    # 2. Every published study page has a card on the Research index
+    listed = {p.split("/")[1] for p in _research_pages()}
+    for page in sorted((WEBROOT / "static" / "research").glob("*/index.html")):
+        slug = page.parent.name
+        if slug not in listed:
+            result("Study on index", slug, False, "Page exists but has no card on the Research page",
+                   severity="warning", fix=f"Add a card for {slug}/ to static/research/index.html")
+
+    # 3. Pages render on the live site without JS errors
+    browser = _browser_exe()
+    if not browser:
+        result("Page render", SITE, False, "No Edge/Chrome found; set BROWSER_EXE", severity="info")
+        return issues, results
+
+    pages = [("", "Research")] + [(p, None) for p in ["research/"] + _research_pages()] \
+        + [(r, None) for r in _calculator_routes()]
+    links: set[str] = set()
+    for path, expect_title in pages:
+        url = SITE + path
+        try:
+            dom, errors = _render_page(browser, url)
+        except subprocess.TimeoutExpired:
+            result("Page render", url, False, "Browser timed out after 90s")
+            continue
+        problems = list(errors)
+        if 'class="nav-brand"' not in dom:
+            problems.append("site nav did not render (JS failed to load?)")
+        if 'class="error"' in dom:
+            problems.append("page shows an error message")
+        if expect_title:
+            title = (re.search(r"<title>([^<]*)", dom) or [None, ""])[1]
+            if expect_title not in title:
+                problems.append(f"expected the {expect_title} page, got '{title}'")
+        result("Page render", url, not problems, "; ".join(problems) or "OK",
+               fix="Open the page in a browser and check the console")
+        if path.startswith("research"):
+            links |= _site_links(dom, url)
+
+    # 4. Same-site links from the research pages resolve
+    for link in sorted(links):
+        code, _, err = http_get(link, timeout=20)
+        if code != 200:
+            result("Link", link, False, f"HTTP {code}" + (f": {err[:80]}" if err else ""),
+                   severity="warning", fix="Fix or remove the link")
+    ok_links = len(links) - sum(1 for r in results if r["check"] == "Link")
+    results.append({"check": "Links", "target": f"{len(links)} same-site links", "ok": ok_links == len(links),
+                    "detail": f"{ok_links}/{len(links)} resolve"})
     return issues, results
 
 # How many days stale before we flag
@@ -564,10 +704,10 @@ def check_git() -> dict:
     elif code != 0:
         result["issues"].append(f"git status failed: {stderr[:100]}")
 
-    # Check for stale DB stub
-    stub = WEBROOT / "purrtfolio.db"
-    if stub.exists() and stub.stat().st_size == 0:
-        result["issues"].append(f"Stale DB stub: {stub} (0 bytes)")
+    # Check for a stray DB stub
+    stub = _db_stub()
+    if stub:
+        result["issues"].append(f"Stray DB stub: {stub} ({stub.stat().st_size} bytes)")
         result["clean"] = False
 
     return result
@@ -615,17 +755,6 @@ def check_data_quality() -> list[dict]:
             "check": "Legacy tables present",
             "detail": f"Tables: {', '.join(legacy_tables)}",
             "fix": "Review for cleanup if not actively used",
-        })
-
-    # Stale DB stub in webroot
-    stub = WEBROOT / "purrtfolio.db"
-    if stub.exists() and stub.stat().st_size == 0:
-        issues.append({
-            "severity": "warning",
-            "category": "data",
-            "check": "Stale DB stub",
-            "detail": f"{stub} is 0 bytes — points to old local copy, not the unified DB at {DB_PATH}",
-            "fix": "Delete the stub or add to .gitignore; the real DB is downloaded from GitHub Release at Render cold-start",
         })
 
     # DB release not auto-publishing
@@ -737,32 +866,14 @@ def check_website_quality() -> list[dict]:
     """Scan the website repo for incremental improvement opportunities.
 
     Covers:
-      - docs/ vs static/ mirror drift (GitHub Pages build output)
       - compiled Python artifacts (__pycache__, .pyc) not cleaned
-      - stale DB stub in webroot
-      - duplicate / unused scanner modules
+      - stray DB stub in webroot
     Issues here are auto-fixed when safe (see auto_fix_issues) and
     reported as remaining warnings when they need human attention.
     """
     issues = []
 
-    # 1. Mirror sync: docs/ should track static/
-    for fname in _frontend_files():
-        sf = WEBROOT / "static" / fname
-        df = WEBROOT / "docs" / fname
-        if sf.exists() and df.exists():
-            if sf.read_bytes() != df.read_bytes():
-                issues.append({
-                    "severity": "warning",
-                    "category": "frontend",
-                    "check": f"docs/{fname} out of sync with static/{fname}",
-                    "detail": (f"static/{fname} ({sf.stat().st_size} bytes) differs from "
-                               f"docs/{fname} ({df.stat().st_size} bytes) — GitHub Pages "
-                               f"serves the stale docs/ copy"),
-                    "fix": "Sync docs/ from static/ (auto-fixed by this audit bot)",
-                })
-
-    # 2. Compiled Python artifacts
+    # 1. Compiled Python artifacts
     pycache = list(WEBROOT.rglob("__pycache__"))
     pyc_files = list(WEBROOT.rglob("*.pyc"))
     if pycache or pyc_files:
@@ -775,13 +886,13 @@ def check_website_quality() -> list[dict]:
             "fix": "Delete __pycache__ dirs and .pyc files (auto-fixed by this audit bot)",
         })
 
-    # 3. Stale non-empty DB stub
-    stub = WEBROOT / "purrtfolio.db"
-    if stub.exists() and stub.stat().st_size > 0:
+    # 2. Stray DB stub (only left if the auto-fix could not delete it)
+    stub = _db_stub()
+    if stub:
         issues.append({
             "severity": "warning",
             "category": "data",
-            "check": "Stale non-empty DB stub in webroot",
+            "check": "Stray DB stub in webroot",
             "detail": (f"{stub} is {stub.stat().st_size} bytes — should not exist in the "
                        f"webroot; real DB is at {DB_PATH}, downloaded at Render cold-start"),
             "fix": "Delete the stub (auto-fixed by this audit bot)",
@@ -818,25 +929,6 @@ def suggest_new_items() -> list[str]:
             f"({len(web_issues)} item(s) found by the website quality scan)."
         )
 
-    # Check if docs/ and static/ are tracked in git separately (suggests a
-    # post-commit hook to keep them in sync)
-    try:
-        out = run_cmd("git log --oneline -5 --name-only", cwd=str(WEBROOT), timeout=10)
-        if out[0] == 0 and out[1]:
-            recent_files = set()
-            for line in out[1].strip().split("\n"):
-                line = line.strip()
-                if line and not line.startswith("commit") and "/" in line:
-                    recent_files.add(line)
-            static_only = any(f.startswith("static/") for f in recent_files)
-            docs_only = any(f.startswith("docs/") for f in recent_files)
-            if static_only and not docs_only:
-                suggestions.append(
-                    "**Add docs/ sync to build workflow** — commits touch static/ but not "
-                    "docs/; add a post-commit hook or CI step to mirror static/ → docs/."
-                )
-    except Exception:
-        pass
 
 
     return suggestions
@@ -854,16 +946,15 @@ def auto_fix_issues() -> list[dict]:
             "status": status, "detail": detail,
         })
 
-    # ── Fix 1: Delete stale 0-byte DB stub ──
-    stub_path = WEBROOT / "purrtfolio.db"
-    if stub_path.exists() and stub_path.stat().st_size == 0:
-        size = stub_path.stat().st_size
-        stub_path.unlink()
+    # ── Fix 1: Delete a stray DB stub in the checkout (never the DB in use) ──
+    stub = _db_stub()
+    if stub:
+        size = stub.stat().st_size
+        stub.unlink()
         _record(
-            "Stale DB stub (0 bytes)",
-            f"Deleted {size}-byte stub file",
-            str(stub_path),
-            detail="The real DB is served from the unified purrtfolio.db at project root",
+            "Stray DB stub in webroot",
+            f"Deleted {size}-byte stub (real DB is at {DB_PATH})",
+            str(stub),
         )
     # else: already gone — nothing to do
 
@@ -917,19 +1008,7 @@ def auto_fix_issues() -> list[dict]:
     # ── Fix 4: Pin stale git ref in keepalive.yml ──
     # (Skip — requires careful URL verification, leave for human)
 
-    # ── Fix 5: Sync docs/ mirror from static/ ──
-    for fname in _frontend_files():
-        static_file = WEBROOT / "static" / fname
-        docs_file = WEBROOT / "docs" / fname
-        if static_file.exists() and docs_file.exists():
-            if static_file.read_bytes() != docs_file.read_bytes():
-                size_before = docs_file.stat().st_size
-                shutil.copy2(static_file, docs_file)
-                _record(
-                    f"docs/{fname} out of sync with static/{fname}",
-                    f"Synced docs/{fname} ({size_before} → {docs_file.stat().st_size} bytes)",
-                    str(docs_file),
-                )
+    # (docs/ is mirrored from static/ by the build-pages CI workflow, not here.)
 
     # ── Fix 6: Clean compiled Python artifacts in webroot ──
     pycache_dirs = list(WEBROOT.rglob("__pycache__"))
@@ -949,17 +1028,6 @@ def auto_fix_issues() -> list[dict]:
             str(WEBROOT),
         )
 
-    # ── Fix 7: Delete stale non-empty DB stub in webroot ──
-    stub = WEBROOT / "purrtfolio.db"
-    if stub.exists() and stub.stat().st_size > 0:
-        size = stub.stat().st_size
-        stub.unlink()
-        _record(
-            "Stale non-empty DB stub in webroot",
-            f"Deleted {size}-byte stub (real DB is at {DB_PATH}, downloaded from GitHub Release)",
-            str(stub),
-        )
-
     return fixes
 
 # ── Report generation ──────────────────────────────────────────────
@@ -976,10 +1044,11 @@ def generate_report() -> str:
     known = check_known_issues()
     web_quality = check_website_quality()
     website_issues, website_results = check_website_data()
+    research_issues, research_results = check_research_site()
     suggestions = suggest_new_items()
 
     # Compute summary counts (combine known + data quality + website quality)
-    all_issues = known + quality + web_quality + website_issues
+    all_issues = known + quality + web_quality + website_issues + research_issues
     n_critical = sum(1 for i in all_issues if i["severity"] == "critical")
     n_warning = sum(1 for i in all_issues if i["severity"] == "warning")
     n_info = sum(1 for i in all_issues if i["severity"] == "info")
@@ -1042,6 +1111,15 @@ def generate_report() -> str:
         lines.append(f"| {r['page']} | `{r['endpoint']}` | {sflag} | {r['detail']} |")
     lines.append("")
 
+    # 3c. Research site (tests, page rendering, links)
+    lines.append("### Research Site Check")
+    lines.append("")
+    lines.append("| Check | Target | Status | Detail |")
+    lines.append("|-------|--------|--------|--------|")
+    for r in research_results:
+        lines.append(f"| {r['check']} | {r['target']} | {'OK' if r['ok'] else 'FAIL'} | {r['detail']} |")
+    lines.append("")
+
     # 4. Git Status
     lines.append("## 📂 4. Git Status")
     lines.append("")
@@ -1060,9 +1138,9 @@ def generate_report() -> str:
     lines.append("## 🔍 5. Issues Found")
     lines.append("")
 
-    critical_issues = [i for i in known if i["severity"] == "critical"]
-    warning_issues = [i for i in known if i["severity"] == "warning"]
-    info_issues = [i for i in known if i["severity"] == "info"]
+    critical_issues = [i for i in known + research_issues if i["severity"] == "critical"]
+    warning_issues = [i for i in known + research_issues if i["severity"] == "warning"]
+    info_issues = [i for i in known + research_issues if i["severity"] == "info"]
     quality_warnings = [q for q in quality if q["severity"] == "warning"]
     quality_infos = [q for q in quality if q["severity"] == "info"]
     web_warnings = [w for w in web_quality if w["severity"] == "warning"]
@@ -1128,6 +1206,7 @@ def generate_report() -> str:
     lines.append(f"- **{len(fixes)}** issues auto-fixed by the bot")
     lines.append(f"- **{len(web)}** web endpoints checked — {sum(1 for w in web if w['ok'])} reachable")
     lines.append(f"- **{sum(1 for r in website_results if r['ok'])}/{len(website_results)}** SPA pages verified with live data")
+    lines.append(f"- **{sum(1 for r in research_results if r['ok'])}/{len(research_results)}** research site checks passed")
     lines.append(f"- **{n_critical}** critical issues, **{n_warning}** warnings, **{n_info}** informational")
     lines.append(f"- **{len(suggestions)}** proposed new items to build")
     lines.append("")
