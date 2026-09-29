@@ -4,11 +4,11 @@
 
 One record per tested study, grouped by strategy family, for publishing. The research record behind each one is `STRATEGY_LEDGER.md` and `src/trading_hub/optimize/mechanisms.py` in the trading_hub repo.
 
-**99 studies, 153 named variants.**
+**100 studies, 159 named variants.**
 
 | Verdict | Studies |
 |---|---|
-| ✅ Passed the full gate | 3 |
+| ✅ Passed the full gate | 4 |
 | 🟡 Hard gate passed, robustness marginal | 3 |
 | ❌ Passed the gate, failed the forward test | 1 |
 | ⏸️ Passed, then shelved | 2 |
@@ -123,6 +123,7 @@ Visibility: `public` = safe to publish as written; `review` = your call (a survi
 | [S135](#s135) | Kalman-filter OU pairs (Reddit) | cross-asset | social | ❌ Rejected | public |
 | [S136](#s136) | Beta-hedged intraday spread between US indices | cross-asset | internal | ❌ Rejected | public |
 | [S137](#s137) | Cross-sectional commodity seasonality (long/short by calendar month) | cross-asset | internal | ⏸️ Parked | public |
+| [S138](#s138) | Z-score(5) scale-in dip-buy on QQQ — 3 tranches, exit above EMA(5) | dip-buying | social | ✅ Passed the full gate | public |
 
 ## Opening range & intraday momentum
 
@@ -1119,6 +1120,31 @@ _Refs: pre-reg `docs/prereg/2026-09-26_paper_library_futures_battery.md`; script
 _Refs: scripts `scripts/download_ibkr_options_chain_probe.py`, `scripts/eda_etf_quality_pullback_reclaim.py`; PRs #201_
 
 > Buying quality ETFs after a pullback and a 200-EMA reclaim, then simply holding three months, is our most interesting swing lead: +7.4% per trade and clearly better than random. It came out of an exploratory search, so it still needs a clean pre-registered test.
+
+### S138
+
+**Z-score(5) scale-in dip-buy on QQQ — 3 tranches, exit above EMA(5)** — ✅ Passed the full gate · `public`
+
+- **Source:** social — X post — z-score scale-in mean reversion model on QQQ (user-pasted 2026-09-30)
+- **Tested:** 2026-09-30 · QQQ, SPY, IWM, DIA, US100 · ETF, CFD, options · 1d, 1-7 day hold
+- **Data:** IBKR daily, TRAIN 2010-08→2020-12, TEST 2021-01→2026-09; ThetaData QQQ option NBBO 2020-2026
+- **Mechanism:** `daily-short-term-reversal`
+- **Headline:** Parameters as posted, none swept. PRIMARY 4/4 ETF legs TEST-positive, DSR 0.990 program-level, drop-top-1 survives, survives next-open fills. QQQ TEST Sharpe 1.08 vs buy-and-hold 0.78 at a drawdown of −9.9% vs −35.6%; TRAIN weaker (0.60 vs 1.04). Options keep at most 40% of the share P&L.
+- **Why:** Buying a 5-day z-score dip in thirds and selling the first close above EMA(5) harvests the same short-term reversal premium as RSI(2) (daily-return correlation +0.80), more often (~22 campaigns/yr).
+- **Lesson:** The 87% win rate is averaging-down geometry (avg win +72bp vs avg loss −199bp). A random trigger with the same scale-in and exit already reaches Sharpe 0.65 (real at the 79th percentile); the trigger's value is in per-campaign return (100th percentile). Found and fixed a missing month (Aug 2021) in the QQQ daily store.
+
+| Variant | Verdict | Result |
+|---|---|---|
+| as posted, limit-on-close fills | PASS | 4/4 ETF legs TEST-positive; FTMO US100 CFD with swap TEST Sharpe 1.03. |
+| next-open fills | PASS | QQQ TEST Sharpe 0.92. |
+| single full-size entry instead of thirds | PASS | Similar Sharpe, deeper drawdown (−14.6% vs −9.9%). |
+| deep-ITM call per tranche (~0.95×spot, ≥21 DTE) | PASS | +19bp/campaign vs +47bp in shares; beats random-entry null narrowly (Welch t=1.77). |
+| ATM call per tranche (≥14 DTE) | REJECT | +7.6bp/campaign, t=1.38; no better than random entries. |
+| bull put spread per tranche (0.98/0.95×spot, ≥10 DTE) | REJECT | +3.6bp/campaign, t=1.01, despite a 91% win rate. |
+
+_Refs: scripts `scripts/eda_zscore_scalein_qqq.py`, `scripts/eda_zscore_scalein_options.py`; PRs #240_
+
+> A post on X described buying QQQ in thirds after a 5-day z-score dip and selling on the first close above the 5-day EMA. It passed our full out-of-sample test on four ETFs, and on QQQ from 2021 it beat buy-and-hold on a risk-adjusted basis with a much smaller drawdown (−9.9% vs −35.6%). Expressing it through options gave up most of the profit; shares were the better vehicle.
 
 
 ## Calendar, session & event effects
