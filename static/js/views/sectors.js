@@ -1,5 +1,5 @@
 import { api } from '../core/api.js';
-import { CHART_COLORS, createBarChart } from '../core/charts.js';
+import { CHART_COLORS, createBarChart, cssVar } from '../core/charts.js';
 import { el } from '../core/dom.js';
 import { fmtUSD } from '../core/format.js';
 import { state } from '../core/state.js';
@@ -124,14 +124,14 @@ export function renderSectors() {
       scales: {
         x: {
           ticks: {
-            color: '#E8EBEF',
+            color: cssVar('--text'),
             font: { size: 10 },
             callback: (v) => v === Infinity ? 'new' : `${v > 0 ? '+' : ''}${v.toFixed(1)}%`,
           },
-          grid: { color: '#1E2A38' },
+          grid: { color: cssVar('--line') },
         },
         y: {
-          ticks: { color: '#E8EBEF', font: { size: 10 } },
+          ticks: { color: cssVar('--text'), font: { size: 10 } },
           grid: { display: false },
         },
       },

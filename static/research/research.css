@@ -2,146 +2,154 @@
    Uses the site's tokens only (--bg, --panel, --line, --brass, --green, --red…),
    so the write-ups read as part of the app, just with a narrower text column. */
 
-.research { max-width: 860px; display: grid; gap: 48px; font-size: 15px; line-height: 1.6; }
+.research { max-width: 880px; display: grid; gap: 64px; font-size: 16.5px; line-height: 1.65; padding-top: 8px; }
 .research p { max-width: 68ch; }
-.research a { color: var(--brass); }
-.research a:hover { text-decoration: underline; }
-.research section { display: grid; gap: 16px; }
+.research a { color: var(--text); text-decoration: underline; text-decoration-color: var(--brass); text-underline-offset: 3px; }
+.research a:hover { color: var(--brass); }
+.research section { display: grid; gap: 18px; }
 .research .page-description { margin-bottom: 0; }
-.research h2 { font-size: 20px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; text-wrap: balance; }
-.research h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.research h2 { font-size: clamp(24px, 3vw, 30px); font-weight: 600; line-height: 1.15; letter-spacing: -0.025em; text-wrap: balance; }
+.research h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 6px; }
 .research b { font-weight: 600; }
 
 /* Section label — same treatment as .section-header h2 in the app */
 .eyebrow {
-  font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--text-dim);
+  display: flex; align-items: center; gap: 10px;
+  font: 700 11.5px/1.2 var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-mut);
 }
+.eyebrow::before { content: ''; width: 8px; height: 8px; background: var(--brass); flex: none; }
 
-.crumbs { display: flex; flex-wrap: wrap; gap: 6px 10px; font: 12px var(--mono); color: var(--text-mut); }
-.crumbs a { color: var(--text-dim); }
-.crumbs a:hover { color: var(--brass); text-decoration: none; }
+.crumbs { display: flex; flex-wrap: wrap; gap: 6px 10px; font: 12px var(--mono); color: var(--text-mut); padding-top: 32px; margin-bottom: -40px; }
+.research .crumbs a { color: var(--text-mut); text-decoration: none; }
+.research .crumbs a:hover { color: var(--text); }
 
 /* Verdict + metadata pills (same shape as the app's status badges) */
 .tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .verdict, .tag {
   font: 500 11px/1 var(--mono); letter-spacing: 0.04em;
-  padding: 5px 8px; border-radius: 2px; border: 1px solid var(--line-2); color: var(--text-dim);
+  padding: 6px 11px; border-radius: 999px; background: var(--panel-2); color: var(--text-dim);
 }
-.verdict { font-weight: 700; text-transform: uppercase; color: var(--red); background: var(--red-bg); border-color: var(--red); }
-.verdict.pass { color: var(--green); background: var(--green-bg); border-color: var(--green); }
+.verdict { font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--red); background: var(--red-bg); }
+.verdict.pass { color: var(--green); background: var(--green-bg); }
 
-.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
 
 /* ---------- Research index ---------- */
-.studies { list-style: none; display: grid; gap: 16px; }
+.studies { list-style: none; display: grid; gap: 20px; }
 .card {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
-  background: var(--panel); border: 1px solid var(--line); border-radius: 4px; overflow: hidden;
-  color: inherit; text-decoration: none; transition: border-color 0.15s;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 16px; overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
-.research a.card:hover { border-color: var(--brass); text-decoration: none; }
-.card .thumb { background: var(--bg); display: grid; align-items: center; border-right: 1px solid var(--line); }
+.research a.card { color: inherit; text-decoration: none; }
+.research a.card:hover { color: inherit; border-color: var(--line-2); box-shadow: var(--shadow); transform: translateY(-2px); }
+.card .thumb { background: var(--panel); display: grid; align-items: center; border-right: 1px solid var(--line); }
 .card img { width: 100%; height: auto; display: block; }
-.card-body { display: grid; gap: 10px; align-content: start; padding: 20px 22px; }
-.card h2 { font-size: 18px; color: var(--text); }
-.card .summary { font-size: 13.5px; color: var(--text-dim); }
-.card .more { font: 600 12px var(--mono); letter-spacing: 0.04em; color: var(--brass); }
+.card-body { display: grid; gap: 12px; align-content: start; padding: 26px 28px; }
+.card h2 { font-size: 24px; color: var(--text); }
+.card .summary { font-size: 15px; color: var(--text-dim); }
+.card .more { font: 600 14px var(--font); color: var(--text); margin-top: 4px; }
+.research a.card:hover .more { color: var(--brass); }
 
 /* ---------- Study page ---------- */
-.hero { display: grid; gap: 16px; }
-.hero h1 { font-size: clamp(26px, 4.4vw, 36px); font-weight: 600; line-height: 1.15; letter-spacing: -0.02em; text-wrap: balance; }
-.claim { display: grid; gap: 6px; padding: 16px 20px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--brass); border-radius: 0 4px 4px 0; }
-.claim q { font-size: 17px; font-weight: 500; line-height: 1.4; quotes: "“" "”"; }
-.claim .who { font-size: 12.5px; color: var(--text-mut); }
-.answer { font-size: 16px; }
+.hero { display: grid; gap: 22px; }
+.hero h1 { font-size: clamp(34px, 5.6vw, 60px); font-weight: 600; line-height: 1.02; letter-spacing: -0.04em; text-wrap: balance; }
+.claim { display: grid; gap: 10px; padding: 24px 28px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.claim q { font-family: var(--display); font-size: clamp(18px, 2.4vw, 22px); font-weight: 500; line-height: 1.35; letter-spacing: -0.015em; quotes: "“" "”"; }
+.claim .who { font: 12px var(--mono); color: var(--text-mut); }
+.answer { font-size: 19px; line-height: 1.5; }
 .answer b { color: var(--red); }
 
-.mech { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 28px; align-items: start; }
-.research figure { display: grid; gap: 10px; }
-figcaption { font-size: 12.5px; color: var(--text-dim); max-width: 68ch; }
-.fig-box { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 10px; overflow-x: auto; }
+.mech { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+.research figure { display: grid; gap: 12px; }
+figcaption { font-size: 13.5px; color: var(--text-mut); max-width: 68ch; }
+.fig-box { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; overflow-x: auto; }
 .research svg { display: block; width: 100%; height: auto; }
-ol.rules { list-style: none; display: grid; gap: 14px; counter-reset: r; }
-ol.rules li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; counter-increment: r; font-size: 14px; color: var(--text-dim); }
+ol.rules { list-style: none; display: grid; gap: 18px; counter-reset: r; }
+ol.rules li { display: grid; grid-template-columns: 32px 1fr; gap: 12px; counter-increment: r; font-size: 15px; color: var(--text-dim); }
 ol.rules li::before {
-  content: counter(r); font: 600 12px/26px var(--mono); text-align: center; width: 26px; height: 26px;
-  border: 1px solid var(--brass); border-radius: 2px; color: var(--brass);
+  content: counter(r); font: 700 12px/28px var(--mono); text-align: center; width: 28px; height: 28px;
+  border-radius: 50%; background: var(--ink); color: var(--on-ink);
 }
 ol.rules b { display: block; color: var(--text); }
 
-.why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 22px; }
-.why-grid p { font-size: 14px; color: var(--text-dim); }
+.why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.why-grid > div { background: var(--bg); padding: 22px; }
+.why-grid p { font-size: 14.5px; color: var(--text-dim); }
 .maths {
-  display: flex; flex-wrap: wrap; gap: 10px 26px; align-items: baseline; padding: 14px 18px;
-  border-left: 3px solid var(--brass); background: var(--brass-dim); border-radius: 0 4px 4px 0;
+  display: flex; flex-wrap: wrap; gap: 10px 26px; align-items: baseline; padding: 18px 22px;
+  background: var(--brass-dim); border-radius: var(--radius);
 }
-.maths .f { font: 500 15px var(--mono); color: var(--brass); }
-.maths span:not(.f) { font-size: 14px; }
+.maths .f { font: 700 15px var(--mono); color: var(--brass); }
+.maths span:not(.f) { font-size: 15px; }
 
-.explorer { display: grid; gap: 14px; padding: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
-.explorer label { font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-mut); }
+.explorer { display: grid; gap: 16px; padding: 26px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.explorer label { font: 700 11px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-mut); }
 .slider-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
-input[type="range"] { flex: 1 1 240px; accent-color: var(--brass); }
-.rr-out { font: 600 20px var(--mono); min-width: 5ch; color: var(--brass); }
-.readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
-.readout div { display: grid; gap: 2px; }
-.readout .v { font: 600 22px/1.2 var(--mono); font-variant-numeric: tabular-nums; }
-.readout .k { font-size: 12px; color: var(--text-mut); }
+input[type="range"] { flex: 1 1 240px; accent-color: var(--ink); }
+.rr-out { font: 600 28px var(--display); letter-spacing: -0.02em; min-width: 4ch; color: var(--text); }
+.readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; padding-top: 16px; border-top: 1px solid var(--line); }
+.readout div { display: grid; gap: 4px; align-content: start; }
+.readout .v { font: 600 30px/1.1 var(--display); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.readout .k { font-size: 13px; color: var(--text-mut); }
 
 /* Result tiles — same look as the app's .stats strip */
-.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); border: 1px solid var(--line); }
-.tile { padding: 16px 18px; display: grid; gap: 6px; border-right: 1px solid var(--line); }
-.tile:last-child { border-right: none; }
-.tile .v { font: 600 22px/1.1 var(--mono); font-variant-numeric: tabular-nums; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.tile { padding: 22px; display: grid; gap: 8px; align-content: start; background: var(--bg); }
+.tile .v { font: 600 34px/1 var(--display); letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
 .tile .v.bad { color: var(--red); }
-.tile .k { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-mut); order: -1; }
+.tile .k { font-size: 13px; color: var(--text-mut); line-height: 1.4; }
 .chart-wrap { position: relative; }
-.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--text-dim); }
-.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 13px; color: var(--text-dim); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
 .sw-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--brass); }
 .sw-line { width: 18px; height: 0; border-top: 2px dashed var(--text-dim); }
-.sw-band { width: 12px; height: 12px; background: var(--red-bg); border: 1px solid var(--red); }
+.sw-band { width: 12px; height: 12px; background: var(--red-bg); border: 1px solid var(--red); border-radius: 2px; }
 .tip {
-  position: absolute; pointer-events: none; background: var(--panel-2); color: var(--text); border: 1px solid var(--line-2);
-  font: 12px/1.4 var(--mono); padding: 6px 9px; border-radius: 2px; white-space: nowrap; transform: translate(-50%, calc(-100% - 12px));
+  position: absolute; pointer-events: none; background: var(--ink); color: var(--on-ink);
+  font: 12px/1.4 var(--mono); padding: 7px 11px; border-radius: var(--radius-sm); white-space: nowrap;
+  transform: translate(-50%, calc(-100% - 12px)); box-shadow: var(--shadow);
 }
-details.table { font-size: 13px; }
-details.table summary { cursor: pointer; color: var(--brass); font-family: var(--mono); font-size: 12px; }
-details.table .table-wrap { margin-top: 10px; }
+details.table { font-size: 14px; }
+details.table summary { cursor: pointer; color: var(--text-dim); font: 700 12px var(--mono); letter-spacing: 0.04em; width: fit-content; }
+details.table summary:hover { color: var(--text); }
+details.table .table-wrap { margin-top: 12px; }
 /* Research tables are static: drop the app's sortable-header affordances */
 .research thead th { cursor: default; }
 .research thead th:hover { color: var(--text-mut); }
 .research tbody td.bad { color: var(--red); font-weight: 600; }
 .research tbody td.ok { color: var(--green); font-weight: 600; }
 
-.twist { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px; }
-.bar-compare { display: grid; gap: 10px; }
-.bc-row { display: grid; grid-template-columns: 140px 1fr 70px; gap: 10px; align-items: center; font-size: 13px; }
-.bc-track { height: 12px; background: var(--panel-2); position: relative; }
-.bc-fill { height: 100%; }
-.bc-row .n { font-family: var(--mono); text-align: right; }
-.bar-compare .note { font-size: 12px; color: var(--text-mut); }
+.twist { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 28px; }
+.bar-compare { display: grid; gap: 12px; }
+.bc-row { display: grid; grid-template-columns: 140px 1fr 70px; gap: 12px; align-items: center; font-size: 14px; }
+.bc-track { height: 10px; background: var(--panel-2); border-radius: 999px; overflow: hidden; position: relative; }
+.bc-fill { height: 100%; border-radius: 999px; }
+.bc-row .n { font-family: var(--mono); font-size: 13px; text-align: right; }
+.bar-compare .note { font-size: 13px; color: var(--text-mut); }
 
-.lesson { padding: 20px 22px; background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--brass); border-radius: 0 4px 4px 0; display: grid; gap: 8px; }
-.lesson .eyebrow { color: var(--brass); }
-.lesson p { font-size: clamp(16px, 2.4vw, 19px); font-weight: 600; line-height: 1.35; max-width: 48ch; }
-.method { font-size: 13px; color: var(--text-dim); }
+/* The takeaway: an inverted ink block so it's the one thing you can't miss */
+.lesson { padding: 32px 34px; background: var(--ink); color: var(--on-ink); border-radius: 16px; display: grid; gap: 12px; }
+.lesson .eyebrow { color: color-mix(in srgb, var(--on-ink) 65%, transparent); }
+.lesson p { font-family: var(--display); font-size: clamp(20px, 2.8vw, 26px); font-weight: 600; line-height: 1.25; letter-spacing: -0.02em; max-width: 36ch; }
+.method { font-size: 14.5px; color: var(--text-dim); }
 .method p { max-width: 80ch; }
 
 .research-footer {
   display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px;
-  font: 11px var(--mono); color: var(--text-mut); border-top: 1px solid var(--line); padding-top: 16px;
+  font: 12px var(--mono); color: var(--text-mut); border-top: 1px solid var(--line); padding-top: 20px;
 }
+.research .research-footer a { color: var(--text-dim); text-decoration: none; }
+.research .research-footer a:hover { color: var(--text); }
 
 @media (max-width: 720px) {
+  .research { gap: 48px; font-size: 16px; }
   .card { grid-template-columns: 1fr; }
   .card .thumb { border-right: none; border-bottom: 1px solid var(--line); }
+  .card-body { padding: 22px; }
   .mech { grid-template-columns: 1fr; }
   .bc-row { grid-template-columns: 110px 1fr 60px; }
-  .tile { border-right: none; border-bottom: 1px solid var(--line); }
-  .tile:last-child { border-bottom: none; }
-}
-@media (max-width: 600px) {
-  .app { padding: 16px 16px 64px; }
+  .lesson { padding: 26px 24px; }
+  .crumbs { padding-top: 24px; margin-bottom: -28px; }
 }

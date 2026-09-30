@@ -1,4 +1,4 @@
-import { CHART_COLORS, charts, destroyAllCharts } from '../../core/charts.js';
+import { ensureChartJS, CHART_COLORS, charts, destroyAllCharts, cssVar } from '../../core/charts.js';
 import { el, stat } from '../../core/dom.js';
 import { fmtUSD } from '../../core/format.js';
 
@@ -205,7 +205,7 @@ export function renderGreeksExplainer() {
 
     // Render or update chart
     const canvas = document.getElementById('greeks-chart');
-    if (!canvas) return;
+    if (!canvas || typeof Chart === 'undefined') return;
     if (charts['greeks-chart']) charts['greeks-chart'].destroy();
     const ctx = canvas.getContext('2d');
 
@@ -243,29 +243,29 @@ export function renderGreeksExplainer() {
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#11161D',
-            titleColor: '#E8EBEF',
-            bodyColor: '#7E8A9A',
-            borderColor: '#1E2A38',
+            backgroundColor: cssVar('--panel'),
+            titleColor: cssVar('--text'),
+            bodyColor: cssVar('--text-dim'),
+            borderColor: cssVar('--line'),
             borderWidth: 1,
             padding: 8,
           },
         },
         scales: {
           x: {
-            title: { display: true, text: 'Underlying Price ($)', color: '#7E8A9A', font: { size: 10 } },
-            ticks: { color: '#7E8A9A', font: { size: 9 } },
-            grid: { color: '#1E2A38' },
+            title: { display: true, text: 'Underlying Price ($)', color: cssVar('--text-dim'), font: { size: 10 } },
+            ticks: { color: cssVar('--text-dim'), font: { size: 9 } },
+            grid: { color: cssVar('--line') },
           },
           y: {
-            title: { display: true, text: 'Delta', color: '#7E8A9A', font: { size: 10 } },
-            ticks: { color: '#7E8A9A', font: { size: 9 } },
-            grid: { color: '#1E2A38' },
+            title: { display: true, text: 'Delta', color: cssVar('--text-dim'), font: { size: 10 } },
+            ticks: { color: cssVar('--text-dim'), font: { size: 9 } },
+            grid: { color: cssVar('--line') },
           },
           y1: {
             position: 'right',
-            title: { display: true, text: 'Gamma ×100', color: '#7E8A9A', font: { size: 10 } },
-            ticks: { color: '#7E8A9A', font: { size: 9 } },
+            title: { display: true, text: 'Gamma ×100', color: cssVar('--text-dim'), font: { size: 10 } },
+            ticks: { color: cssVar('--text-dim'), font: { size: 9 } },
             grid: { display: false },
             offset: true,
           },
@@ -278,8 +278,9 @@ export function renderGreeksExplainer() {
   controls.querySelectorAll('.g-input').forEach(i => i.addEventListener('input', computeAndRender));
   controls.querySelector('.g-type').addEventListener('change', computeAndRender);
 
-  // Initial render
+  // Initial render: stats now, chart once Chart.js is loaded and the view is mounted
   computeAndRender();
+  ensureChartJS().then(computeAndRender);
 
   return wrap;
 }

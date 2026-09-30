@@ -3,7 +3,7 @@
 import { el } from './core/dom.js';
 import { state } from './core/state.js';
 import { setHash } from './router.js';
-import { NAV_GROUPS, NAV_ROUTES, closeNavDropdowns } from './nav-shared.js';
+import { NAV_CTA, NAV_GROUPS, NAV_ROUTES, closeNavDropdowns } from './nav-shared.js';
 
 // ---------------- Page descriptions ----------------
 // Context paragraphs shown at the top of each view explaining what the
@@ -125,7 +125,7 @@ function navHref(item) {
 }
 
 export function renderNav() {
-  const nav = el('div', { class: 'nav' });
+  const nav = el('nav', { class: 'nav', 'aria-label': 'Site' });
 
   // Brand / logo — the home page is the Research hub
   nav.appendChild(el('a', { class: 'nav-brand', href: './research/' }, 'Purrtfolio'));
@@ -174,5 +174,6 @@ export function renderNav() {
   }
 
   nav.appendChild(el('div', { class: 'nav-spacer' }));
+  nav.appendChild(el('a', { class: 'btn btn-primary nav-cta', href: NAV_CTA.href }, NAV_CTA.label));
   return nav;
 }

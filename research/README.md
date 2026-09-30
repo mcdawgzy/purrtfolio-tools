@@ -26,8 +26,8 @@ Research page linked from the site's main nav), newest first.
 
 Research pages use the site's own theme so they read as part of the app: link
 `static/styles.css` (tokens, masthead, nav, tables) and `static/research/research.css`
-(article layout), and put `<nav class="nav" data-site-nav data-root="../../">` under the
-masthead with `js/site-nav.js` to render the app's nav. Colour with the site tokens
+(article layout), and put `<nav class="nav" data-site-nav data-root="../../">` first in
+`.app` (above the masthead) with `js/site-nav.js` to render the app's nav. Colour with the site tokens
 (`--brass`, `--red`, `--green`, `--text-dim`, `--panel`…); copy the one-minute ORB page
 as the template. `make_cards.py` uses the same palette for `og.png`.
 

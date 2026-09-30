@@ -111,8 +111,8 @@ function renderCorrelationMatrixView() {
         // Background tint
         const intensity = Math.min(Math.abs(val), 1) * 0.3;
         bg = val >= 0
-          ? `rgba(46,154,105,${intensity})`
-          : `rgba(199,62,76,${intensity})`;
+          ? `rgba(0,168,107,${intensity})`
+          : `rgba(210,59,65,${intensity})`;
       }
       tr.appendChild(el('td', { class: cls, style: { background: bg || undefined } }, txt));
     }
