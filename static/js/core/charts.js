@@ -13,18 +13,32 @@ export function ensureChartJS() {
   _chartJsPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = './chart.min.js';
-    script.onload = () => { resolve(); };
+    script.onload = () => { applyChartDefaults(); resolve(); };
     script.onerror = () => { reject(new Error('Failed to load chart.min.js')); };
     document.head.appendChild(script);
   });
   return _chartJsPromise;
 }
 
-// Chart color palette - using actual hex values (CSS variables don't work in Chart.js)
+// Canvas can't resolve var(--x), so read the current theme's token values at
+// chart-creation time. Charts are rebuilt on every render, so a theme switch is
+// picked up on the next render (see main.js).
+export function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+// Chart.js globals: body font and muted text/grid colours from the theme.
+function applyChartDefaults() {
+  Chart.defaults.font.family = cssVar('--font');
+  Chart.defaults.color = cssVar('--text-dim');
+  Chart.defaults.borderColor = cssVar('--line');
+}
+
+// Chart color palette - hex values that read on both the light and dark theme.
 export const CHART_COLORS = {
-  brass: '#C9A24E',
-  green: '#2E9E6B',
-  red: '#C7564A',
+  brass: '#C86F2E',
+  green: '#00A86B',
+  red: '#D23B41',
   blue: '#3B82F6',
   pink: '#EC4899',
   orange: '#F97316',
@@ -79,10 +93,10 @@ export async function createPieChart(canvasId, data, options = {}) {
     charts[canvasId].destroy();
   }
   // Explicit colors for Chart.js (CSS variables don't work reliably in canvas)
-  const TEXT_COLOR = '#E8EBEF';
-  const TEXT_DIM = '#7E8A9A';
-  const PANEL = '#11161D';
-  const LINE = '#1E2A38';
+  const TEXT_COLOR = cssVar('--text');
+  const TEXT_DIM = cssVar('--text-dim');
+  const PANEL = cssVar('--panel');
+  const LINE = cssVar('--line');
   charts[canvasId] = new Chart(ctx, {
     type: 'pie',
     data: data,
@@ -130,9 +144,9 @@ export async function createBarChart(canvasId, data, options = {}) {
   if (charts[canvasId]) {
     charts[canvasId].destroy();
   }
-  const TEXT_COLOR = '#E8EBEF';
-  const TEXT_DIM = '#7E8A9A';
-  const LINE = '#1E2A38';
+  const TEXT_COLOR = cssVar('--text');
+  const TEXT_DIM = cssVar('--text-dim');
+  const LINE = cssVar('--line');
   charts[canvasId] = new Chart(ctx, {
     type: 'bar',
     data: data,
@@ -142,7 +156,7 @@ export async function createBarChart(canvasId, data, options = {}) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#11161D',
+          backgroundColor: cssVar('--panel'),
           titleColor: TEXT_COLOR,
           bodyColor: TEXT_DIM,
           borderColor: LINE,
@@ -179,8 +193,8 @@ export async function createBarChart(canvasId, data, options = {}) {
         datasets: [{
           data: data,
           backgroundColor: [
-            '#C9A24E', '#2E9E6B', '#C7564A', '#3B82F6', '#8B5CF6',
-            '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1',
+            CHART_COLORS.brass, CHART_COLORS.green, CHART_COLORS.red, CHART_COLORS.blue, '#8B5CF6',
+            CHART_COLORS.pink, '#06B6D4', '#84CC16', CHART_COLORS.orange, CHART_COLORS.indigo,
           ],
           borderWidth: 0,
         }],
@@ -192,8 +206,8 @@ export async function createBarChart(canvasId, data, options = {}) {
           legend: {
             position: 'right',
             labels: {
-              color: '#E8EBEF',
-              font: { size: 11, family: 'var(--font)' },
+              color: cssVar('--text'),
+              font: { size: 11, family: cssVar('--font') },
               padding: 12,
               usePointStyle: true,
               pointStyle: 'circle',

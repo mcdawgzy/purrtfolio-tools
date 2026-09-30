@@ -1,5 +1,5 @@
 import { api, loadMeta } from '../core/api.js';
-import { ensureChartJS, charts } from '../core/charts.js';
+import { ensureChartJS, charts, cssVar, CHART_COLORS } from '../core/charts.js';
 import { el, stat } from '../core/dom.js';
 import { fmtDateISO } from '../core/format.js';
 import { state } from '../core/state.js';
@@ -185,7 +185,7 @@ function renderIVRankHistory() {
           {
             label: 'IV',
             data: ivs,
-            borderColor: '#C9A24E',
+            borderColor: CHART_COLORS.brass,
             borderWidth: 2,
             pointRadius: 0,
             fill: false,
@@ -194,7 +194,7 @@ function renderIVRankHistory() {
           {
             label: 'IV Rank',
             data: ranks,
-            borderColor: '#3B82F6',
+            borderColor: CHART_COLORS.blue,
             borderWidth: 1.5,
             pointRadius: 0,
             fill: false,
@@ -203,7 +203,7 @@ function renderIVRankHistory() {
           {
             label: '5-Day MA',
             data: ma5,
-            borderColor: '#C9A24E',
+            borderColor: CHART_COLORS.brass,
             borderWidth: 1,
             borderDash: [3, 3],
             pointRadius: 0,
@@ -213,7 +213,7 @@ function renderIVRankHistory() {
           {
             label: '20-Day MA',
             data: ma20,
-            borderColor: '#2E9E6B',
+            borderColor: CHART_COLORS.green,
             borderWidth: 1,
             borderDash: [3, 3],
             pointRadius: 0,
@@ -227,12 +227,12 @@ function renderIVRankHistory() {
         maintainAspectRatio: false,
         interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { labels: { color: '#E8EBEF', font: { size: 10 } } },
+          legend: { labels: { color: cssVar('--text'), font: { size: 10 } } },
           tooltip: {
-            backgroundColor: '#11161D',
-            titleColor: '#E8EBEF',
-            bodyColor: '#7E8A9A',
-            borderColor: '#1E2A38',
+            backgroundColor: cssVar('--panel'),
+            titleColor: cssVar('--text'),
+            bodyColor: cssVar('--text-dim'),
+            borderColor: cssVar('--line'),
             borderWidth: 1,
             padding: 12,
             callbacks: {
@@ -251,22 +251,22 @@ function renderIVRankHistory() {
           y: {
             type: 'linear',
             position: 'left',
-            title: { display: true, text: 'IV %', color: '#7E8A9A', font: { size: 10 } },
-            ticks: { color: '#7E8A9A', font: { size: 9 } },
-            grid: { color: '#1E2A38' },
+            title: { display: true, text: 'IV %', color: cssVar('--text-dim'), font: { size: 10 } },
+            ticks: { color: cssVar('--text-dim'), font: { size: 9 } },
+            grid: { color: cssVar('--line') },
           },
           y1: {
             type: 'linear',
             position: 'right',
-            title: { display: true, text: 'IV Rank', color: '#7E8A9A', font: { size: 10 } },
-            ticks: { color: '#7E8A9A', font: { size: 9 } },
-            grid: { drawBorder: false, color: 'rgba(30,42,56,0.3)' },
+            title: { display: true, text: 'IV Rank', color: cssVar('--text-dim'), font: { size: 10 } },
+            ticks: { color: cssVar('--text-dim'), font: { size: 9 } },
+            grid: { drawBorder: false, color: 'transparent' },
             min: 0,
             max: 100,
           },
           x: {
-            ticks: { color: '#7E8A9A', font: { size: 9 } },
-            grid: { color: '#1E2A38' },
+            ticks: { color: cssVar('--text-dim'), font: { size: 9 } },
+            grid: { color: cssVar('--line') },
           },
         },
       },

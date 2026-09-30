@@ -17,6 +17,9 @@ export const NAV_GROUPS = [
   },
 ];
 
+// Call-to-action pinned to the right of the nav on every page
+export const NAV_CTA = { label: 'Follow on X', href: 'https://x.com/Purrtfolio' };
+
 // Map nav item view → hash route
 export const NAV_ROUTES = {
   funds:       '#/funds',

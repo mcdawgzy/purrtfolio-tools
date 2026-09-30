@@ -230,8 +230,8 @@ export function render() {
   const root = document.getElementById('app');
   
   root.innerHTML = '';
-  root.appendChild(renderMasthead());
   root.appendChild(renderNav());
+  root.appendChild(renderMasthead());
   if (state.bootError) {
     root.appendChild(el('div', { class: 'error' }, state.bootError));
   }

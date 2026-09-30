@@ -1,5 +1,5 @@
 import { api, loadMeta } from '../core/api.js';
-import { ensureChartJS, CHART_COLORS, charts } from '../core/charts.js';
+import { ensureChartJS, CHART_COLORS, charts, cssVar } from '../core/charts.js';
 import { el, stat } from '../core/dom.js';
 import { fmtDateISO, fmtNotional } from '../core/format.js';
 import { state } from '../core/state.js';
@@ -219,10 +219,10 @@ function renderUAHistory() {
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#11161D',
-            titleColor: '#E8EBEF',
-            bodyColor: '#7E8A9A',
-            borderColor: '#1E2A38',
+            backgroundColor: cssVar('--panel'),
+            titleColor: cssVar('--text'),
+            bodyColor: cssVar('--text-dim'),
+            borderColor: cssVar('--line'),
             borderWidth: 1,
             padding: 8,
             callbacks: {
@@ -232,14 +232,14 @@ function renderUAHistory() {
         },
         scales: {
           x: {
-            title: { display: true, text: 'Date', color: '#7E8A9A', font: { size: 10 } },
-            ticks: { color: '#7E8A9A', font: { size: 9 } },
-            grid: { color: '#1E2A38' },
+            title: { display: true, text: 'Date', color: cssVar('--text-dim'), font: { size: 10 } },
+            ticks: { color: cssVar('--text-dim'), font: { size: 9 } },
+            grid: { color: cssVar('--line') },
           },
           y: {
-            title: { display: true, text: 'Severity (0–100)', color: '#7E8A9A', font: { size: 10 } },
-            ticks: { color: '#7E8A9A', font: { size: 9 } },
-            grid: { color: '#1E2A38' },
+            title: { display: true, text: 'Severity (0–100)', color: cssVar('--text-dim'), font: { size: 10 } },
+            ticks: { color: cssVar('--text-dim'), font: { size: 9 } },
+            grid: { color: cssVar('--line') },
             min: 0,
             max: 100,
           },

@@ -1,5 +1,5 @@
 import { api, loadMeta } from '../core/api.js';
-import { CHART_COLORS, destroyAllCharts, createBarChart } from '../core/charts.js';
+import { CHART_COLORS, destroyAllCharts, createBarChart, cssVar } from '../core/charts.js';
 import { el, stat } from '../core/dom.js';
 import { fmtUSD, fmtNum, fmtPct, fmtDateISO } from '../core/format.js';
 import { state } from '../core/state.js';
@@ -160,7 +160,7 @@ function renderFactorDrift() {
           label: 'Portfolio %',
           data: dim.overall.map(r => r.pct),
           backgroundColor: dim.overall.map(r => factorColorHex(dim.key, r.bucket)),
-          borderColor: '#11161D',
+          borderColor: cssVar('--bg'),
           borderWidth: 0,
         }],
       };
