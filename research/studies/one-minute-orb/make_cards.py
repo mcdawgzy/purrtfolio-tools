@@ -21,14 +21,18 @@ EDGE = os.environ.get("BROWSER_EXE") or next(
     "msedge")
 
 # The site's theme (static/styles.css) so the cards match the page they preview.
-INK, MUTED, FAINT, RULE = "#E8EBEF", "#7E8A9A", "#7D8B99", "#1E2A38"
-GROUND, SURFACE, SURFACE_2 = "#0A0E14", "#11161D", "#161C25"
-ACCENT, ACCENT_SOFT = "#C9A24E", "rgba(201, 162, 78, 0.12)"
-SERIES, CLAIM, NEUTRAL, WIN, LOSS = ACCENT, "#C7564A", MUTED, "#2E9E6B", "#C7564A"
-CLAIM_BG = "rgba(199, 86, 74, 0.18)"
+# Light theme values; the dark-mode set isn't used for images.
+INK, MUTED, FAINT, RULE = "#222222", "#555555", "#6E6E6E", "#E8E8E8"
+GROUND, SURFACE, SURFACE_2 = "#FFFFFF", "#FAFAFA", "#F2F2F2"
+ACCENT, ACCENT_SOFT = "#B4561C", "rgba(200, 111, 46, 0.10)"
+SERIES, CLAIM, NEUTRAL, WIN, LOSS = "#C86F2E", "#C1272D", MUTED, "#00875A", "#C1272D"
+CLAIM_BG = "#F9E6E7"
 
-SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
-MONO = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace"
+SANS = "'Aptos', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
+DISPLAY = "'Space Grotesk', " + SANS
+MONO = "'Space Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace"
+FONTS = ("<link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700"
+         "&family=Space+Mono:wght@400;700&display=swap'>")
 
 measured = {1: 48.5, 2: 33.6, 3: 26.1, 5: 15.6}
 
@@ -39,7 +43,7 @@ def chart_svg(w=640, h=360):
         return L + (k - 1) / (5.5 - 1) * (w - L - R)
     def y(v):
         return T + (1 - v / 55) * (h - T - B)
-    mono = 'font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"'
+    mono = f"font-family=\"{MONO}\""
     parts = [f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}" xmlns="http://www.w3.org/2000/svg">']
     for v in (0, 10, 20, 30, 40, 50):
         parts.append(f'<line x1="{L}" x2="{w-R}" y1="{y(v):.1f}" y2="{y(v):.1f}" stroke="{RULE}"/>')
@@ -68,7 +72,8 @@ def mechanics_svg():
     svg = re.search(r'(<svg viewBox="0 0 640 300" role="img".*?</svg>)', page, re.S).group(1)
     tokens = {"var(--brass-dim)": ACCENT_SOFT, "var(--brass)": ACCENT, "var(--text-dim)": MUTED,
               "var(--green)": WIN, "var(--red)": LOSS, "var(--text)": INK,
-              "var(--line)": RULE, "var(--panel-2)": SURFACE_2, "var(--panel)": SURFACE}
+              "var(--line)": RULE, "var(--panel-2)": SURFACE_2, "var(--panel)": SURFACE,
+              "var(--mono)": MONO.replace('"', "'")}
     for k, v in tokens.items():
         svg = svg.replace(k, v)
     return svg.replace('<svg viewBox="0 0 640 300"', '<svg viewBox="0 0 640 300" width="1040" height="487"')
@@ -77,17 +82,18 @@ def mechanics_svg():
 BASE_CSS = f"""
 *{{box-sizing:border-box}} html,body{{margin:0}}
 body{{width:{{W}}px;height:{{H}}px;background:{GROUND};color:{INK};font-family:{SANS};overflow:hidden;-webkit-font-smoothing:antialiased}}
-.handle{{font:700 20px {MONO};letter-spacing:.04em;color:{ACCENT}}}
-h1{{font:600 60px/1.05 {SANS};letter-spacing:-.02em;margin:0}}
-h2{{font:600 40px/1.12 {SANS};letter-spacing:-.015em;margin:0}}
-.sub{{font-size:24px;color:{MUTED};line-height:1.35}}
-.tag{{display:inline-block;font:700 16px {MONO};letter-spacing:.06em;text-transform:uppercase;color:{LOSS};background:{CLAIM_BG};border:2px solid {LOSS};padding:7px 11px;border-radius:2px}}
+.handle{{display:flex;align-items:center;gap:12px;font:700 18px {MONO};letter-spacing:.1em;text-transform:uppercase;color:{MUTED}}}
+.handle::before{{content:'';width:12px;height:12px;background:{SERIES};flex:none}}
+h1{{font:600 64px/1.02 {DISPLAY};letter-spacing:-.04em;margin:0}}
+h2{{font:600 42px/1.08 {DISPLAY};letter-spacing:-.03em;margin:0}}
+.sub{{font-size:24px;color:{MUTED};line-height:1.4}}
+.tag{{display:inline-block;font:700 16px {MONO};letter-spacing:.12em;text-transform:uppercase;color:{LOSS};background:{CLAIM_BG};padding:9px 16px;border-radius:999px}}
 """
 
 
 def page(w, h, body):
     css = BASE_CSS.replace("{W}", str(w)).replace("{H}", str(h))
-    return f"<!DOCTYPE html><html><head><meta charset='utf-8'><style>{css}</style></head><body>{body}</body></html>"
+    return f"<!DOCTYPE html><html><head><meta charset='utf-8'>{FONTS}<style>{css}</style></head><body>{body}</body></html>"
 
 
 cards = {
@@ -99,12 +105,12 @@ cards = {
     <h1>Claimed 34–36%.<br><span style="color:{LOSS}">Measured 26.1%.</span></h1>
     <div class="sub">The one-minute ORB scalp at 3:1 wins about what a coin flip does.</div>
   </div>
-  <div style="background:{SURFACE};border:1px solid {RULE};border-radius:4px;padding:14px">{chart_svg(560, 360)}</div>
+  <div style="background:{SURFACE};border:1px solid {RULE};border-radius:16px;padding:14px">{chart_svg(560, 360)}</div>
 </div>"""),
     OUT_X / "1-how-it-works.png": (1200, 675, f"""
 <div style="padding:40px 56px;display:grid;gap:18px">
   <div style="display:flex;justify-content:space-between;align-items:baseline"><h2>How the one-minute ORB scalp works</h2><div class="handle">@Purrtfolio</div></div>
-  <div style="background:{SURFACE};border:1px solid {RULE};border-radius:4px;padding:12px 30px;justify-self:center">{mechanics_svg()}</div>
+  <div style="background:{SURFACE};border:1px solid {RULE};border-radius:16px;padding:12px 30px;justify-self:center">{mechanics_svg()}</div>
 </div>"""),
     OUT_X / "2-coin-flip.png": (1200, 675, f"""
 <div style="padding:40px 56px;display:grid;grid-template-columns:420px 1fr;gap:30px;align-items:center;height:100%">
@@ -113,15 +119,15 @@ cards = {
     <h2>Every measured win rate sits on the coin-flip curve</h2>
     <div class="sub">A 3:1 bracket on a random walk wins 1 / (1 + 3) = 25%. This setup won 26.1% across 544 trades on real tick data.</div>
   </div>
-  <div style="background:{SURFACE};border:1px solid {RULE};border-radius:4px;padding:14px">{chart_svg(640, 420)}</div>
+  <div style="background:{SURFACE};border:1px solid {RULE};border-radius:16px;padding:14px">{chart_svg(640, 420)}</div>
 </div>"""),
     OUT_X / "3-lesson.png": (1200, 675, f"""
 <div style="height:100%;padding:60px 70px;display:grid">
-<div style="background:{SURFACE};border:1px solid {RULE};border-left:6px solid {ACCENT};border-radius:0 4px 4px 0;padding:0 60px;display:grid;align-content:center;gap:30px">
-  <div style="font:600 22px {SANS};color:{ACCENT};text-transform:uppercase;letter-spacing:.08em">The lesson</div>
-  <div style="font:600 52px/1.15 {SANS};letter-spacing:-.015em;max-width:980px">Before you believe a win rate on a fixed R:R trade, compare it with 1 / (1 + R:R).</div>
-  <div style="font-size:26px;color:{MUTED}">26% at 3:1 is what randomness produces.</div>
-  <div style="font:700 20px {MONO};letter-spacing:.04em;color:{ACCENT}">@Purrtfolio</div>
+<div style="background:{INK};color:{GROUND};border-radius:24px;padding:0 64px;display:grid;align-content:center;gap:30px">
+  <div class="handle" style="color:#B4B4B4">The lesson</div>
+  <div style="font:600 54px/1.1 {DISPLAY};letter-spacing:-.03em;max-width:980px">Before you believe a win rate on a fixed R:R trade, compare it with <span style="white-space:nowrap">1 / (1 + R:R).</span></div>
+  <div style="font-size:26px;color:#B4B4B4">26% at 3:1 is what randomness produces.</div>
+  <div style="font:700 18px {MONO};letter-spacing:.1em;color:#E89877">@PURRTFOLIO</div>
 </div>
 </div>"""),
 }
@@ -130,7 +136,7 @@ for out, (w, h, body) in cards.items():
     src = SCR / f"card_{out.stem}.html"
     src.write_text(page(w, h, body), encoding="utf-8")
     subprocess.run([EDGE, "--headless=new", "--disable-gpu", "--hide-scrollbars",
-                    f"--window-size={w},{h}", "--virtual-time-budget=4000",
+                    f"--window-size={w},{h}", "--virtual-time-budget=8000",
                     f"--screenshot={out}", src.as_uri()], check=True,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print(out, out.stat().st_size)
