@@ -1,5 +1,5 @@
 import { api, loadMeta } from '../core/api.js';
-import { ensureChartJS, charts } from '../core/charts.js';
+import { ensureChartJS, charts, cssVar, CHART_COLORS } from '../core/charts.js';
 import { el, stat } from '../core/dom.js';
 import { fmtNum, fmtDateISO } from '../core/format.js';
 import { state } from '../core/state.js';
@@ -274,7 +274,7 @@ function renderPcrHistory() {
           {
             label: 'Put/Call Ratio',
             data: ratios,
-            borderColor: '#3B82F6',
+            borderColor: CHART_COLORS.blue,
             backgroundColor: 'rgba(59, 130, 246, 0.1)',
             borderWidth: 2,
             pointRadius: 0,
@@ -283,7 +283,7 @@ function renderPcrHistory() {
           {
             label: '5-Day MA',
             data: ma5,
-            borderColor: '#C9A24E',
+            borderColor: CHART_COLORS.brass,
             borderWidth: 1.5,
             pointRadius: 0,
             fill: false,
@@ -295,13 +295,13 @@ function renderPcrHistory() {
         maintainAspectRatio: false,
         plugins: {
           legend: {
-            labels: { color: '#E8EBEF', font: { size: 10 } },
+            labels: { color: cssVar('--text'), font: { size: 10 } },
           },
           tooltip: {
-            backgroundColor: '#11161D',
-            titleColor: '#E8EBEF',
-            bodyColor: '#7E8A9A',
-            borderColor: '#1E2A38',
+            backgroundColor: cssVar('--panel'),
+            titleColor: cssVar('--text'),
+            bodyColor: cssVar('--text-dim'),
+            borderColor: cssVar('--line'),
             borderWidth: 1,
             padding: 12,
             callbacks: {
@@ -309,7 +309,7 @@ function renderPcrHistory() {
                 const idx = ctx.dataIndex;
                 const v = ctx.raw;
                 if (v === null || v === undefined) return `${ctx.dataset.label}: —`;
-                const band = v >= 1.0 ? '#C7564A' : v <= 0.6 ? '#2E9E6B' : '#C9A24E';
+                const band = v >= 1.0 ? CHART_COLORS.red : v <= 0.6 ? CHART_COLORS.green : CHART_COLORS.brass;
                 const label = ctx.dataset.label || '';
                 const cls = label.includes('MA') ? '' : (v > 1.0 ? 'Bearish' : v < 0.6 ? 'Bullish' : 'Neutral');
                 return `${label}: ${v.toFixed(3)} ${cls}`;
@@ -319,12 +319,12 @@ function renderPcrHistory() {
         },
         scales: {
           x: {
-            ticks: { color: '#7E8A9A', font: { size: 9 } },
-            grid: { color: '#1E2A38' },
+            ticks: { color: cssVar('--text-dim'), font: { size: 9 } },
+            grid: { color: cssVar('--line') },
           },
           y: {
-            ticks: { color: '#7E8A9A', font: { size: 9 } },
-            grid: { color: '#1E2A38' },
+            ticks: { color: cssVar('--text-dim'), font: { size: 9 } },
+            grid: { color: cssVar('--line') },
           },
         },
       },

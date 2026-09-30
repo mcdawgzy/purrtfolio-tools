@@ -22,17 +22,16 @@
 <meta name="twitter:title" content="The one-minute ORB scalp at 3:1: claimed 34–36%, measured 26.1%">
 <meta name="twitter:description" content="A Reddit post claimed a 34–36% win rate scalping the first 1-minute range at 3:1. On real tick data it won 26.1%, which is what a coin flip gives a 3:1 trade.">
 <meta name="twitter:image" content="https://purrtfolio.onrender.com/research/one-minute-orb/og.png">
-<style>html{color-scheme:dark}body{margin:0}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap">
 <link rel="stylesheet" href="../../styles.css">
 <link rel="stylesheet" href="../research.css">
 <script type="module" src="../../js/site-nav.js"></script>
 </head>
 <body>
 <div class="app">
-  <div class="masthead">
-    <h1>Research</h1>
-    <div class="sub">Opening range &amp; intraday momentum</div>
-  </div>
   <nav class="nav" data-site-nav data-root="../../" aria-label="Site"></nav>
 
 <main class="research">
@@ -65,7 +64,7 @@
                 <path d="M0 0 L10 5 L0 10 z" fill="currentColor"></path>
               </marker>
             </defs>
-            <g style="color: var(--text-dim)" fill="currentColor" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11">
+            <g style="color: var(--text-dim)" fill="currentColor" font-family="var(--mono)" font-size="11">
               <!-- break window -->
               <rect x="100" y="20" width="160" height="250" fill="var(--brass-dim)"></rect>
               <text x="180" y="36" text-anchor="middle" fill="var(--brass)">break window 09:31–09:35</text>
@@ -277,9 +276,9 @@
   // grid + y axis
   [0, 10, 20, 30, 40, 50].forEach(v => {
     mk("line", { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: "var(--line)", "stroke-width": 1 });
-    txt(v + "%", { x: L - 8, y: y(v) + 4, "text-anchor": "end", fill: "var(--text-mut)", "font-size": 11, "font-family": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" });
+    txt(v + "%", { x: L - 8, y: y(v) + 4, "text-anchor": "end", fill: "var(--text-mut)", "font-size": 11, "font-family": "var(--mono)" });
   });
-  [1, 2, 3, 4, 5].forEach(k => txt(k + ":1", { x: x(k), y: H - B + 18, "text-anchor": "middle", fill: "var(--text-mut)", "font-size": 11, "font-family": "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" }));
+  [1, 2, 3, 4, 5].forEach(k => txt(k + ":1", { x: x(k), y: H - B + 18, "text-anchor": "middle", fill: "var(--text-mut)", "font-size": 11, "font-family": "var(--mono)" }));
   txt("reward-to-risk", { x: (L + W - R) / 2, y: H - 6, "text-anchor": "middle", fill: "var(--text-dim)", "font-size": 11.5 });
   // claimed band at 3:1
   mk("rect", { x: x(3) - 14, y: y(36), width: 28, height: y(34) - y(36), fill: "var(--red-bg)", stroke: "var(--red)", "stroke-width": 1.5, rx: 2 });

@@ -5,9 +5,15 @@
 import { COLD_START_MSG, loadMeta, setBooting } from './core/api.js';
 import { el } from './core/dom.js';
 import { state } from './core/state.js';
-import { handleRoute } from './router.js';
+import { handleRoute, render } from './router.js';
 
 window.addEventListener('hashchange', handleRoute);
+
+// Charts read theme colours when they're built, so rebuild the view when the
+// OS switches between light and dark.
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  if (!state.routeLoading) render();
+});
 
 window.addEventListener('error', (e) => {
   console.error('Global error:', e.error);

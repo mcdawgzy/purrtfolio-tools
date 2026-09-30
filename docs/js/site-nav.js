@@ -5,7 +5,7 @@
 //   <script type="module" src="../js/site-nav.js"></script>
 
 import { el } from './core/dom.js';
-import { NAV_GROUPS, NAV_ROUTES } from './nav-shared.js';
+import { NAV_CTA, NAV_GROUPS, NAV_ROUTES } from './nav-shared.js';
 
 function buildNav(nav) {
   const root = nav.dataset.root || './';
@@ -42,6 +42,7 @@ function buildNav(nav) {
   }
 
   nav.appendChild(el('div', { class: 'nav-spacer' }));
+  nav.appendChild(el('a', { class: 'btn btn-primary nav-cta', href: NAV_CTA.href }, NAV_CTA.label));
 }
 
 document.querySelectorAll('[data-site-nav]').forEach(buildNav);
