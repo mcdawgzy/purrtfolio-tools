@@ -4,7 +4,7 @@
 
 One record per tested study, grouped by strategy family, for publishing. The research record behind each one is `STRATEGY_LEDGER.md` and `src/trading_hub/optimize/mechanisms.py` in the trading_hub repo.
 
-**100 studies, 159 named variants.**
+**101 studies, 162 named variants.**
 
 | Verdict | Studies |
 |---|---|
@@ -15,7 +15,7 @@ One record per tested study, grouped by strategy family, for publishing. The res
 | 🔎 Open lead, not validated | 3 |
 | 🟠 Real but underpowered | 2 |
 | ⏸️ Parked | 2 |
-| ❌ Rejected | 82 |
+| ❌ Rejected | 83 |
 | ⚪ Not tested | 1 |
 
 Visibility: `public` = safe to publish as written; `review` = your call (a surviving edge, or tied to the real-money account); `private` = your own system or journal, never published.
@@ -124,6 +124,7 @@ Visibility: `public` = safe to publish as written; `review` = your call (a survi
 | [S136](#s136) | Beta-hedged intraday spread between US indices | cross-asset | internal | ❌ Rejected | public |
 | [S137](#s137) | Cross-sectional commodity seasonality (long/short by calendar month) | cross-asset | internal | ⏸️ Parked | public |
 | [S138](#s138) | Z-score(5) scale-in dip-buy on QQQ — 3 tranches, exit above EMA(5) | dip-buying | social | ✅ Passed the full gate | public |
+| [S139](#s139) | TradingView "Time Range ORB Detector [34ematrader]" — first-break fade / breakout, 1.0/0.5 ATR bracket | orb-momentum | vendor | ❌ Rejected | public |
 
 ## Opening range & intraday momentum
 
@@ -576,6 +577,28 @@ _Refs: scripts `scripts/eda_nq_orb30_ema2m_pmh.py`; PRs #230_
 _Refs: pre-reg `docs/prereg/2026-09-26_paper_library_futures_battery.md`; scripts `scripts/battery_intraday_2026_09_26.py`, `scripts/battery_holdout_calendar_2026_09_26.py`, `scripts/battery_book_2026_09_26.py`; PRs #231_
 
 > Re-testing the classic intraday rules from the academic literature on Nasdaq and S&P micro-futures costs changed nothing: none of them passed.
+
+### S139
+
+**TradingView "Time Range ORB Detector [34ematrader]" — first-break fade / breakout, 1.0/0.5 ATR bracket** — ❌ Rejected · `public`
+
+- **Source:** vendor — TradingView script by 34ematrader (https://www.tradingview.com/script/G5VXZFMa-Time-Range-ORB-Detector-34ematrader/)
+- **Tested:** 2026-09-30 → closed 2026-09-30 · NQ, ES, US100, US500, US30 · futures, CFD · 5m signal, 1m resolution, same-day exit
+- **Data:** NQ / ES 1m Globex 2010-07→2022-10 (3,061 sessions); FTMO index CFD 1m 2024-07→2026-07
+- **Mechanism:** `intraday-momentum`
+- **Headline:** 0 of 25 NQ settings profitable after costs over 12 years (best −0.045R/trade, t=−1.62); ES 0/25; FTMO CFDs 3/60 barely positive (t<0.4, chance). Win rates sit on the 1-in-3 coin-flip rate for this bracket.
+- **Why:** Fading and trading the breakout perform about the same, so the break direction carries no information. The 0.5 × 5m-ATR stop is only a few points, so costs take 0.15–0.30R a trade with no gross edge to pay for it.
+- **Lesson:** An indicator's on-chart "paper-trade win rate" has no costs and no null. With a 2:1 target:stop bracket, a random entry already wins one trade in three.
+
+| Variant | Verdict | Result |
+|---|---|---|
+| Fade, wick / close / close-back-inside trigger | REJECT | NQ 0/15 net-positive; best OR30 confirm −0.080R (t=−2.08). |
+| Breakout, wick / close trigger | REJECT | NQ 0/10 net-positive; best pre-open hour −0.045R (t=−1.62). |
+| Pre-open hour (08:30–09:30 ET) breakout | REJECT | Only gross signal (+0.15R on NQ) — net negative, absent on ES, and FTMO has no clean pre-open bars. |
+
+_Refs: scripts `scripts/eda_time_range_orb_34ema.py`; PRs #242; ledger: TradingView "Time Range ORB Detector [34ematrader]" — 2026-09-30_
+
+> A free opening-range indicator lets you fade or follow the first break of any time window. Across 12 years of Nasdaq and S&P futures, none of its 50 settings made money after costs — and its win rate is about what a coin flip gives with a target twice the size of the stop.
 
 
 ## ICT / smart-money concepts (FVG, sweeps, SMT)
