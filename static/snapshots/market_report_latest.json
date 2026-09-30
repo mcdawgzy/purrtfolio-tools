@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-09-30 08:00 ",
-  "date": "20260930",
+  "timestamp": "2026-10-01 08:00 ",
+  "date": "20261001",
   "rows": [
     {
       "type": "section",
@@ -9,33 +9,33 @@
     {
       "type": "row",
       "name": "S&P 500",
-      "level_move": "7,670.84 (-0.43%)",
-      "driver": "on ",
-      "pct_change": -0.43,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "Nasdaq 100",
-      "level_move": "30,339.33 (+0.23%)",
-      "driver": "on ",
-      "pct_change": 0.23,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "Dow Jones",
-      "level_move": "51,349.92 (-0.55%)",
-      "driver": "on ",
-      "pct_change": -0.55,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "Russell 2000",
-      "level_move": "2,807.92 (-0.60%)",
-      "driver": "on ",
-      "pct_change": -0.6,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
@@ -45,41 +45,41 @@
     {
       "type": "row",
       "name": "Nikkei 225",
-      "level_move": "65,209.37 (-2.16%)",
-      "driver": "on ",
-      "pct_change": -2.16,
-      "is_top_mover": true
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
+      "is_top_mover": false
     },
     {
       "type": "row",
       "name": "DAX",
-      "level_move": "25,399.21 (-0.26%)",
-      "driver": "on ",
-      "pct_change": -0.26,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "FTSE 100",
-      "level_move": "10,636.71 (-0.97%)",
-      "driver": "on ",
-      "pct_change": -0.97,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "STOXX 600",
-      "level_move": "637.65 (-0.55%)",
-      "driver": "on ",
-      "pct_change": -0.55,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "Hang Seng",
-      "level_move": "24,523.57 (-0.13%)",
-      "driver": "on ",
-      "pct_change": -0.13,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
@@ -89,33 +89,33 @@
     {
       "type": "row",
       "name": "US 2Y Yield",
-      "level_move": "4.07% (-0.02bps)",
-      "driver": "on ",
-      "pct_change": -0.42,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "US 5Y Yield",
-      "level_move": "5.06% (-0.00bps)",
-      "driver": "on ",
-      "pct_change": -0.02,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "US 10Y Yield",
-      "level_move": "5.25% (+0.03bps)",
-      "driver": "on ",
-      "pct_change": 0.48,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "US 30Y Yield",
-      "level_move": "5.59% (+0.05bps)",
-      "driver": "on ",
-      "pct_change": 0.94,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
@@ -125,57 +125,57 @@
     {
       "type": "row",
       "name": "DXY",
-      "level_move": "101.38 (+0.17%)",
-      "driver": "on ",
-      "pct_change": 0.17,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "USD/JPY",
-      "level_move": "157.2480 (-0.12%)",
-      "driver": "on ",
-      "pct_change": -0.12,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "EUR/USD",
-      "level_move": "1.1346 (-0.25%)",
-      "driver": "on ",
-      "pct_change": -0.25,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "GBP/USD",
-      "level_move": "1.3228 (-0.22%)",
-      "driver": "on ",
-      "pct_change": -0.22,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "AUD/USD",
-      "level_move": "0.6992 (-0.45%)",
-      "driver": "on ",
-      "pct_change": -0.45,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "USD/CAD",
-      "level_move": "1.4188 (+0.09%)",
-      "driver": "on ",
-      "pct_change": 0.09,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "USD/CNY",
-      "level_move": "6.7025 (-0.11%)",
-      "driver": "on ",
-      "pct_change": -0.11,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
@@ -185,41 +185,41 @@
     {
       "type": "row",
       "name": "Gold",
-      "level_move": "4,215.00 (+1.41%)",
-      "driver": "on ",
-      "pct_change": 1.41,
-      "is_top_mover": true
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
+      "is_top_mover": false
     },
     {
       "type": "row",
       "name": "Silver",
-      "level_move": "61.84 (+0.98%)",
-      "driver": "on ",
-      "pct_change": 0.98,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "WTI Crude",
-      "level_move": "88.94 (-4.60%)",
-      "driver": "on ",
-      "pct_change": -4.6,
-      "is_top_mover": true
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
+      "is_top_mover": false
     },
     {
       "type": "row",
       "name": "Brent Crude",
-      "level_move": "95.67 (-2.80%)",
-      "driver": "on ",
-      "pct_change": -2.8,
-      "is_top_mover": true
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
+      "is_top_mover": false
     },
     {
       "type": "row",
       "name": "Copper",
-      "level_move": "6.66 (+0.70%)",
-      "driver": "on ",
-      "pct_change": 0.7,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
@@ -229,33 +229,33 @@
     {
       "type": "row",
       "name": "VIX",
-      "level_move": "16.03 (-0.32)",
-      "driver": "on ",
-      "pct_change": -1.96,
-      "is_top_mover": true
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
+      "is_top_mover": false
     },
     {
       "type": "row",
       "name": "HYG",
-      "level_move": "$77.36 (-0.52%)",
-      "driver": "on ",
-      "pct_change": -0.52,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "LQD",
-      "level_move": "$102.48 (-0.31%)",
-      "driver": "on ",
-      "pct_change": -0.31,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "5Y5Y Breakeven",
-      "level_move": "104.09% (-0.21bps)",
-      "driver": "on ",
-      "pct_change": -0.2,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
@@ -265,17 +265,17 @@
     {
       "type": "row",
       "name": "Bitcoin",
-      "level_move": "$83,492 (-0.03%)",
-      "driver": "on ",
-      "pct_change": -0.03,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     },
     {
       "type": "row",
       "name": "Ethereum",
-      "level_move": "$2,680 (-0.26%)",
-      "driver": "on ",
-      "pct_change": -0.26,
+      "level_move": "N/A",
+      "driver": "Error: No data",
+      "pct_change": null,
       "is_top_mover": false
     }
   ]
