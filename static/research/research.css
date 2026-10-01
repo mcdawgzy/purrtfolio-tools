@@ -140,6 +140,8 @@ details.table .table-wrap { margin-top: 12px; }
 .eq-wrap { position: relative; }
 .sw-eq { width: 18px; height: 0; border-top: 2px solid var(--brass); }
 .sw-dd { width: 12px; height: 12px; background: var(--red-bg); border-radius: 2px; }
+.sw-rand { width: 18px; height: 10px; background: color-mix(in srgb, var(--text-dim) 22%, transparent); border-top: 2px solid var(--text-dim); }
+.sw-fade { width: 18px; height: 0; border-top: 2px solid var(--red); }
 
 /* "Check your own setup" calculator */
 .calc { display: grid; gap: 20px; padding: 26px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
