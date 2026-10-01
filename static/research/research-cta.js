@@ -1,7 +1,7 @@
 // Research calls to action: email signup + "Request a test".
 // Renders into every <div data-research-cta>. Each half stays hidden until its
 // setting below is filled in, so the pages never show a dead form or link.
-const BUTTONDOWN_USER = "";   // Buttondown username, e.g. "purrtfolio"
+const BUTTONDOWN_USER = "purrtfolio";   // Buttondown username, e.g. "purrtfolio"
 const REQUEST_FORM_URL = "";  // Tally form link, e.g. "https://tally.so/r/xxxxxx"
 
 function signup() {
