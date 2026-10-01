@@ -4,10 +4,12 @@ Run from anywhere: py -3.14 research/studies/one-minute-orb/make_cards.py
 Needs Edge or Chrome (set BROWSER_EXE to override). The diagram is read from the
 deployed page, so edit it there first.
 """
+import json
 import os
 import re
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -79,6 +81,84 @@ def mechanics_svg():
     return svg.replace('<svg viewBox="0 0 640 300"', '<svg viewBox="0 0 640 300" width="1040" height="487"')
 
 
+def _half_year_ticks(dates):
+    """(index, label) at the first trade of each Jan/Jul, skipping the partial first half."""
+    out, last = [], ""
+    for i, d in enumerate(dates):
+        half = d[:4] + ("a" if d[5:7] < "07" else "b")
+        if half != last:
+            if last:
+                out.append((i, ("Jan " if half.endswith("a") else "Jul ") + d[2:4]))
+            last = half
+    return out
+
+
+def _lines_svg(w, h, dates, series, lo, hi, step, band=None, shade=None, L=70, R=90, T=20, B=44):
+    """Running-total chart. series: [(values, colour, end label)]; band: (p5, p95);
+    shade: (i_from, i_to, label) for the worst drawdown."""
+    n = len(dates)
+    def x(i):
+        return L + i / (n - 1) * (w - L - R)
+    def y(v):
+        return T + (hi - v) / (hi - lo) * (h - T - B)
+    mono = f"font-family=\"{MONO}\""
+    p = [f'<svg viewBox="0 0 {w} {h}" width="{w}" height="{h}" xmlns="http://www.w3.org/2000/svg">']
+    if shade:
+        a, b, lab = shade
+        p.append(f'<rect x="{x(a):.1f}" y="{T}" width="{x(b)-x(a):.1f}" height="{h-T-B}" fill="{CLAIM_BG}"/>')
+        p.append(f'<text x="{(x(a)+x(b))/2:.1f}" y="{T+24}" text-anchor="middle" fill="{LOSS}" font-size="18" font-weight="600">{lab}</text>')
+    v = lo
+    while v <= hi:
+        p.append(f'<line x1="{L}" x2="{w-R}" y1="{y(v):.1f}" y2="{y(v):.1f}" stroke="{"#D6D6D6" if v == 0 else RULE}"/>')
+        lab = ("+" if v > 0 else "−" if v < 0 else "") + f"{abs(v)}R"
+        p.append(f'<text x="{L-10}" y="{y(v)+5:.1f}" text-anchor="end" fill="{FAINT}" font-size="15" {mono}>{lab}</text>')
+        v += step
+    for i, lab in _half_year_ticks(dates):
+        p.append(f'<text x="{x(i):.1f}" y="{h-B+26}" text-anchor="middle" fill="{FAINT}" font-size="15" {mono}>{lab}</text>')
+    if band:
+        lo_v, hi_v = band
+        d = " ".join(f'{"M" if i == 0 else "L"}{x(i):.1f} {y(v):.1f}' for i, v in enumerate(hi_v))
+        d += " " + " ".join(f"L{x(i):.1f} {y(v):.1f}" for i, v in reversed(list(enumerate(lo_v)))) + " Z"
+        p.append(f'<path d="{d}" fill="rgba(85,85,85,0.16)"/>')
+    ends = []
+    for vals, col, lab in series:
+        d = " ".join(f'{"M" if i == 0 else "L"}{x(i):.1f} {y(v):.1f}' for i, v in enumerate(vals))
+        p.append(f'<path d="{d}" fill="none" stroke="{col}" stroke-width="2.6" stroke-linejoin="round"/>')
+        ends.append([y(vals[-1]), col, lab])
+    ends.sort()
+    for j in range(1, len(ends)):
+        ends[j][0] = max(ends[j][0], ends[j - 1][0] + 22)
+    for yy, col, lab in ends:
+        p.append(f'<text x="{x(n-1)+10:.1f}" y="{yy+6:.1f}" fill="{col}" font-size="19" font-weight="700">{lab}</text>')
+    p.append("</svg>")
+    return "".join(p)
+
+
+def _r(v):
+    return ("+" if v >= 0 else "−") + f"{abs(v):.0f}R"
+
+
+def direction_svg(w, h):
+    D = json.loads((HERE / "data" / "direction_curves.json").read_text())
+    series = [(D["random_median"], MUTED, "Random " + _r(D["random_median"][-1])),
+              (D["against"], LOSS, "Against " + _r(D["against"][-1])),
+              (D["with"], SERIES, "With " + _r(D["with"][-1]))]
+    return _lines_svg(w, h, D["dates"], series, -200, 20, 40, band=(D["random_p5"], D["random_p95"]), R=150)
+
+
+def equity_svg(w, h):
+    pts = json.loads((HERE / "data" / "equity_curve.json").read_text())
+    vals = [v for _, v in pts]
+    peak, pi, dd, a, b = 0.0, 0, 0.0, 0, 0
+    for i, v in enumerate(vals):
+        if v > peak:
+            peak, pi = v, i
+        if v - peak < dd:
+            dd, a, b = v - peak, pi, i
+    return _lines_svg(w, h, [d for d, _ in pts], [(vals, SERIES, f"+{vals[-1]:.1f}R")], -30, 20, 10,
+                      shade=(a, b, f"−{abs(dd):.1f}R from the peak"))
+
+
 BASE_CSS = f"""
 *{{box-sizing:border-box}} html,body{{margin:0}}
 body{{width:{{W}}px;height:{{H}}px;background:{GROUND};color:{INK};font-family:{SANS};overflow:hidden;-webkit-font-smoothing:antialiased}}
@@ -130,13 +210,41 @@ cards = {
   <div style="font:700 18px {MONO};letter-spacing:.1em;color:#E89877">@PURRTFOLIO</div>
 </div>
 </div>"""),
+    OUT_X / "4-direction.png": (1200, 675, f"""
+<div style="padding:36px 56px;display:grid;gap:16px">
+  <div style="display:flex;justify-content:space-between;align-items:baseline"><h2>Same trades. Only the direction changes.</h2><div class="handle">@Purrtfolio</div></div>
+  <div class="sub" style="font-size:21px">Running total after costs, 496 one-minute-range trades. Grey band: middle 90% of 200 random-direction runs.</div>
+  <div style="background:{SURFACE};border:1px solid {RULE};border-radius:16px;padding:10px">{direction_svg(1060, 470)}</div>
+</div>"""),
+    OUT_X / "5-drawdown.png": (1200, 675, f"""
+<div style="padding:36px 56px;display:grid;gap:16px">
+  <div style="display:flex;justify-content:space-between;align-items:baseline"><h2>Two years for +4.3R, with a 32.7R hole</h2><div class="handle">@Purrtfolio</div></div>
+  <div class="sub" style="font-size:21px">544 trades after costs. At 0.5% risk per trade that hole is a 16.4% drawdown. Most prop firms stop you at 10%.</div>
+  <div style="background:{SURFACE};border:1px solid {RULE};border-radius:16px;padding:10px">{equity_svg(1060, 470)}</div>
+</div>"""),
+    OUT_X / "6-calculator.png": (1200, 675, f"""
+<div style="padding:52px 64px;display:grid;gap:30px;height:100%;align-content:center">
+  <div class="handle">@Purrtfolio</div>
+  <h1 style="font-size:58px">Your win rate has to beat costs,<br>not just the coin flip.</h1>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:{RULE};border:1px solid {RULE};border-radius:16px;overflow:hidden">
+    <div style="background:{SURFACE};padding:26px 28px;display:grid;gap:8px"><div style="font:600 52px/1 {DISPLAY}">25.0%</div><div class="sub" style="font-size:20px">coin flip at 3:1</div></div>
+    <div style="background:{SURFACE};padding:26px 28px;display:grid;gap:8px"><div style="font:600 52px/1 {DISPLAY};color:{LOSS}">27.4%</div><div class="sub" style="font-size:20px">break-even after a 0.57-pt spread on a 6-pt stop</div></div>
+    <div style="background:{SURFACE};padding:26px 28px;display:grid;gap:8px"><div style="font:600 52px/1 {DISPLAY}">280</div><div class="sub" style="font-size:20px">trades before a 35% win rate means anything</div></div>
+  </div>
+  <div class="sub">Check your own setup with the free calculator on the study page.</div>
+</div>"""),
 }
 
 for out, (w, h, body) in cards.items():
     src = SCR / f"card_{out.stem}.html"
     src.write_text(page(w, h, body), encoding="utf-8")
+    out.unlink(missing_ok=True)
     subprocess.run([EDGE, "--headless=new", "--disable-gpu", "--hide-scrollbars",
                     f"--window-size={w},{h}", "--virtual-time-budget=8000",
                     f"--screenshot={out}", src.as_uri()], check=True,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for _ in range(60):  # headless Edge can return before the PNG is written
+        if out.exists() and out.stat().st_size:
+            break
+        time.sleep(0.5)
     print(out, out.stat().st_size)

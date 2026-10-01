@@ -25,7 +25,7 @@ That number matters because of a simple fact: if price moves at random, a 3:1 br
 
 The full study has the equity curves, every variant I tested, and a calculator to check your own setup's win rate against costs:
 
-**[Read the full study →](https://purrtfolio.onrender.com/research/one-minute-orb/)**
+**[Read the full study →](https://purrtfolio.onrender.com/research/one-minute-orb/?ref=email)**
 
 **Got a strategy you want tested?** Send me the rules. A public test gets published with the source anonymised; a private one goes to you alone. Same method either way.
 
