@@ -15,7 +15,7 @@ function signup() {
         <label class="sr-only" for="cta-email">Email address</label>
         <input id="cta-email" type="email" name="email" placeholder="you@example.com" autocomplete="email" required>
         <input type="hidden" name="tag" value="research">
-        <button class="btn-primary" type="submit">Subscribe</button>
+        <button class="btn-primary" type="submit" data-event="subscribe">Subscribe</button>
       </form>
     </div>`;
 }
@@ -26,11 +26,19 @@ function request() {
     <div class="cta-part">
       <h3>Want a strategy tested?</h3>
       <p>Send us the rules. A <b>public</b> test is published here with the source anonymised; a <b>private</b> test goes to you alone. Same method either way: tick data, real costs, a decision rule fixed before we look.</p>
-      <a class="btn btn-primary" href="${REQUEST_FORM_URL}" target="_blank" rel="noopener">Request a test →</a>
+      <a class="btn btn-primary" href="${REQUEST_FORM_URL}" target="_blank" rel="noopener" data-event="request-a-test">Request a test →</a>
     </div>`;
 }
 
 const html = signup() + request();
 for (const el of document.querySelectorAll("[data-research-cta]")) {
   if (html) { el.innerHTML = html; el.hidden = false; }
+}
+
+// Count signup and request clicks as GoatCounter events (the block is drawn after
+// GoatCounter scans the page, so its data-goatcounter-click attribute can miss it).
+for (const el of document.querySelectorAll("[data-research-cta] [data-event]")) {
+  el.addEventListener("click", () => {
+    window.goatcounter?.count?.({ path: el.dataset.event, title: location.pathname, event: true });
+  });
 }
