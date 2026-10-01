@@ -201,12 +201,45 @@
     <div class="eyebrow">On a prop account</div>
     <h2 id="h-prop">The losing streaks break the drawdown limit</h2>
     <p>A 26% win rate means long losing runs: 15 in a row at worst, and a 32.7R drawdown. Risking 0.5% per trade, that is a <b>16.4% drawdown</b>, well past a typical 10% limit. At 0.25% per trade it stays inside the limit, but earns about <b>0.5% a year</b> against a 10% target.</p>
+    <figure>
+      <div class="legend" aria-hidden="true">
+        <span><i class="sw-eq"></i>Running total, after costs</span>
+        <span><i class="sw-dd"></i>Worst drawdown</span>
+      </div>
+      <div class="eq-wrap fig-box" id="eq-wrap">
+        <svg id="eq" viewBox="0 0 640 280" role="img" aria-label="Running total in R over all 544 trades, May 2024 to May 2026, after costs. It peaks at +10.7R, falls 32.7R to −22.0R, and ends at +4.3R."></svg>
+        <div class="tip" id="eq-tip" hidden></div>
+      </div>
+      <figcaption>Every trade in order, May 2024 to May 2026, in R after the spread. Two years of trading for +4.3R, with a 32.7R hole in the middle. That hole is what a prop account has to survive.</figcaption>
+    </figure>
   </section>
 
   <div class="lesson" role="note">
     <span class="eyebrow">The lesson</span>
     <p>Before believing any win rate on a fixed R:R trade, compare it with 1 / (1 + R:R). A 26% win rate at 3:1 is what randomness produces.</p>
   </div>
+
+  <section aria-labelledby="h-calc">
+    <div class="eyebrow">Check your own setup</div>
+    <h2 id="h-calc">Does your win rate survive costs?</h2>
+    <p>Put in any fixed-R:R setup: yours, or one you've seen advertised. Costs are charged on every trade, so they raise the win rate you need above the coin-flip line.</p>
+    <div class="calc">
+      <div class="calc-inputs">
+        <label>Reward-to-risk<input id="c-rr" type="number" min="0.25" step="0.25" value="3" inputmode="decimal"><small>target ÷ stop</small></label>
+        <label>Stop size<input id="c-stop" type="number" min="0.01" step="any" value="6" inputmode="decimal"><small>points, pips or ticks</small></label>
+        <label>Round-trip cost<input id="c-cost" type="number" min="0" step="any" value="0.57" inputmode="decimal"><small>spread + commission, same units</small></label>
+        <label>Win rate<input id="c-win" type="number" min="0" max="100" step="0.1" value="35" inputmode="decimal"><small>claimed or measured, %</small></label>
+      </div>
+      <div class="readout" aria-live="polite">
+        <div><span class="v" id="c-coin">25.0%</span><span class="k">coin-flip win rate</span></div>
+        <div><span class="v" id="c-be">27.4%</span><span class="k">break-even win rate after costs</span></div>
+        <div><span class="v" id="c-ev">+0.31R</span><span class="k">expected result per trade after costs</span></div>
+        <div><span class="v" id="c-n">280</span><span class="k" id="c-n-k">trades needed to tell it apart from break-even</span></div>
+      </div>
+      <p class="verdict-line" id="c-verdict"></p>
+    </div>
+    <p style="font-size:14px;color:var(--text-mut)">Trades needed: the sample size at which a real win rate this far above break-even shows up as significant (95% confidence, 80% power). A track record shorter than that can't tell skill from luck.</p>
+  </section>
 
   <section aria-labelledby="h-var">
     <div class="eyebrow">Everything we tried</div>
@@ -229,6 +262,19 @@
     <div class="eyebrow" id="h-method">How it was tested</div>
     <p>FTMO S&amp;P 500 CFD tick data, 519 sessions (about 190 quotes a minute at the open), so the order in which the stop and target were hit is observed, not assumed, and every trade pays the real spread. The decision rule was written down before any results were looked at. Checked against the same trade in the opposite direction and with a random direction.</p>
   </section>
+
+  <section aria-labelledby="h-next">
+    <div class="eyebrow">What we'd test next</div>
+    <h2 id="h-next">Can a filter make the break pay?</h2>
+    <p>The break direction carries a real 0.31R edge over trading against it; the problem is that it's thinner than the spread. These are the filters most likely to concentrate it. <a href="https://x.com/Purrtfolio">Reply on X</a> with the one you want tested, or with your own idea.</p>
+    <ol class="rules">
+      <li><div><b>Gap size</b>Only trade days that open with a large overnight gap, when there are more orders queued.</div></li>
+      <li><div><b>Range size against ATR</b>Skip days whose first-minute range is tiny next to the recent average daily range (ATR), where the spread eats most of 1R.</div></li>
+      <li><div><b>Volatility regime</b>Trade only when the VIX is above or below a set level.</div></li>
+    </ol>
+  </section>
+
+  <div class="cta" data-research-cta hidden></div>
 
   <footer class="research-footer">
     <span><a href="https://x.com/Purrtfolio">Follow @Purrtfolio on X</a> for the next one</span>
@@ -305,7 +351,98 @@
     hit.addEventListener("mouseenter", show); hit.addEventListener("focus", show);
     hit.addEventListener("mouseleave", () => tip.hidden = true); hit.addEventListener("blur", () => tip.hidden = true);
   });
+
+  // Calculator: a trade wins k - c or loses 1 + c, where c is the round-trip cost in R.
+  const num = id => parseFloat(document.getElementById(id).value);
+  const set = (id, s) => document.getElementById(id).textContent = s;
+  const pct = v => (100 * v).toFixed(1) + "%";
+  const signR = v => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2) + "R";
+  function calc() {
+    const k = num("c-rr"), stop = num("c-stop"), cost = num("c-cost"), p = num("c-win") / 100;
+    const verdict = document.getElementById("c-verdict");
+    if (!(k > 0 && stop > 0 && cost >= 0 && p >= 0 && p <= 1)) {
+      verdict.className = "verdict-line"; verdict.textContent = "Fill in all four boxes with positive numbers.";
+      return;
+    }
+    const c = cost / stop, coinP = 1 / (1 + k), be = (1 + c) / (1 + k);
+    const ev = p * k - (1 - p) - c;
+    set("c-coin", pct(coinP));
+    set("c-be", be < 1 ? pct(be) : "> 100%");
+    set("c-ev", signR(ev));
+    let n = null;
+    if (p > be && be < 1) {
+      const z = 1.96 * Math.sqrt(be * (1 - be)) + 0.84 * Math.sqrt(p * (1 - p));
+      n = Math.ceil((z / (p - be)) ** 2);
+    }
+    set("c-n", n == null ? "—" : n.toLocaleString());
+    set("c-n-k", n == null ? "no sample size helps: it's at or below break-even" : "trades needed to tell it apart from break-even");
+    if (be >= 1) {
+      verdict.className = "verdict-line bad";
+      verdict.textContent = `Costs are ${c.toFixed(2)}R a trade, more than the whole target. No win rate can pay for that.`;
+    } else if (p <= be) {
+      verdict.className = "verdict-line bad";
+      verdict.textContent = `At ${pct(p)} this loses money: costs take ${c.toFixed(2)}R a trade, so you need more than ${pct(be)} to break even.`;
+    } else {
+      verdict.className = "verdict-line good";
+      verdict.textContent = `If ${pct(p)} is real, it earns ${signR(ev)} a trade after costs. Ask for at least ${n.toLocaleString()} trades of evidence before believing it.`;
+    }
+  }
+  document.querySelectorAll(".calc input").forEach(i => i.addEventListener("input", calc));
+  calc();
+
+  // Equity curve: running total in R after costs, one point per trade.
+  fetch("equity.json").then(r => r.json()).then(pts => {
+    const eq = document.getElementById("eq"), eqWrap = document.getElementById("eq-wrap"), eqTip = document.getElementById("eq-tip");
+    const W = 640, H = 280, L = 48, R = 56, T = 16, B = 34, n = pts.length;
+    const vals = pts.map(p => p[1]);
+    const lo = Math.floor(Math.min(0, ...vals) / 10) * 10, hi = Math.ceil(Math.max(0, ...vals) / 10) * 10;
+    const ex = i => L + i / (n - 1) * (W - L - R);
+    const ey = v => T + (hi - v) / (hi - lo) * (H - T - B);
+    const add = (tag, a, s) => { const el = document.createElementNS(NS, tag); for (const k in a) el.setAttribute(k, a[k]); if (s) el.textContent = s; eq.appendChild(el); return el; };
+    // worst drawdown: peak (from 0) to trough
+    let peak = 0, peakI = -1, dd = 0, ddFrom = 0, ddTo = 0;
+    vals.forEach((v, i) => {
+      if (v > peak) { peak = v; peakI = i; }
+      if (v - peak < dd) { dd = v - peak; ddFrom = Math.max(peakI, 0); ddTo = i; }
+    });
+    add("rect", { x: ex(ddFrom), y: T, width: ex(ddTo) - ex(ddFrom), height: H - T - B, fill: "var(--red-bg)" });
+    add("text", { x: (ex(ddFrom) + ex(ddTo)) / 2, y: T + 14, "text-anchor": "middle", fill: "var(--red)", "font-size": 12, "font-weight": 600 }, `−${Math.abs(dd).toFixed(1)}R from the peak`);
+    for (let v = lo; v <= hi; v += 10) {
+      add("line", { x1: L, x2: W - R, y1: ey(v), y2: ey(v), stroke: v === 0 ? "var(--line-2)" : "var(--line)", "stroke-width": 1 });
+      add("text", { x: L - 8, y: ey(v) + 4, "text-anchor": "end", fill: "var(--text-mut)", "font-size": 11, "font-family": "var(--mono)" }, (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v) + "R");
+    }
+    // x labels: first trade of each half-year (January and July)
+    let lastHalf = "";
+    pts.forEach(([d], i) => {
+      const half = d.slice(0, 4) + (d.slice(5, 7) < "07" ? "a" : "b");
+      if (half !== lastHalf) {
+        const first = !lastHalf;
+        lastHalf = half;
+        if (first) return; // skip the partial first half-year so labels don't collide
+        const mon = new Date(d + "T00:00:00Z").toLocaleString("en", { month: "short", timeZone: "UTC" });
+        add("text", { x: ex(i), y: H - B + 18, "text-anchor": "middle", fill: "var(--text-mut)", "font-size": 11, "font-family": "var(--mono)" }, `${mon} ${d.slice(2, 4)}`);
+      }
+    });
+    add("path", { d: vals.map((v, i) => (i ? "L" : "M") + ex(i).toFixed(1) + " " + ey(v).toFixed(1)).join(" "), fill: "none", stroke: "var(--brass)", "stroke-width": 2, "stroke-linejoin": "round" });
+    const end = vals[n - 1];
+    add("text", { x: ex(n - 1) + 6, y: ey(end) + 4, fill: "var(--text)", "font-size": 12, "font-weight": 600 }, (end >= 0 ? "+" : "−") + Math.abs(end).toFixed(1) + "R");
+    // hover: nearest trade
+    const dot = add("circle", { r: 4.5, fill: "var(--brass)", stroke: "var(--panel)", "stroke-width": 2, visibility: "hidden" });
+    const hover = e => {
+      const box = eq.getBoundingClientRect(), s = box.width / W;
+      const i = Math.max(0, Math.min(n - 1, Math.round(((e.clientX - box.left) / s - L) / (W - L - R) * (n - 1))));
+      dot.setAttribute("cx", ex(i)); dot.setAttribute("cy", ey(vals[i])); dot.setAttribute("visibility", "visible");
+      const wb = eqWrap.getBoundingClientRect();
+      eqTip.innerHTML = `<b>Trade ${i + 1}</b> · ${pts[i][0]} · ${signR(vals[i])}`;
+      eqTip.style.left = (box.left - wb.left + ex(i) * s) + "px";
+      eqTip.style.top = (box.top - wb.top + ey(vals[i]) * s) + "px";
+      eqTip.hidden = false;
+    };
+    eq.addEventListener("pointermove", hover);
+    eq.addEventListener("pointerleave", () => { eqTip.hidden = true; dot.setAttribute("visibility", "hidden"); });
+  }).catch(() => { document.getElementById("eq-wrap").closest("figure").hidden = true; });
 })();
 </script>
+<script type="module" src="../research-cta.js"></script>
 </body>
 </html>

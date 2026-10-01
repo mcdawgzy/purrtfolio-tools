@@ -46,4 +46,8 @@ The lesson: before you believe a win rate on a fixed R:R trade, compare it with 
 
 The break direction is real, it's just thinner than the spread. What would you change to make it pay? Reply and I'll test the best ideas.
 
-Full breakdown: https://mcdawgzy.github.io/purrtfolio-tools/research/one-minute-orb/
+**Reply to 7/** (post right after the thread; X shows posts with outside links less)
+Full breakdown, the equity curve, and a calculator to check your own setup's win rate against costs:
+https://mcdawgzy.github.io/purrtfolio-tools/research/one-minute-orb/
+
+Get the next study by email, or send me a strategy to test (public or private), at the bottom of the page.
