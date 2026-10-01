@@ -79,8 +79,7 @@ paid tests.
 - **Phase 0 (before the ORB thread):** ORB page gets the cost/breakeven calculator,
   equity curve, "what we'd test next" and the signup + request block (done on
   `feat/research-growth`; the block stays hidden until `BUTTONDOWN_USER` and
-  `REQUEST_FORM_URL` are set in `static/research/research-cta.js`). Still to do:
-  create the Buttondown account and the Tally form.
+  `REQUEST_FORM_URL` are set in `static/research/research-cta.js`; both set 2026-10-02).
 - **Phase 1 (weeks 1–4):** post the ORB thread (page link + signup in the first
   reply, not in the posts), reuse it as 3 single posts, publish study #2 from our
   own strategies, ideally one that passed.
@@ -96,7 +95,7 @@ paid tests.
 
 ## Open items
 
-- Create the Buttondown account and Tally request form; set them in `research-cta.js`.
+- ~~Create the Buttondown account and Tally request form~~ (done 2026-10-02).
 - Prices for public and private tests; payments platform.
 - Licence check before offering per-trade CSV downloads on study pages.
 - Members area / subscription: only if paid testing and the list show demand.
