@@ -44,6 +44,7 @@ py -3.14 research/catalogue/build_catalogue.py      # rebuild after editing a st
 py -3.14 -m pytest research/catalogue -q            # checks + anonymisation guard
 py -3.14 research/studies/one-minute-orb/make_poster.py
 py -3.14 research/studies/one-minute-orb/make_cards.py
+py -3.14 research/studies/one-minute-orb/export_direction_curves.py research/studies/one-minute-orb/data/direction_curves.json  # needs trading_hub ticks
 ```
 
 The image scripts need Edge or Chrome (set `BROWSER_EXE` to use another).

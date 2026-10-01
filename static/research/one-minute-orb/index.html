@@ -195,6 +195,18 @@
         <p>But the gross edge is about <b>0.12R</b>, and the round-trip cost is <b>0.09R</b> (0.57 points of spread on a typical 6-point stop). Even with zero costs it isn't statistically significant (t = 1.57), so a cheaper broker or futures would not rescue it.</p>
       </div>
     </div>
+    <figure>
+      <div class="legend" aria-hidden="true">
+        <span><i class="sw-eq"></i>With the break</span>
+        <span><i class="sw-rand"></i>Random direction (middle 90% of 200 runs)</span>
+        <span><i class="sw-fade"></i>Against the break</span>
+      </div>
+      <div class="eq-wrap fig-box" id="dir-wrap">
+        <svg id="dir" viewBox="0 0 640 300" role="img" aria-label="Running total in R after costs over 496 one-minute-range trades. With the break ends near −7R, random direction near −81R, against the break near −160R."></svg>
+        <div class="tip" id="dir-tip" hidden></div>
+      </div>
+      <figcaption>The same 496 trades (one-minute range only), with the same entries, risk and costs. Only the direction rule changes. The break keeps you out of the losses that flipping a coin or fading it take, but costs still leave it just under zero.</figcaption>
+    </figure>
   </section>
 
   <section aria-labelledby="h-prop">
@@ -441,6 +453,58 @@
     eq.addEventListener("pointermove", hover);
     eq.addEventListener("pointerleave", () => { eqTip.hidden = true; dot.setAttribute("visibility", "hidden"); });
   }).catch(() => { document.getElementById("eq-wrap").closest("figure").hidden = true; });
+
+  // Direction comparison: same trades, only the direction rule changes.
+  fetch("direction.json").then(r => r.json()).then(D => {
+    const sv = document.getElementById("dir"), wrapD = document.getElementById("dir-wrap"), tipD = document.getElementById("dir-tip");
+    const W = 640, H = 300, L = 52, R = 64, T = 16, B = 34, n = D.dates.length;
+    const all = [...D.with, ...D.against, ...D.random_p5, ...D.random_p95];
+    const lo = Math.floor(Math.min(0, ...all) / 40) * 40, hi = Math.max(20, Math.ceil(Math.max(...all) / 20) * 20);
+    const dx = i => L + i / (n - 1) * (W - L - R);
+    const dy = v => T + (hi - v) / (hi - lo) * (H - T - B);
+    const add = (tag, a, s) => { const el = document.createElementNS(NS, tag); for (const k in a) el.setAttribute(k, a[k]); if (s) el.textContent = s; sv.appendChild(el); return el; };
+    const fmtR = v => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(0) + "R";
+    for (let v = lo; v <= hi; v += 40) {
+      add("line", { x1: L, x2: W - R, y1: dy(v), y2: dy(v), stroke: v === 0 ? "var(--line-2)" : "var(--line)", "stroke-width": 1 });
+      add("text", { x: L - 8, y: dy(v) + 4, "text-anchor": "end", fill: "var(--text-mut)", "font-size": 11, "font-family": "var(--mono)" }, fmtR(v));
+    }
+    let lastHalf = "";
+    D.dates.forEach((d, i) => {
+      const half = d.slice(0, 4) + (d.slice(5, 7) < "07" ? "a" : "b");
+      if (half === lastHalf) return;
+      const first = !lastHalf; lastHalf = half;
+      if (first) return;
+      const mon = new Date(d + "T00:00:00Z").toLocaleString("en", { month: "short", timeZone: "UTC" });
+      add("text", { x: dx(i), y: H - B + 18, "text-anchor": "middle", fill: "var(--text-mut)", "font-size": 11, "font-family": "var(--mono)" }, `${mon} ${d.slice(2, 4)}`);
+    });
+    const line = arr => arr.map((v, i) => (i ? "L" : "M") + dx(i).toFixed(1) + " " + dy(v).toFixed(1)).join(" ");
+    // random band: p95 forward, p5 back
+    const band = line(D.random_p95) + " " + D.random_p5.map((v, i) => "L" + dx(i).toFixed(1) + " " + dy(v).toFixed(1)).reverse().join(" ") + " Z";
+    add("path", { d: band, fill: "color-mix(in srgb, var(--text-dim) 18%, transparent)", stroke: "none" });
+    const series = [
+      ["random_median", "var(--text-dim)", "Random"],
+      ["against", "var(--red)", "Against"],
+      ["with", "var(--brass)", "With"],
+    ];
+    series.forEach(([k, col]) => add("path", { d: line(D[k]), fill: "none", stroke: col, "stroke-width": 2, "stroke-linejoin": "round" }));
+    // end labels, nudged apart if they would overlap
+    const ends = series.map(([k, col]) => ({ y: dy(D[k][n - 1]), v: D[k][n - 1], col })).sort((a, b) => a.y - b.y);
+    for (let j = 1; j < ends.length; j++) ends[j].y = Math.max(ends[j].y, ends[j - 1].y + 14);
+    ends.forEach(e => add("text", { x: dx(n - 1) + 6, y: e.y + 4, fill: e.col, "font-size": 12, "font-weight": 600 }, (e.v >= 0 ? "+" : "−") + Math.abs(e.v).toFixed(0) + "R"));
+    // hover: all three at the nearest trade
+    const dots = series.map(([, col]) => add("circle", { r: 4, fill: col, stroke: "var(--panel)", "stroke-width": 2, visibility: "hidden" }));
+    sv.addEventListener("pointermove", e => {
+      const box = sv.getBoundingClientRect(), s = box.width / W;
+      const i = Math.max(0, Math.min(n - 1, Math.round(((e.clientX - box.left) / s - L) / (W - L - R) * (n - 1))));
+      series.forEach(([k], j) => { dots[j].setAttribute("cx", dx(i)); dots[j].setAttribute("cy", dy(D[k][i])); dots[j].setAttribute("visibility", "visible"); });
+      const wb = wrapD.getBoundingClientRect();
+      tipD.innerHTML = `<b>Trade ${i + 1}</b> · ${D.dates[i]}<br>with ${signR(D.with[i])} · random ${signR(D.random_median[i])} · against ${signR(D.against[i])}`;
+      tipD.style.left = (box.left - wb.left + dx(i) * s) + "px";
+      tipD.style.top = (box.top - wb.top + dy(Math.max(D.with[i], D.random_p95[i])) * s) + "px";
+      tipD.hidden = false;
+    });
+    sv.addEventListener("pointerleave", () => { tipD.hidden = true; dots.forEach(d => d.setAttribute("visibility", "hidden")); });
+  }).catch(() => { document.getElementById("dir-wrap").closest("figure").hidden = true; });
 })();
 </script>
 <script type="module" src="../research-cta.js"></script>
