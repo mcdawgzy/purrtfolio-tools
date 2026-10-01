@@ -31,6 +31,11 @@ Research pages use the site's own theme so they read as part of the app: link
 (`--brass`, `--red`, `--green`, `--text-dim`, `--panel`…); copy the one-minute ORB page
 as the template. `make_cards.py` uses the same palette for `og.png`.
 
+Every study page ends with `<div class="cta" data-research-cta hidden></div>` and loads
+`static/research/research-cta.js`, which renders the email signup and "Request a test"
+block. Set `BUTTONDOWN_USER` and `REQUEST_FORM_URL` there once; each half stays hidden
+while its setting is empty. The whole publishing pipeline is in `BUSINESS_PLAN.md`.
+
 ## Commands (from the repo root)
 
 ```bash
