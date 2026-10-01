@@ -1,7 +1,7 @@
 # X thread — the one-minute ORB scalp at 3:1
 
 Not deployed: research/ is outside static/. Images are in assets/; attach the one named on each post.
-Page: https://mcdawgzy.github.io/purrtfolio-tools/research/one-minute-orb/
+Page: https://purrtfolio.onrender.com/research/one-minute-orb/
 
 **1/** (image: 0-poster.png)
 A Reddit post says you can scalp the first 1-minute range at the open, fixed 3:1, and win 34–36% of the time.
@@ -48,6 +48,6 @@ The break direction is real, it's just thinner than the spread. What would you c
 
 **Reply to 7/** (post right after the thread; X shows posts with outside links less)
 Full breakdown, the equity curve, and a calculator to check your own setup's win rate against costs:
-https://mcdawgzy.github.io/purrtfolio-tools/research/one-minute-orb/
+https://purrtfolio.onrender.com/research/one-minute-orb/
 
 Get the next study by email, or send me a strategy to test (public or private), at the bottom of the page.
