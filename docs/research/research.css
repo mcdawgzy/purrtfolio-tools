@@ -136,6 +136,35 @@ details.table .table-wrap { margin-top: 12px; }
 .method { font-size: 14.5px; color: var(--text-dim); }
 .method p { max-width: 80ch; }
 
+/* Equity curve */
+.eq-wrap { position: relative; }
+.sw-eq { width: 18px; height: 0; border-top: 2px solid var(--brass); }
+.sw-dd { width: 12px; height: 12px; background: var(--red-bg); border-radius: 2px; }
+
+/* "Check your own setup" calculator */
+.calc { display: grid; gap: 20px; padding: 26px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.calc-inputs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+.calc-inputs label { display: grid; gap: 6px; font: 700 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-mut); }
+.calc-inputs input { width: 100%; font: 600 16px var(--mono); }
+.calc-inputs small { font: 12px var(--font); letter-spacing: 0; text-transform: none; color: var(--text-mut); }
+.calc .verdict-line { font-size: 15.5px; padding: 14px 18px; border-radius: var(--radius-sm); background: var(--panel-2); }
+.calc .verdict-line.good { background: var(--green-bg); }
+.calc .verdict-line.bad { background: var(--red-bg); }
+
+/* Calls to action (rendered by research-cta.js) */
+.cta { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.cta-part { display: grid; gap: 10px; align-content: start; padding: 26px 28px; background: var(--bg); }
+.cta-part p { font-size: 14.5px; color: var(--text-dim); }
+.cta-form { display: flex; flex-wrap: wrap; gap: 8px; }
+.cta-form input[type=email] {
+  flex: 1 1 200px; background: var(--bg); border: 1px solid var(--line-2); color: var(--text);
+  padding: 9px 12px; font: 14px var(--font); border-radius: var(--radius-sm); outline: none;
+}
+.research a.btn { text-decoration: none; width: fit-content; font-size: 14px; padding: 9px 16px; }
+.research a.btn-primary, .research a.btn-primary:hover { color: var(--on-ink); }
+.cta-form button { font-size: 14px; padding: 9px 16px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
 .research-footer {
   display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px;
   font: 12px var(--mono); color: var(--text-mut); border-top: 1px solid var(--line); padding-top: 20px;
