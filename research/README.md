@@ -16,8 +16,10 @@ research/
     ├── data/                      # numbers exported from trading_hub
     ├── assets/                    # X images (poster, diagram, chart, lesson)
     ├── make_poster.py             # 1200x1500 poster
-    ├── make_cards.py              # og.png for the page + thread images
-    └── x-thread.md                # the thread text
+    ├── make_cards.py              # og.png for the page + thread/follow-up images
+    ├── x-thread.md                # the thread text
+    ├── x-followups.md             # poll + single posts after the thread
+    └── email.md                   # the Buttondown email for subscribers
 ```
 
 The published page for a study lives in `static/research/<slug>/` (with its `og.png`).

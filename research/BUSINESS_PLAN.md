@@ -69,7 +69,8 @@ Paid private tests take the Tue–Wed test slots.
 
 **Tools, one of each:** site = GitHub Pages; email = Buttondown; request form = Tally
 (feeds the queue); payments = Stripe Payment Links or Lemon Squeezy; study record =
-the catalogue.
+the catalogue; visits = GoatCounter (purrtfolio.goatcounter.com; tag shared links
+`?ref=x` / `?ref=email`; signup and request clicks are counted as events).
 
 **Weekly numbers:** X impressions, page visits, email subscribers, test requests,
 paid tests.

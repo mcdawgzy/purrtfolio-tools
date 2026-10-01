@@ -1,6 +1,7 @@
 # X thread — the one-minute ORB scalp at 3:1
 
 Not deployed: research/ is outside static/. Images are in assets/; attach the one named on each post.
+Links carry ?ref=x so GoatCounter shows visits from X separately. Follow-up posts: x-followups.md.
 Page: https://purrtfolio.onrender.com/research/one-minute-orb/
 
 **1/** (image: 0-poster.png)
@@ -31,7 +32,7 @@ Measured vs coin flip:
 3:1 → 26.1% vs 25%
 5:1 → 15.6% vs 16.7%
 
-**5/**
+**5/** (image: 4-direction.png)
 The break direction isn't useless. Trading with the break beat trading against it by +0.31R per trade.
 
 But the gross edge is ~0.12R and the spread costs ~0.09R. After costs: +0.008R per trade. Basically zero.
@@ -48,6 +49,6 @@ The break direction is real, it's just thinner than the spread. What would you c
 
 **Reply to 7/** (post right after the thread; X shows posts with outside links less)
 Full breakdown, the equity curve, and a calculator to check your own setup's win rate against costs:
-https://purrtfolio.onrender.com/research/one-minute-orb/
+https://purrtfolio.onrender.com/research/one-minute-orb/?ref=x
 
 Get the next study by email, or send me a strategy to test (public or private), at the bottom of the page.
