@@ -4,7 +4,7 @@
 
 One record per tested study, grouped by strategy family, for publishing. The research record behind each one is `STRATEGY_LEDGER.md` and `src/trading_hub/optimize/mechanisms.py` in the trading_hub repo.
 
-**101 studies, 162 named variants.**
+**103 studies, 169 named variants.**
 
 | Verdict | Studies |
 |---|---|
@@ -15,7 +15,7 @@ One record per tested study, grouped by strategy family, for publishing. The res
 | 🔎 Open lead, not validated | 3 |
 | 🟠 Real but underpowered | 2 |
 | ⏸️ Parked | 2 |
-| ❌ Rejected | 83 |
+| ❌ Rejected | 85 |
 | ⚪ Not tested | 1 |
 
 Visibility: `public` = safe to publish as written; `review` = your call (a surviving edge, or tied to the real-money account); `private` = your own system or journal, never published.
@@ -125,6 +125,8 @@ Visibility: `public` = safe to publish as written; `review` = your call (a survi
 | [S137](#s137) | Cross-sectional commodity seasonality (long/short by calendar month) | cross-asset | internal | ⏸️ Parked | public |
 | [S138](#s138) | Z-score(5) scale-in dip-buy on QQQ — 3 tranches, exit above EMA(5) | dip-buying | social | ✅ Passed the full gate | public |
 | [S139](#s139) | TradingView "Time Range ORB Detector [34ematrader]" — first-break fade / breakout, 1.0/0.5 ATR bracket | orb-momentum | vendor | ❌ Rejected | public |
+| [S140](#s140) | Open ± 2.5 × ATR(20) breakout, only when ATR is coiling (social post) | orb-momentum | social | ❌ Rejected | public |
+| [S141](#s141) | PropQuantX — fade failed sweeps of yesterday's high/low with daily bias (X post) | ict-smc | social | ❌ Rejected | public |
 
 ## Opening range & intraday momentum
 
@@ -600,6 +602,28 @@ _Refs: scripts `scripts/eda_time_range_orb_34ema.py`; PRs #242; ledger: TradingV
 
 > A free opening-range indicator lets you fade or follow the first break of any time window. Across 12 years of Nasdaq and S&P futures, none of its 50 settings made money after costs — and its win rate is about what a coin flip gives with a target twice the size of the stop.
 
+### S140
+
+**Open ± 2.5 × ATR(20) breakout, only when ATR is coiling (social post)** — ❌ Rejected · `public`
+
+- **Source:** social — Social-media post pasted by the user (no backtest, no costs)
+- **Tested:** 2026-10-02 → closed 2026-10-02 · NQ, ES, US100, US500, US30 · futures, CFD · RTH daily ATR, 1m stop-order entry, exit at the close
+- **Data:** NQ / ES 1m 2010-08→2022-10 (3,031 sessions); FTMO index CFD 1m 2024-08→2026-07
+- **Mechanism:** `intraday-momentum`
+- **Headline:** The posted rule barely fires: a 2.5 × daily-ATR move from the open happened on 0.6% of NQ days, and with the coil filter that left 7 trades in 12 years (all short), +0.13R, t=+0.26. 2/5 pre-registered criteria.
+- **Why:** At multipliers that actually trade (0.5–1.5) there is no edge either way, and the coil filter adds nothing — it hurts at K=0.5 on NQ and is flat on ES.
+- **Lesson:** For any "open + k × ATR" rule, print how often it triggers first. Above ~1.5 × daily ATR it is a near-empty rule.
+
+| Variant | Verdict | Result |
+|---|---|---|
+| K=0.5 coil vs expanding | REJECT | NQ coil +0.007R vs expanding +0.060R — the filter hurts. |
+| K=1.5 coil | REJECT | NQ +0.09R, t=+0.69 (n=62); ES every coil cell ≤ +0.08R at t<0.7. |
+| ATR period 15/25/40 | REJECT | Sign flips across periods at K=2.5 because n is 2–7. |
+
+_Refs: scripts `scripts/eda_atr_coil_breakout.py`; PRs #244; ledger: "Open + 2.5 × ATR(20) breakout, only when coiling" — 2026-10-02_
+
+> A breakout of the open by 2.5 daily ATRs, taken only when volatility is contracting, traded 7 times in 12 years of Nasdaq futures. At sizes that trade more often, the "coiling" filter made no difference.
+
 
 ## ICT / smart-money concepts (FVG, sweeps, SMT)
 
@@ -754,6 +778,29 @@ _Refs: pre-reg `docs/prereg/2026-09-03_x_nested_4h_15m_fvg.md`; scripts `scripts
 _Refs: scripts `scripts/backtest_wf_wickless_candle.py`_
 
 > Trading retests of "wickless" candles as liquidity zones lost money on all three US indices at every setting we tried.
+
+### S141
+
+**PropQuantX — fade failed sweeps of yesterday's high/low with daily bias (X post)** — ❌ Rejected · `public`
+
+- **Source:** social — X @PropQuantX (https://x.com/PropQuantX/status/2105167034690769406)
+- **Tested:** 2026-10-03 → closed 2026-10-03 · NQ, ES, US100 · futures, CFD · 5/15/60m signal candle, 1m resolution, flat by 17:00 NY (full Globex session)
+- **Data:** NQ / ES 1m Globex 2010-06→2022-10 (3,137 sessions); NQ 5m 2025-05→2026-09; FTMO US100 CFD 1m 2024-05→2026-07
+- **Mechanism:** `intraday-mean-reversion`
+- **Headline:** Claimed +$32.6k on NQ 2020–26 (WR 23%, PF 1.19). Best of 9 cells over 12 years of NQ: +0.127R, t=+1.53 (needs 2.54). Trades that hit stop or target won 17.7% vs an 18.6% coin-flip rate and netted −207R; all the profit was trades closed at 17:00. 3/6 pre-registered criteria.
+- **Why:** The sweep-fade bracket reaches the far side of the range no more often than chance. Every cell lost over 2010–19 and gained over 2020–22, so the post's Jan-2020 start sits in the one favourable regime; ES lost in all 12 cells and the FTMO CFD in 11.
+- **Lesson:** A low win rate with a far target produces PF > 1 by geometry alone. Split P&L by exit type, and check the years before a vendor backtest starts.
+
+| Variant | Verdict | Result |
+|---|---|---|
+| Bias = yesterday's candle colour | REJECT | Best 60m +0.055R, t=+0.59. |
+| Bias = yesterday's close vs SMA20 | REJECT | Best 60m +0.127R, t=+1.53; drop top-5 trades +0.049R. |
+| Bias = price vs today's open | REJECT | 5m/15m net-negative (t down to −2.87). |
+| Post's own window (NQ 5m 2025–26) | REJECT | No cell above t=1.2. |
+
+_Refs: scripts `scripts/eda_pdhl_sweep_fade.py`; PRs #245; ledger: PropQuantX "fade failed sweeps of yesterday's high/low" — 2026-10-03_
+
+> "They hunt your stops, so trade the stop hunt": fading failed sweeps of yesterday's high or low reached the other side of the range no more often than a coin flip over 12 years of Nasdaq futures. It only looked good because its backtest started in 2020.
 
 
 ## Intraday fades & mean reversion

@@ -4022,6 +4022,105 @@ footer { padding-block: 36px 0; color: var(--faint); font-size: 13px; }
         "result": "Only gross signal (+0.15R on NQ) — net negative, absent on ES, and FTMO has no clean pre-open bars."
       }
     ]
+  },
+  {
+    "id": "S140",
+    "slug": "open-atr-coil-breakout",
+    "title": "Open ± 2.5 × ATR breakout, only on low-volatility (coiling) days",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "social",
+    "source": "A social-media trading post",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "NQ",
+      "ES",
+      "US100",
+      "US500",
+      "US30"
+    ],
+    "products": [
+      "futures",
+      "CFD"
+    ],
+    "timeframe": "RTH daily ATR, 1m stop-order entry, exit at the close",
+    "data": "NQ / ES 1m 2010-08→2022-10 (3,031 sessions); FTMO index CFD 1m 2024-08→2026-07",
+    "tested": "2026-10-02",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "The posted rule barely fires: a 2.5 × daily-ATR move from the open happened on 0.6% of NQ days, and with the coil filter that left 7 trades in 12 years (all short), +0.13R, t=+0.26. 2/5 pre-registered criteria.",
+    "why": "At multipliers that actually trade (0.5–1.5) there is no edge either way, and the coil filter adds nothing — it hurts at K=0.5 on NQ and is flat on ES.",
+    "lesson": "For any \"open + k × ATR\" rule, print how often it triggers first. Above ~1.5 × daily ATR it is a near-empty rule.",
+    "summary": "A breakout of the open by 2.5 daily ATRs, taken only when volatility is contracting, traded 7 times in 12 years of Nasdaq futures. At sizes that trade more often, the \"coiling\" filter made no difference.",
+    "variants": [
+      {
+        "name": "K=0.5 coil vs expanding",
+        "verdict": "REJECT",
+        "result": "NQ coil +0.007R vs expanding +0.060R — the filter hurts."
+      },
+      {
+        "name": "K=1.5 coil",
+        "verdict": "REJECT",
+        "result": "NQ +0.09R, t=+0.69 (n=62); ES every coil cell ≤ +0.08R at t<0.7."
+      },
+      {
+        "name": "ATR period 15/25/40",
+        "verdict": "REJECT",
+        "result": "Sign flips across periods at K=2.5 because n is 2–7."
+      }
+    ]
+  },
+  {
+    "id": "S141",
+    "slug": "pdh-pdl-failed-sweep-fade",
+    "title": "Fade failed sweeps of yesterday's high/low, target the other side",
+    "family": "ict-smc",
+    "family_title": "ICT / smart-money concepts (FVG, sweeps, SMT)",
+    "source_type": "social",
+    "source": "A popular X trading account",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "NQ",
+      "ES",
+      "US100"
+    ],
+    "products": [
+      "futures",
+      "CFD"
+    ],
+    "timeframe": "5/15/60m signal candle, 1m resolution, flat by 17:00 NY (full Globex session)",
+    "data": "NQ / ES 1m Globex 2010-06→2022-10 (3,137 sessions); NQ 5m 2025-05→2026-09; FTMO US100 CFD 1m 2024-05→2026-07",
+    "tested": "2026-10-03",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Claimed +$32.6k on NQ 2020–26 (WR 23%, PF 1.19). Best of 9 cells over 12 years of NQ: +0.127R, t=+1.53 (needs 2.54). Trades that hit stop or target won 17.7% vs an 18.6% coin-flip rate and netted −207R; all the profit was trades closed at 17:00. 3/6 pre-registered criteria.",
+    "why": "The sweep-fade bracket reaches the far side of the range no more often than chance. Every cell lost over 2010–19 and gained over 2020–22, so the post's Jan-2020 start sits in the one favourable regime; ES lost in all 12 cells and the FTMO CFD in 11.",
+    "lesson": "A low win rate with a far target produces PF > 1 by geometry alone. Split P&L by exit type, and check the years before a vendor backtest starts.",
+    "summary": "\"They hunt your stops, so trade the stop hunt\": fading failed sweeps of yesterday's high or low reached the other side of the range no more often than a coin flip over 12 years of Nasdaq futures. It only looked good because its backtest started in 2020.",
+    "variants": [
+      {
+        "name": "Bias = yesterday's candle colour",
+        "verdict": "REJECT",
+        "result": "Best 60m +0.055R, t=+0.59."
+      },
+      {
+        "name": "Bias = yesterday's close vs SMA20",
+        "verdict": "REJECT",
+        "result": "Best 60m +0.127R, t=+1.53; drop top-5 trades +0.049R."
+      },
+      {
+        "name": "Bias = price vs today's open",
+        "verdict": "REJECT",
+        "result": "5m/15m net-negative (t down to −2.87)."
+      },
+      {
+        "name": "Post's own window (NQ 5m 2025–26)",
+        "verdict": "REJECT",
+        "result": "No cell above t=1.2."
+      }
+    ]
   }
 ]
 </script>

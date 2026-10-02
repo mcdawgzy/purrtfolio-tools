@@ -696,3 +696,38 @@
     A free opening-range indicator lets you fade or follow the first break of any time window. Across 12 years
     of Nasdaq and S&P futures, none of its 50 settings made money after costs — and its win rate is about what
     a coin flip gives with a target twice the size of the stop.
+
+- id: S140
+  slug: open-atr-coil-breakout
+  title: "Open ± 2.5 × ATR(20) breakout, only when ATR is coiling (social post)"
+  public_title: "Open ± 2.5 × ATR breakout, only on low-volatility (coiling) days"
+  family: orb-momentum
+  mechanism: intraday-momentum
+  source: {type: social, name: "Social-media post pasted by the user (no backtest, no costs)"}
+  public_source: "A social-media trading post"
+  instruments: [NQ, ES, US100, US500, US30]
+  products: [futures, CFD]
+  timeframe: RTH daily ATR, 1m stop-order entry, exit at the close
+  data: NQ / ES 1m 2010-08→2022-10 (3,031 sessions); FTMO index CFD 1m 2024-08→2026-07
+  tested: 2026-10-02
+  closed: 2026-10-02
+  verdict: REJECT
+  headline: >-
+    The posted rule barely fires: a 2.5 × daily-ATR move from the open happened on 0.6% of NQ days, and with
+    the coil filter that left 7 trades in 12 years (all short), +0.13R, t=+0.26. 2/5 pre-registered criteria.
+  why: >-
+    At multipliers that actually trade (0.5–1.5) there is no edge either way, and the coil filter adds
+    nothing — it hurts at K=0.5 on NQ and is flat on ES.
+  lesson: For any "open + k × ATR" rule, print how often it triggers first. Above ~1.5 × daily ATR it is a near-empty rule.
+  variants:
+    - {name: "K=0.5 coil vs expanding", verdict: REJECT, result: "NQ coil +0.007R vs expanding +0.060R — the filter hurts."}
+    - {name: "K=1.5 coil", verdict: REJECT, result: "NQ +0.09R, t=+0.69 (n=62); ES every coil cell ≤ +0.08R at t<0.7."}
+    - {name: "ATR period 15/25/40", verdict: REJECT, result: "Sign flips across periods at K=2.5 because n is 2–7."}
+  refs:
+    ledger: "\"Open + 2.5 × ATR(20) breakout, only when coiling\" — 2026-10-02"
+    scripts: [scripts/eda_atr_coil_breakout.py]
+    prs: [244]
+  visibility: public
+  public_summary: >-
+    A breakout of the open by 2.5 daily ATRs, taken only when volatility is contracting, traded 7 times in
+    12 years of Nasdaq futures. At sizes that trade more often, the "coiling" filter made no difference.

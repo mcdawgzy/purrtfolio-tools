@@ -222,3 +222,44 @@
   public_summary: >-
     Trading retests of "wickless" candles as liquidity zones lost money on all three US indices at
     every setting we tried.
+
+- id: S141
+  slug: pdh-pdl-failed-sweep-fade
+  title: "PropQuantX — fade failed sweeps of yesterday's high/low with daily bias (X post)"
+  public_title: "Fade failed sweeps of yesterday's high/low, target the other side"
+  family: ict-smc
+  mechanism: intraday-mean-reversion
+  source: {type: social, name: "X @PropQuantX", url: "https://x.com/PropQuantX/status/2105167034690769406"}
+  public_source: "A popular X trading account"
+  instruments: [NQ, ES, US100]
+  products: [futures, CFD]
+  timeframe: 5/15/60m signal candle, 1m resolution, flat by 17:00 NY (full Globex session)
+  data: NQ / ES 1m Globex 2010-06→2022-10 (3,137 sessions); NQ 5m 2025-05→2026-09; FTMO US100 CFD 1m 2024-05→2026-07
+  tested: 2026-10-03
+  closed: 2026-10-03
+  verdict: REJECT
+  headline: >-
+    Claimed +$32.6k on NQ 2020–26 (WR 23%, PF 1.19). Best of 9 cells over 12 years of NQ: +0.127R, t=+1.53
+    (needs 2.54). Trades that hit stop or target won 17.7% vs an 18.6% coin-flip rate and netted −207R; all
+    the profit was trades closed at 17:00. 3/6 pre-registered criteria.
+  why: >-
+    The sweep-fade bracket reaches the far side of the range no more often than chance. Every cell lost over
+    2010–19 and gained over 2020–22, so the post's Jan-2020 start sits in the one favourable regime; ES lost
+    in all 12 cells and the FTMO CFD in 11.
+  lesson: >-
+    A low win rate with a far target produces PF > 1 by geometry alone. Split P&L by exit type, and check the
+    years before a vendor backtest starts.
+  variants:
+    - {name: "Bias = yesterday's candle colour", verdict: REJECT, result: "Best 60m +0.055R, t=+0.59."}
+    - {name: "Bias = yesterday's close vs SMA20", verdict: REJECT, result: "Best 60m +0.127R, t=+1.53; drop top-5 trades +0.049R."}
+    - {name: "Bias = price vs today's open", verdict: REJECT, result: "5m/15m net-negative (t down to −2.87)."}
+    - {name: "Post's own window (NQ 5m 2025–26)", verdict: REJECT, result: "No cell above t=1.2."}
+  refs:
+    ledger: "PropQuantX \"fade failed sweeps of yesterday's high/low\" — 2026-10-03"
+    scripts: [scripts/eda_pdhl_sweep_fade.py]
+    prs: [245]
+  visibility: public
+  public_summary: >-
+    "They hunt your stops, so trade the stop hunt": fading failed sweeps of yesterday's high or low reached the
+    other side of the range no more often than a coin flip over 12 years of Nasdaq futures. It only looked good
+    because its backtest started in 2020.
