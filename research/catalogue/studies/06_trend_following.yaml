@@ -190,3 +190,46 @@
   public_summary: >-
     Holding a 3× bull and 3× bear ETF pair is a bet on trending markets that chop erodes; it is not an
     edge.
+
+- id: S142
+  slug: gold-45m-ema20
+  title: "@invester_trade — gold 45-minute chart × 20 EMA, \"33 wins / 9 losses\" (X post)"
+  public_title: "Gold on the 45-minute chart with a 20 EMA"
+  family: trend-following
+  mechanism: trend-following-ema-reversal
+  source: {type: social, name: "X @invester_trade", url: "https://x.com/invester_trade/status/2105238372499521638"}
+  public_source: "A popular X trading account"
+  instruments: [XAUUSD, GLD]
+  products: [CFD, ETF]
+  timeframe: 45m bars (1m path for stops/targets); GLD 4h for the long-history check
+  data: FTMO XAUUSD 1m 2024-05→2026-06 (2.03y, gold +86%); GLD 4h 2010-08→2026-08
+  tested: 2026-10-04
+  closed: 2026-10-04
+  verdict: REJECT
+  headline: >-
+    Claimed 78.6% win rate on 42 trades, no rules given. EMA-touch pullback bracket lost before costs at every
+    reward:risk (RR 0.33 won 75.3% vs a 75% coin flip). EMA-cross long-only made CAGR +26.1%, MaxDD −12.5%,
+    Sharpe 1.28 — below buy & hold (+35.8%, DD −20.1%), DSR 0.80.
+  why: >-
+    The only reading that made money was "be long gold" during a +86% gold run, with half the exposure. On GLD
+    4h 2010–26 the same cross made +5.6% CAGR vs buy & hold +8.2%, its timing was not significant (81st pct
+    shift null), and all the profit came in 2023–26. 45m × 20 was not special among its neighbours.
+  lesson: >-
+    A high win rate with no payoff ratio is just a small target. Gold intraday history is ~2 years of bull
+    market — benchmark any gold rule against buy & hold and re-check on GLD back to 2010.
+  variants:
+    - {name: "EMA cross, stop-and-reverse", verdict: REJECT, result: "CAGR +17.4%, MaxDD −19.0%, Sharpe 0.69, t=+1.18."}
+    - {name: "EMA cross, long-only", verdict: REJECT, result: "CAGR +26.1%, MaxDD −12.5%, PF 1.32, WR 24.8%; < buy & hold, DSR 0.80."}
+    - {name: "EMA cross, short-only", verdict: REJECT, result: "CAGR −6.9%, MaxDD −29.0%."}
+    - {name: "EMA pullback, 1×ATR stop, RR 0.33–2", verdict: REJECT, result: "Gross ≤ $0 at every RR; RR 1.0 CAGR −47.9%, MaxDD −77.5% at 1% risk."}
+    - {name: "EMA pullback, exit on close through EMA", verdict: REJECT, result: "CAGR +17.2%, MaxDD −40.3%, t=+0.79."}
+    - {name: "GLD 4h EMA20 long, 2010–26", verdict: REJECT, result: "CAGR +5.6% vs buy & hold +8.2%; 10/17 years positive."}
+  refs:
+    ledger: "@invester_trade \"45-minute chart × 20 EMA\" on gold — 2026-10-04"
+    scripts: [scripts/eda_xauusd_45m_ema20.py]
+    prs: [253]
+  visibility: public
+  public_summary: >-
+    "45-minute chart, 20 EMA, 78% win rate" on gold: the high-win-rate version loses money before costs, and the
+    version that makes money is just being long gold in a bull market — it earned less than buy & hold, and over
+    16 years it trailed buy & hold too.
