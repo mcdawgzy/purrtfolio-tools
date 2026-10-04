@@ -4,7 +4,7 @@
 
 One record per tested study, grouped by strategy family, for publishing. The research record behind each one is `STRATEGY_LEDGER.md` and `src/trading_hub/optimize/mechanisms.py` in the trading_hub repo.
 
-**103 studies, 169 named variants.**
+**104 studies, 175 named variants.**
 
 | Verdict | Studies |
 |---|---|
@@ -15,7 +15,7 @@ One record per tested study, grouped by strategy family, for publishing. The res
 | 🔎 Open lead, not validated | 3 |
 | 🟠 Real but underpowered | 2 |
 | ⏸️ Parked | 2 |
-| ❌ Rejected | 85 |
+| ❌ Rejected | 86 |
 | ⚪ Not tested | 1 |
 
 Visibility: `public` = safe to publish as written; `review` = your call (a surviving edge, or tied to the real-money account); `private` = your own system or journal, never published.
@@ -127,6 +127,7 @@ Visibility: `public` = safe to publish as written; `review` = your call (a survi
 | [S139](#s139) | TradingView "Time Range ORB Detector [34ematrader]" — first-break fade / breakout, 1.0/0.5 ATR bracket | orb-momentum | vendor | ❌ Rejected | public |
 | [S140](#s140) | Open ± 2.5 × ATR(20) breakout, only when ATR is coiling (social post) | orb-momentum | social | ❌ Rejected | public |
 | [S141](#s141) | PropQuantX — fade failed sweeps of yesterday's high/low with daily bias (X post) | ict-smc | social | ❌ Rejected | public |
+| [S142](#s142) | @invester_trade — gold 45-minute chart × 20 EMA, "33 wins / 9 losses" (X post) | trend-following | social | ❌ Rejected | public |
 
 ## Opening range & intraday momentum
 
@@ -1575,6 +1576,31 @@ _Refs: pre-reg `docs/prereg/2026-09-26_paper_library_futures_battery.md`; script
 - **Why:** Studied for its path properties, not as an alpha hypothesis.
 
 > Holding a 3× bull and 3× bear ETF pair is a bet on trending markets that chop erodes; it is not an edge.
+
+### S142
+
+**@invester_trade — gold 45-minute chart × 20 EMA, "33 wins / 9 losses" (X post)** — ❌ Rejected · `public`
+
+- **Source:** social — X @invester_trade (https://x.com/invester_trade/status/2105238372499521638)
+- **Tested:** 2026-10-04 → closed 2026-10-04 · XAUUSD, GLD · CFD, ETF · 45m bars (1m path for stops/targets); GLD 4h for the long-history check
+- **Data:** FTMO XAUUSD 1m 2024-05→2026-06 (2.03y, gold +86%); GLD 4h 2010-08→2026-08
+- **Mechanism:** `trend-following-ema-reversal`
+- **Headline:** Claimed 78.6% win rate on 42 trades, no rules given. EMA-touch pullback bracket lost before costs at every reward:risk (RR 0.33 won 75.3% vs a 75% coin flip). EMA-cross long-only made CAGR +26.1%, MaxDD −12.5%, Sharpe 1.28 — below buy & hold (+35.8%, DD −20.1%), DSR 0.80.
+- **Why:** The only reading that made money was "be long gold" during a +86% gold run, with half the exposure. On GLD 4h 2010–26 the same cross made +5.6% CAGR vs buy & hold +8.2%, its timing was not significant (81st pct shift null), and all the profit came in 2023–26. 45m × 20 was not special among its neighbours.
+- **Lesson:** A high win rate with no payoff ratio is just a small target. Gold intraday history is ~2 years of bull market — benchmark any gold rule against buy & hold and re-check on GLD back to 2010.
+
+| Variant | Verdict | Result |
+|---|---|---|
+| EMA cross, stop-and-reverse | REJECT | CAGR +17.4%, MaxDD −19.0%, Sharpe 0.69, t=+1.18. |
+| EMA cross, long-only | REJECT | CAGR +26.1%, MaxDD −12.5%, PF 1.32, WR 24.8%; < buy & hold, DSR 0.80. |
+| EMA cross, short-only | REJECT | CAGR −6.9%, MaxDD −29.0%. |
+| EMA pullback, 1×ATR stop, RR 0.33–2 | REJECT | Gross ≤ $0 at every RR; RR 1.0 CAGR −47.9%, MaxDD −77.5% at 1% risk. |
+| EMA pullback, exit on close through EMA | REJECT | CAGR +17.2%, MaxDD −40.3%, t=+0.79. |
+| GLD 4h EMA20 long, 2010–26 | REJECT | CAGR +5.6% vs buy & hold +8.2%; 10/17 years positive. |
+
+_Refs: scripts `scripts/eda_xauusd_45m_ema20.py`; PRs #253; ledger: @invester_trade "45-minute chart × 20 EMA" on gold — 2026-10-04_
+
+> "45-minute chart, 20 EMA, 78% win rate" on gold: the high-win-rate version loses money before costs, and the version that makes money is just being long gold in a bull market — it earned less than buy & hold, and over 16 years it trailed buy & hold too.
 
 
 ## Volume, breadth & order flow
