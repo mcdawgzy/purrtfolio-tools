@@ -4,7 +4,7 @@
 
 One record per tested study, grouped by strategy family, for publishing. The research record behind each one is `STRATEGY_LEDGER.md` and `src/trading_hub/optimize/mechanisms.py` in the trading_hub repo.
 
-**105 studies, 178 named variants.**
+**106 studies, 182 named variants.**
 
 | Verdict | Studies |
 |---|---|
@@ -15,7 +15,7 @@ One record per tested study, grouped by strategy family, for publishing. The res
 | 🔎 Open lead, not validated | 3 |
 | 🟠 Real but underpowered | 2 |
 | ⏸️ Parked | 2 |
-| ❌ Rejected | 87 |
+| ❌ Rejected | 88 |
 | ⚪ Not tested | 1 |
 
 Visibility: `public` = safe to publish as written; `review` = your call (a surviving edge, or tied to the real-money account); `private` = your own system or journal, never published.
@@ -129,6 +129,7 @@ Visibility: `public` = safe to publish as written; `review` = your call (a survi
 | [S141](#s141) | PropQuantX — fade failed sweeps of yesterday's high/low with daily bias (X post) | ict-smc | social | ❌ Rejected | public |
 | [S142](#s142) | @invester_trade — gold 45-minute chart × 20 EMA, "33 wins / 9 losses" (X post) | trend-following | social | ❌ Rejected | public |
 | [S143](#s143) | edgeful — Wednesday NQ IB: "low forms first → high breaks first 78.57%" (X post) | orb-momentum | vendor | ❌ Rejected | public |
+| [S144](#s144) | Herman Trading — CCI mean-reversion on COMEX gold, London 02:00–08:00 NY, "$10,000 → $46,519" (X post) | intraday-mean-reversion | social | ❌ Rejected | public |
 
 ## Opening range & intraday momentum
 
@@ -958,6 +959,29 @@ _Refs: scripts `scripts/discover_intraday.py`, `scripts/intraday_cost_frontier.p
 - **Lesson:** This is why the drop-the-best-trade check exists.
 
 > Fading big overnight gaps was the first idea to pass our walk-forward test — and was shelved the same day, because removing one trade on each index turned it negative.
+
+### S144
+
+**Herman Trading — CCI mean-reversion on COMEX gold, London 02:00–08:00 NY, "$10,000 → $46,519" (X post)** — ❌ Rejected · `public`
+
+- **Source:** social — X @RHerman (Herman Trading)
+- **Tested:** 2026-10-06 → closed 2026-10-06 · GC, XAUUSD · futures, CFD · 1m, 02:00–08:00 New York, holds of minutes
+- **Data:** FTMO XAUUSD 1m 2024-05→2025-10 (holdout from 2025-11 reserved; the claim's year lies in it)
+- **Mechanism:** `intraday-mean-reversion`
+- **Headline:** The report's own numbers imply +0.52pt/trade before costs (0.257pt cost). Our replication gave ~0 before costs in every reading and all 15 CCI settings (−0.08..+0.04pt); net −0.42pt/trade, random-entry null 27th pct.
+- **Why:** One-minute gold barely reverts after a CCI extreme — random entries at the same hour, direction and hold do as well, so there is nothing to pay any spread with.
+- **Lesson:** Back the gross edge out of a report card first — (no-cost result − net result) / trades — then test that number.
+
+| Variant | Verdict | Result |
+|---|---|---|
+| CCI(20) leaves ±100, exit at CCI 0 | REJECT | 19 trades/day, gross −0.02pt, net −0.42pt, Sharpe −15.1 [−18.5, −12.6]; null 27th pct. |
+| CCI(20) enters ±100, exit at CCI 0 | REJECT | WR 60% but avg win 1.05pt vs loss 2.57pt; gross +0.00pt, null 46th pct. |
+| leaves ±100, 1.5×ATR stop / 1.0×ATR target | REJECT | resolved WR 59.0% vs 60.0% coin-flip; −0.34R. |
+| CCI length 10–40 × level 100–200 grid | REJECT | 0/15 cells net-positive; 4/15 gross-positive. |
+
+_Refs: scripts `scripts/eda_herman_gold_cci_london.py`; PRs #257; ledger: Herman Trading "CCI mean-reversion on COMEX gold, London session — $10,000 → $46,519" — 2026-10-06_
+
+> A trader showed a gold bot turning $10,000 into $46,519 in a year by fading CCI extremes in the London session. On the 17 months of gold before that year, no version of the rule made money even before costs.
 
 
 ## Daily dip-buying & short-term reversal
