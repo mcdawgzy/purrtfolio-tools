@@ -3976,5 +3976,50 @@
         "result": "CAGR +5.6% vs buy & hold +8.2%; 10/17 years positive."
       }
     ]
+  },
+  {
+    "id": "S143",
+    "slug": "wednesday-ib-low-first",
+    "title": "Wednesday initial balance: when the low forms first, does the high break first?",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "vendor",
+    "source": "An ORB analytics vendor",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "NQ",
+      "US100"
+    ],
+    "products": [
+      "futures",
+      "CFD"
+    ],
+    "timeframe": "1m, 09:30–10:30 initial balance, Wednesdays",
+    "data": "NQ 1m 2010-06→2022-10; NQ futures last 6 months (claim check); FTMO US100 CFD 1m 2024-05→2025-11",
+    "tested": "2026-10-05",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "The vendor's 11/14 = 78.6% reproduces exactly, but a random walk from the 10:30 price predicts 79.7%. NQ 2010-22 Wednesdays: 73.0% vs 72.9% baseline (n=330); the trade nets −0.008R, 34th pct of a random-Wednesday null.",
+    "why": "If the low formed first, price has rallied since, so at 10:30 it already sits near the high — \"which side breaks first\" is mostly distance to each side.",
+    "lesson": "Compare any \"X breaks first N%\" rate with the distance-to-each-side (gambler's-ruin) baseline, never with 50%.",
+    "summary": "A vendor said that on Wednesdays, when Nasdaq's first-hour low forms before its high, the high breaks first 78.57% of the time. It does — but a coin-flip price path from the same spot does so 79.7% of the time.",
+    "variants": [
+      {
+        "name": "race bracket 10:30 → IB high, stop IB low",
+        "verdict": "REJECT",
+        "result": "CFD WR 81.0% vs 77.9% baseline, Sharpe +0.25 [−1.16, 1.69]; NQ −0.008R."
+      },
+      {
+        "name": "buy-stop at IB high if it breaks first, stop IB mid",
+        "verdict": "REJECT",
+        "result": "NQ +0.17R, but 83rd pct vs any Wednesday's IB-high breakout — the filter adds nothing."
+      },
+      {
+        "name": "long 10:30 → close",
+        "verdict": "REJECT",
+        "result": "NQ −4.3pt/trade; CFD null 73rd pct."
+      }
+    ]
   }
 ]

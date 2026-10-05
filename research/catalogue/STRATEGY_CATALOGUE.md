@@ -4,7 +4,7 @@
 
 One record per tested study, grouped by strategy family, for publishing. The research record behind each one is `STRATEGY_LEDGER.md` and `src/trading_hub/optimize/mechanisms.py` in the trading_hub repo.
 
-**104 studies, 175 named variants.**
+**105 studies, 178 named variants.**
 
 | Verdict | Studies |
 |---|---|
@@ -15,7 +15,7 @@ One record per tested study, grouped by strategy family, for publishing. The res
 | 🔎 Open lead, not validated | 3 |
 | 🟠 Real but underpowered | 2 |
 | ⏸️ Parked | 2 |
-| ❌ Rejected | 86 |
+| ❌ Rejected | 87 |
 | ⚪ Not tested | 1 |
 
 Visibility: `public` = safe to publish as written; `review` = your call (a surviving edge, or tied to the real-money account); `private` = your own system or journal, never published.
@@ -128,6 +128,7 @@ Visibility: `public` = safe to publish as written; `review` = your call (a survi
 | [S140](#s140) | Open ± 2.5 × ATR(20) breakout, only when ATR is coiling (social post) | orb-momentum | social | ❌ Rejected | public |
 | [S141](#s141) | PropQuantX — fade failed sweeps of yesterday's high/low with daily bias (X post) | ict-smc | social | ❌ Rejected | public |
 | [S142](#s142) | @invester_trade — gold 45-minute chart × 20 EMA, "33 wins / 9 losses" (X post) | trend-following | social | ❌ Rejected | public |
+| [S143](#s143) | edgeful — Wednesday NQ IB: "low forms first → high breaks first 78.57%" (X post) | orb-momentum | vendor | ❌ Rejected | public |
 
 ## Opening range & intraday momentum
 
@@ -624,6 +625,28 @@ _Refs: scripts `scripts/eda_time_range_orb_34ema.py`; PRs #242; ledger: TradingV
 _Refs: scripts `scripts/eda_atr_coil_breakout.py`; PRs #244; ledger: "Open + 2.5 × ATR(20) breakout, only when coiling" — 2026-10-02_
 
 > A breakout of the open by 2.5 daily ATRs, taken only when volatility is contracting, traded 7 times in 12 years of Nasdaq futures. At sizes that trade more often, the "coiling" filter made no difference.
+
+### S143
+
+**edgeful — Wednesday NQ IB: "low forms first → high breaks first 78.57%" (X post)** — ❌ Rejected · `public`
+
+- **Source:** vendor — edgeful.com
+- **Tested:** 2026-10-05 → closed 2026-10-05 · NQ, US100 · futures, CFD · 1m, 09:30–10:30 initial balance, Wednesdays
+- **Data:** NQ 1m 2010-06→2022-10; NQ futures last 6 months (claim check); FTMO US100 CFD 1m 2024-05→2025-11
+- **Mechanism:** `intraday-momentum`
+- **Headline:** The vendor's 11/14 = 78.6% reproduces exactly, but a random walk from the 10:30 price predicts 79.7%. NQ 2010-22 Wednesdays: 73.0% vs 72.9% baseline (n=330); the trade nets −0.008R, 34th pct of a random-Wednesday null.
+- **Why:** If the low formed first, price has rallied since, so at 10:30 it already sits near the high — "which side breaks first" is mostly distance to each side.
+- **Lesson:** Compare any "X breaks first N%" rate with the distance-to-each-side (gambler's-ruin) baseline, never with 50%.
+
+| Variant | Verdict | Result |
+|---|---|---|
+| race bracket 10:30 → IB high, stop IB low | REJECT | CFD WR 81.0% vs 77.9% baseline, Sharpe +0.25 [−1.16, 1.69]; NQ −0.008R. |
+| buy-stop at IB high if it breaks first, stop IB mid | REJECT | NQ +0.17R, but 83rd pct vs any Wednesday's IB-high breakout — the filter adds nothing. |
+| long 10:30 → close | REJECT | NQ −4.3pt/trade; CFD null 73rd pct. |
+
+_Refs: scripts `scripts/eda_edgeful_wed_ib_low_first.py`; PRs #256; ledger: edgeful "Wednesday NQ IB — low forms first → high breaks first 78.57%" — 2026-10-05_
+
+> A vendor said that on Wednesdays, when Nasdaq's first-hour low forms before its high, the high breaks first 78.57% of the time. It does — but a coin-flip price path from the same spot does so 79.7% of the time.
 
 
 ## ICT / smart-money concepts (FVG, sweeps, SMT)
