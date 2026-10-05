@@ -4021,5 +4021,55 @@
         "result": "NQ −4.3pt/trade; CFD null 73rd pct."
       }
     ]
+  },
+  {
+    "id": "S144",
+    "slug": "gold-cci-london-mean-reversion",
+    "title": "CCI mean reversion on gold in the London session: does the $10k → $46k backtest hold up?",
+    "family": "intraday-mean-reversion",
+    "family_title": "Intraday fades & mean reversion",
+    "source_type": "social",
+    "source": "A gold futures trader on X going live with an automated bot",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "GC",
+      "XAUUSD"
+    ],
+    "products": [
+      "futures",
+      "CFD"
+    ],
+    "timeframe": "1m, 02:00–08:00 New York, holds of minutes",
+    "data": "FTMO XAUUSD 1m 2024-05→2025-10 (holdout from 2025-11 reserved; the claim's year lies in it)",
+    "tested": "2026-10-06",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "The report's own numbers imply +0.52pt/trade before costs (0.257pt cost). Our replication gave ~0 before costs in every reading and all 15 CCI settings (−0.08..+0.04pt); net −0.42pt/trade, random-entry null 27th pct.",
+    "why": "One-minute gold barely reverts after a CCI extreme — random entries at the same hour, direction and hold do as well, so there is nothing to pay any spread with.",
+    "lesson": "Back the gross edge out of a report card first — (no-cost result − net result) / trades — then test that number.",
+    "summary": "A trader showed a gold bot turning $10,000 into $46,519 in a year by fading CCI extremes in the London session. On the 17 months of gold before that year, no version of the rule made money even before costs.",
+    "variants": [
+      {
+        "name": "CCI(20) leaves ±100, exit at CCI 0",
+        "verdict": "REJECT",
+        "result": "19 trades/day, gross −0.02pt, net −0.42pt, Sharpe −15.1 [−18.5, −12.6]; null 27th pct."
+      },
+      {
+        "name": "CCI(20) enters ±100, exit at CCI 0",
+        "verdict": "REJECT",
+        "result": "WR 60% but avg win 1.05pt vs loss 2.57pt; gross +0.00pt, null 46th pct."
+      },
+      {
+        "name": "leaves ±100, 1.5×ATR stop / 1.0×ATR target",
+        "verdict": "REJECT",
+        "result": "resolved WR 59.0% vs 60.0% coin-flip; −0.34R."
+      },
+      {
+        "name": "CCI length 10–40 × level 100–200 grid",
+        "verdict": "REJECT",
+        "result": "0/15 cells net-positive; 4/15 gross-positive."
+      }
+    ]
   }
 ]
