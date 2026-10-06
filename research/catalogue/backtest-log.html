@@ -4397,6 +4397,66 @@ footer { padding-block: 36px 0; color: var(--faint); font-size: 13px; }
         "result": "Extra trades SPY +30.9, QQQ +43.6, DIA +11.7bp/trade."
       }
     ]
+  },
+  {
+    "id": "S147",
+    "slug": "ict-1h-sweep-fvg-ifvg-nq",
+    "title": "Sweep of the 1-hour high/low, then a fair-value-gap or inverted-gap entry on 6–7 minute bars",
+    "family": "ict-smc",
+    "family_title": "ICT / smart-money concepts (FVG, sweeps, SMT)",
+    "source_type": "social",
+    "source": "A popular X trading account automating another trader's ICT strategy",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "NQ",
+      "US100"
+    ],
+    "products": [
+      "futures",
+      "CFD"
+    ],
+    "timeframe": "6m/7m execution bars, 1h levels, 1m resolution, entries 09:30–16:00 NY, flat 16:55",
+    "data": "NQ 1m Globex 2010-06→2021-09 (2,821 sessions); FTMO US100 CFD 1m 2024-05→2025-11; NQ 1m 2026-03→2026-09 (post's own window)",
+    "tested": "2026-10-07",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Claimed +$34.6k gross on NQ 2021–Feb 2026 (512 trades, PF 1.31) and +$15.4k on a 6-month holdout. No rules were published; over 11 years of NQ our readings average +0.004R gross per trade (net −0.039R, t=−1.61) across 2,797 trades, and the same bracket at the same minute on random days scores the same (56th percentile).",
+    "why": "The sweep-plus-gap entry carries no timing information: trades that hit stop or target won 30.3% vs a 33.3% coin-flip rate at 2R, only 3 of 15 timeframe × target settings were positive, and all three ~4-year thirds lost. The long side's small gain is the 2010–21 bull market; shorts lost.",
+    "lesson": "A vendor result built on unpublished rules and a 6-month holdout can't be checked; screen pre-declared readings over a long history and compare with the same trade at the same minute on random days.",
+    "summary": "\"Liquidity sweep, then the gap flips\": entering after price takes out the previous hour's high or low and a fair-value gap forms (or an old one is broken) did no better than the same trade at the same time on random days, over 11 years of Nasdaq futures.",
+    "variants": [
+      {
+        "name": "Prior 1h candle sweep, 6m, FVG or IFVG (chart top panel)",
+        "verdict": "REJECT",
+        "result": "2,797 trades, gross +0.004R, net −0.039R, t=−1.61; placebo 56th pct."
+      },
+      {
+        "name": "Prior 1h candle sweep, 7m, IFVG only (chart bottom panel)",
+        "verdict": "REJECT",
+        "result": "2,337 trades, net −0.052R, t=−2.03; placebo 34th pct."
+      },
+      {
+        "name": "1h swing high/low sweep, 6m, FVG or IFVG",
+        "verdict": "REJECT",
+        "result": "1,860 trades, net +0.006R, t=+0.22."
+      },
+      {
+        "name": "Timeframe 5–10m × target 1.5/2/3R grid",
+        "verdict": "REJECT",
+        "result": "3 of 15 cells positive, median Sharpe −0.31."
+      },
+      {
+        "name": "FTMO US100 CFD (2024–25)",
+        "verdict": "REJECT",
+        "result": "Net +0.012R, t=+0.19; challenge pass rate 0.2%."
+      },
+      {
+        "name": "Post's own Mar–Sep 2026 window",
+        "verdict": "REJECT",
+        "result": "Top-panel reading −$1,590 (claim +$15,370); 6 months can't separate either from zero."
+      }
+    ]
   }
 ]
 </script>
