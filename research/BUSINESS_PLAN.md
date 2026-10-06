@@ -1,103 +1,71 @@
 # Research business plan
 
-Internal note (not deployed; only `static/` is public). Decided 2026-09-29.
+Internal note (not deployed; only `static/` is public). Decided 2026-09-29; simplified
+2026-10-07 to an X-first model.
 
 ## Positioning
 
-We don't sell strategies, signals or bots. We sell honest tests of the strategies
-other people are selling. The one-minute ORB study (rejected: +0.008R/trade after
-costs, t = 0.10) is the template and proof of method: real tick data, pre-registered
-decision rule, real spreads, opposite-direction and random-direction controls.
-"Rejected" results are content, not failures.
+We don't sell strategies, signals or bots. We test the strategies other people are
+selling, honestly, and post the results. The one-minute ORB study (rejected:
++0.008R/trade after costs, t = 0.10) is the template and proof of method: real tick
+data, pre-registered decision rule, real spreads, opposite-direction and
+random-direction controls. "Rejected" results are content, not failures.
 
-## Model
+## Model (2026-10-07)
 
-1. **Free tier (top of funnel)**
-   - A few free tools on the site, e.g. a cost/breakeven calculator (stop size,
-     spread, R:R → required win rate, whether an edge survives costs) and a
-     prop-firm challenge simulator.
-   - Public posts: each study's verdict, poster and X thread, plus the Research page.
-2. **Monthly subscription (members)**
-   - Members submit strategies to test and vote on submissions (crowdsourced queue).
-   - We test the most popular ones each cycle.
-   - Full studies and results go to members first: per-trade data, every variant,
-     code/notebook. Public gets the verdict summary (possibly after a delay).
+- **Revenue: our posts on X.** X is the main income stream, so every study is
+  packaged for X first: thread, poster, single follow-up posts, replies.
+- **Website: free and open.** Every study is published in full on the Research page,
+  next to the free tools (e.g. the cost/breakeven calculator on the ORB page). The
+  site is where X posts link for the full breakdown; it asks for nothing.
+- **Strategy ideas** come from our own strategies and from replies on X. There is no
+  request form; good ideas from replies go into triage.
 
-## Income without a subscription (decided 2026-10-01)
-
-The subscription above is optional. These come first:
-
-- **Paid testing.** Public test (lower price, published with the source anonymised)
-  or private test (full price, report to the client only). The client approves the
-  pre-registration spec before the run: they pay for the test, not the result.
-- **Our own strategies.** They go through the same pipeline. Rejected ones are free
-  studies; passed ones are published in full, with the code + full report sold as a
-  one-off download.
-- **Email list** (free) is the asset everything else depends on.
+Dropped on 2026-10-07: the email list (Buttondown), the "Request a test" form (Tally),
+the members subscription, and paid public/private testing.
 
 ## Process flow
 
-Every study, whatever its source, runs through one pipeline:
-
 ```text
-Sources: own strategies | free public requests (reader votes) | paid requests (public/private)
+Sources: own strategies | ideas from X replies
    │
    ▼
-1 Intake      one "Request a test" form → one queue
-2 Triage      weekly: paid first, then own strategies + top-voted requests; reject untestable rules
-3 Pre-register rules + decision rule written down; paid clients sign off the spec
-4 Test        in trading_hub: tick data, real costs, opposite/random-direction controls
-5 Verdict     Pass / Rejected / Inconclusive by the pre-registered rule
-6 Record      catalogue YAML here (research/catalogue/studies/) → build_catalogue.py;
+1 Triage      weekly: pick the next study; reject untestable rules
+2 Pre-register rules + decision rule written down
+3 Test        in trading_hub: tick data, real costs, opposite/random-direction controls
+4 Verdict     Pass / Rejected / Inconclusive by the pre-registered rule
+5 Record      catalogue YAML here (research/catalogue/studies/) → build_catalogue.py;
               test_catalogue.py fails if trading_hub has a study with no record
-7 Package     public: study page + og/cards + X thread + email (+ paid download if own & passed)
-              private: report to the client only
+6 Package     study page + og/cards + X thread + follow-up posts
    │
    ▼
-Distribution: X thread → study page → email signup / "Request a test" → back to 1
+Distribution: X thread → study page → replies on X → back to 1
 ```
 
 **Fortnightly rhythm** (one public study every two weeks):
 
 | Day | Week A | Week B |
 |---|---|---|
-| Mon | Triage, write the pre-registration | Package: page, cards, thread, email |
-| Tue–Wed | Run the test | Publish: page + email; thread near the US open |
-| Thu–Fri | Reuse the last study as 1–2 single X posts | Replies → steer good ideas to the request form |
+| Mon | Triage, write the pre-registration | Package: page, cards, thread |
+| Tue–Wed | Run the test | Publish: page; thread near the US open |
+| Thu–Fri | Reuse the last study as 1–2 single X posts | Reply to comments; note ideas worth testing |
 
-Paid private tests take the Tue–Wed test slots.
+**Tools:** site = GitHub Pages; study record = the catalogue; visits = GoatCounter
+(purrtfolio.goatcounter.com; tag links shared on X with `?ref=x`).
 
-**Tools, one of each:** site = GitHub Pages; email = Buttondown; request form = Tally
-(feeds the queue); payments = Stripe Payment Links or Lemon Squeezy; study record =
-the catalogue; visits = GoatCounter (purrtfolio.goatcounter.com; tag shared links
-`?ref=x` / `?ref=email`; signup and request clicks are counted as events).
-
-**Weekly numbers:** X impressions, page visits, email subscribers, test requests,
-paid tests.
-
-### Rollout
-
-- **Phase 0 (before the ORB thread):** ORB page gets the cost/breakeven calculator,
-  equity curve, "what we'd test next" and the signup + request block (done on
-  `feat/research-growth`; the block stays hidden until `BUTTONDOWN_USER` and
-  `REQUEST_FORM_URL` are set in `static/research/research-cta.js`; both set 2026-10-02).
-- **Phase 1 (weeks 1–4):** post the ORB thread (page link + signup in the first
-  reply, not in the posts), reuse it as 3 single posts, publish study #2 from our
-  own strategies, ideally one that passed.
-- **Phase 2 (first unprompted requests):** add prices to the form, take the first
-  paid tests.
+**Weekly numbers:** X impressions, followers, engagement on threads, X payouts, page
+visits from X.
 
 ## Rules
 
 - Never promise returns or present a strategy as profitable to trade; we report
-  test results on the rules as given, not advice. Say so in the terms.
+  test results on the rules as given, not advice.
 - Keep the existing anonymisation rules for sources (see `README.md`).
-- Check data-provider licences before sharing any raw tick data with members.
+- Check data-provider licences before publishing any raw tick data or per-trade CSVs.
 
 ## Open items
 
-- ~~Create the Buttondown account and Tally request form~~ (done 2026-10-02).
-- Prices for public and private tests; payments platform.
+- Close or archive the Buttondown account and the Tally form (no longer linked from
+  the site).
 - Licence check before offering per-trade CSV downloads on study pages.
-- Members area / subscription: only if paid testing and the list show demand.
 - ~~Build the first free tool~~ (cost/breakeven calculator on the ORB page).

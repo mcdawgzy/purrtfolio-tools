@@ -75,6 +75,6 @@ Reply:
 
 ## Replying to comments (any day)
 
-- Someone defends the strategy → thank them and ask for their exact rules: "Send me the rules and I'll test your version." Point them to the Request a test button at the bottom of the page.
+- Someone defends the strategy → thank them and ask for their exact rules: "Send me the rules and I'll test your version." Good ones become candidates for the next study.
 - Someone asks about futures or a cheaper broker → the zero-cost test still wasn't significant (t = 1.57), so lower costs don't rescue it.
 - Someone asks for the code or data → "Working on publishing the trade list." (Pending the FTMO licence check.)

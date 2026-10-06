@@ -18,8 +18,7 @@ research/
     ├── make_poster.py             # 1200x1500 poster
     ├── make_cards.py              # og.png for the page + thread/follow-up images
     ├── x-thread.md                # the thread text
-    ├── x-followups.md             # poll + single posts after the thread
-    └── email.md                   # the Buttondown email for subscribers
+    └── x-followups.md             # poll + single posts after the thread
 ```
 
 The published page for a study lives in `static/research/<slug>/` (with its `og.png`).
@@ -33,10 +32,8 @@ Research pages use the site's own theme so they read as part of the app: link
 (`--brass`, `--red`, `--green`, `--text-dim`, `--panel`…); copy the one-minute ORB page
 as the template. `make_cards.py` uses the same palette for `og.png`.
 
-Every study page ends with `<div class="cta" data-research-cta hidden></div>` and loads
-`static/research/research-cta.js`, which renders the email signup and "Request a test"
-block. Set `BUTTONDOWN_USER` and `REQUEST_FORM_URL` there once; each half stays hidden
-while its setting is empty. The whole publishing pipeline is in `BUSINESS_PLAN.md`.
+The site has no signup or request form: X is where readers follow and reply.
+The whole publishing pipeline is in `BUSINESS_PLAN.md`.
 
 ## Commands (from the repo root)
 
