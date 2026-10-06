@@ -51,4 +51,4 @@ The break direction is real, it's just thinner than the spread. What would you c
 Full breakdown, the equity curve, and a calculator to check your own setup's win rate against costs:
 https://purrtfolio.onrender.com/research/one-minute-orb/?ref=x
 
-Get the next study by email, or send me a strategy to test (public or private), at the bottom of the page.
+Follow for the next one: every study gets a thread here first.
