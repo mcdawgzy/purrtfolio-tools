@@ -185,3 +185,44 @@
     Ranking commodities by their typical performance in each calendar month showed a promising signal
     over 20 years. We parked it before accounting for futures roll and CFD financing, which could
     erase it.
+
+- id: S145
+  slug: wasserstein-kmeans-regime-timer
+  title: "Wasserstein k-means market regimes (arXiv:2110.11848) traded as a calm/turbulent timer"
+  public_title: "\"How hedge funds detect market regimes\": does a Wasserstein-clustering regime label time the S&P?"
+  family: cross-asset
+  mechanism: volatility-regime-timing
+  source: {type: paper, name: "Horvath, Issa & Muguruza 2021, arXiv:2110.11848 (via X @quantscience_)"}
+  public_source: "Horvath, Issa & Muguruza (2021), shared on X as 'the secret hedge funds use to detect market regimes'"
+  paper: P036
+  instruments: [US500, US100, SPY, QQQ]
+  products: [CFD, ETF]
+  timeframe: regime from RTH hourly returns (35-hour windows); traded 1d, ~9 switches/yr
+  data: ES/NQ 1m 2010-22 + SPY/QQQ 1m 2022-26 for the regime; US500/US100 CFD 1d 2011-06→2025-06 (holdout from 2025-07 reserved)
+  tested: 2026-10-07
+  closed: 2026-10-07
+  verdict: REJECT
+  headline: >-
+    The paper has no trading result. Fitted causally, long-calm/flat on US500: Sharpe 0.56 [0.05, 1.06] vs
+    buy & hold 0.50, but CAGR +4.7% vs +7.6%, ahead in 3/15 years. The label matches a trivial
+    "stdev above median" rule on 85% of days.
+  why: >-
+    It lowers risk but does not pick better days — shift null 99th pct on Sharpe, 44th on mean return — and
+    a one-line volatility rule reproduces most of it. Fails US100/QQQ, the window-length grid and DSR (0.015).
+  lesson: Benchmark any regime detector against a trailing-stdev rule and a null on mean return, not Sharpe alone.
+  variants:
+    - {name: "long calm / flat turbulent (US500)", verdict: REJECT, result: "Sharpe 0.56 vs B&H 0.50; CAGR +4.7% vs +7.6%; @10% vol +5.3%/−24% vs +4.6%/−21%."}
+    - {name: "long calm / flat turbulent (US100)", verdict: REJECT, result: "Sharpe 0.39 vs B&H 0.54; QQQ venue 0.84 vs 0.89."}
+    - {name: "short turbulent / long-short", verdict: REJECT, result: "US100 −14.4% and −11.4% CAGR; US500 −7.3% and −3.0%."}
+    - {name: "long turbulent only (stress premium)", verdict: REJECT, result: "+2.0% / +5.0% CAGR, below buy & hold."}
+    - {name: "window length 21–70 hours", verdict: REJECT, result: "Sharpe excess over B&H positive in 3/5 cells (US500), 0/5 (US100)."}
+    - {name: "trivial stdev-above-median control", verdict: REJECT, result: "Same label on 85% of days; WK-means minus trivial +1.8%/yr t=+1.40 (US500), −0.2% (US100)."}
+  refs:
+    ledger: "Quant Science / Horvath-Issa-Muguruza \"Wasserstein k-means market regimes\" — 2026-10-07"
+    scripts: [scripts/eda_wk_means_regime_timer.py]
+    prs: [258]
+  visibility: public
+  public_summary: >-
+    A well-shared academic method for spotting "calm" and "turbulent" markets. Trading it, by stepping
+    out of the S&P when turbulent, cut drawdowns but earned less than just holding. A simple volatility rule
+    gives almost the same signal.

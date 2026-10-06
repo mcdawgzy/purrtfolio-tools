@@ -4,7 +4,7 @@
 
 One record per tested study, grouped by strategy family, for publishing. The research record behind each one is `STRATEGY_LEDGER.md` and `src/trading_hub/optimize/mechanisms.py` in the trading_hub repo.
 
-**106 studies, 182 named variants.**
+**107 studies, 188 named variants.**
 
 | Verdict | Studies |
 |---|---|
@@ -15,7 +15,7 @@ One record per tested study, grouped by strategy family, for publishing. The res
 | 🔎 Open lead, not validated | 3 |
 | 🟠 Real but underpowered | 2 |
 | ⏸️ Parked | 2 |
-| ❌ Rejected | 88 |
+| ❌ Rejected | 89 |
 | ⚪ Not tested | 1 |
 
 Visibility: `public` = safe to publish as written; `review` = your call (a surviving edge, or tied to the real-money account); `private` = your own system or journal, never published.
@@ -130,6 +130,7 @@ Visibility: `public` = safe to publish as written; `review` = your call (a survi
 | [S142](#s142) | @invester_trade — gold 45-minute chart × 20 EMA, "33 wins / 9 losses" (X post) | trend-following | social | ❌ Rejected | public |
 | [S143](#s143) | edgeful — Wednesday NQ IB: "low forms first → high breaks first 78.57%" (X post) | orb-momentum | vendor | ❌ Rejected | public |
 | [S144](#s144) | Herman Trading — CCI mean-reversion on COMEX gold, London 02:00–08:00 NY, "$10,000 → $46,519" (X post) | intraday-mean-reversion | social | ❌ Rejected | public |
+| [S145](#s145) | Wasserstein k-means market regimes (arXiv:2110.11848) traded as a calm/turbulent timer | cross-asset | paper | ❌ Rejected | public |
 
 ## Opening range & intraday momentum
 
@@ -2096,3 +2097,28 @@ _Refs: scripts `scripts/eda_kalman_ou_pairs.py`_
 - **Why:** Never re-priced for roll yield and CFD swap over a month-long hold; not pursued because it trades monthly.
 
 > Ranking commodities by their typical performance in each calendar month showed a promising signal over 20 years. We parked it before accounting for futures roll and CFD financing, which could erase it.
+
+### S145
+
+**Wasserstein k-means market regimes (arXiv:2110.11848) traded as a calm/turbulent timer** — ❌ Rejected · `public`
+
+- **Source:** paper — Horvath, Issa & Muguruza 2021, arXiv:2110.11848 (via X @quantscience_) · paper P036
+- **Tested:** 2026-10-07 → closed 2026-10-07 · US500, US100, SPY, QQQ · CFD, ETF · regime from RTH hourly returns (35-hour windows); traded 1d, ~9 switches/yr
+- **Data:** ES/NQ 1m 2010-22 + SPY/QQQ 1m 2022-26 for the regime; US500/US100 CFD 1d 2011-06→2025-06 (holdout from 2025-07 reserved)
+- **Mechanism:** `volatility-regime-timing`
+- **Headline:** The paper has no trading result. Fitted causally, long-calm/flat on US500: Sharpe 0.56 [0.05, 1.06] vs buy & hold 0.50, but CAGR +4.7% vs +7.6%, ahead in 3/15 years. The label matches a trivial "stdev above median" rule on 85% of days.
+- **Why:** It lowers risk but does not pick better days — shift null 99th pct on Sharpe, 44th on mean return — and a one-line volatility rule reproduces most of it. Fails US100/QQQ, the window-length grid and DSR (0.015).
+- **Lesson:** Benchmark any regime detector against a trailing-stdev rule and a null on mean return, not Sharpe alone.
+
+| Variant | Verdict | Result |
+|---|---|---|
+| long calm / flat turbulent (US500) | REJECT | Sharpe 0.56 vs B&H 0.50; CAGR +4.7% vs +7.6%; @10% vol +5.3%/−24% vs +4.6%/−21%. |
+| long calm / flat turbulent (US100) | REJECT | Sharpe 0.39 vs B&H 0.54; QQQ venue 0.84 vs 0.89. |
+| short turbulent / long-short | REJECT | US100 −14.4% and −11.4% CAGR; US500 −7.3% and −3.0%. |
+| long turbulent only (stress premium) | REJECT | +2.0% / +5.0% CAGR, below buy & hold. |
+| window length 21–70 hours | REJECT | Sharpe excess over B&H positive in 3/5 cells (US500), 0/5 (US100). |
+| trivial stdev-above-median control | REJECT | Same label on 85% of days; WK-means minus trivial +1.8%/yr t=+1.40 (US500), −0.2% (US100). |
+
+_Refs: scripts `scripts/eda_wk_means_regime_timer.py`; PRs #258; ledger: Quant Science / Horvath-Issa-Muguruza "Wasserstein k-means market regimes" — 2026-10-07_
+
+> A well-shared academic method for spotting "calm" and "turbulent" markets. Trading it, by stepping out of the S&P when turbulent, cut drawdowns but earned less than just holding. A simple volatility rule gives almost the same signal.
