@@ -4338,6 +4338,65 @@ footer { padding-block: 36px 0; color: var(--faint); font-size: 13px; }
         "result": "Same label on 85% of days; WK-means minus trivial +1.8%/yr t=+1.40 (US500), −0.2% (US100)."
       }
     ]
+  },
+  {
+    "id": "S146",
+    "slug": "ibs-addon-daily-reversal",
+    "title": "\"Buy the close at the low\": does an IBS signal add to an RSI(2) dip-buy?",
+    "family": "dip-buying",
+    "family_title": "Daily dip-buying & short-term reversal",
+    "source_type": "social",
+    "source": "A backtesting-software vendor's chart on X ranking 24 popular short-term setups on SPY",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "US500",
+      "US100",
+      "US30",
+      "SPY",
+      "QQQ",
+      "DIA"
+    ],
+    "products": [
+      "CFD",
+      "ETF"
+    ],
+    "timeframe": "1d, multi-day hold (exit at the open after the first close above SMA(5))",
+    "data": "IBKR cash-index 1d 2011-06→2025-07 (holdout from 2025-07-18 reserved); SPY/QQQ/DIA daily as a venue check",
+    "tested": "2026-10-07",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "About 52% of IBS<0.1 days are days the live RSI(2)<15 rule misses. Those extra trades make +28bp net on US500 (Sharpe 0.73 [0.20, 1.35], 100th percentile of a matched random-entry null), +42bp on US100, ~+3bp on US30. But adding them lowers the live book's FTMO P(pass) from 84.8% to 82.0%.",
+    "why": "It is the same dip-buy bet the book already holds (+0.86 correlation on shared days), so it takes slots from better-paying legs. DSR 0.33 over 48 variants, and it has faded since 2023 (rolling-12m Sharpe −0.27).",
+    "lesson": "The chart is an event study: 3 of 24 setups cleared a 95% CI, about what chance gives. A variant of an edge you already trade is judged on whether it raises the book's pass odds, not on standalone edge.",
+    "summary": "A popular chart showed that buying SPY after it closes near its daily low beats the average week. We checked whether that signal adds anything to our live RSI(2) dip-buy. It fires on many new days and those trades do make money, but it is the same bet, and adding it slightly lowered our modelled chance of passing a prop-firm challenge. Selling strength (closing at the high) lost money on every index.",
+    "variants": [
+      {
+        "name": "IBS<0.1 extra trades only (headline, US500)",
+        "verdict": "REJECT",
+        "result": "n=196, +28.2bp/trade, Sharpe 0.73; lowers book P(pass) 84.8% → 82.0%."
+      },
+      {
+        "name": "RSI(2)<15 OR IBS<0.1 combined (US500)",
+        "verdict": "REJECT",
+        "result": "15.8 → 25.8 trades/yr; Sharpe 0.59 → 0.74; US30 0.10 → 0.07."
+      },
+      {
+        "name": "IBS<x standalone, x 0.05-0.25",
+        "verdict": "REJECT",
+        "result": "US500 Sharpe 0.68-0.94, US100 0.94-1.20; same edge as RSI(2), not tested as a replacement trigger."
+      },
+      {
+        "name": "IBS>0.9 short (close at the high)",
+        "verdict": "REJECT",
+        "result": "Loses on all three: −10.9 / −18.6 / −29.1bp per trade."
+      },
+      {
+        "name": "ETF venue check (real opens)",
+        "verdict": "PASS",
+        "result": "Extra trades SPY +30.9, QQQ +43.6, DIA +11.7bp/trade."
+      }
+    ]
   }
 ]
 </script>

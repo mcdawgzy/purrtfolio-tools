@@ -4,7 +4,7 @@
 
 One record per tested study, grouped by strategy family, for publishing. The research record behind each one is `STRATEGY_LEDGER.md` and `src/trading_hub/optimize/mechanisms.py` in the trading_hub repo.
 
-**107 studies, 188 named variants.**
+**108 studies, 193 named variants.**
 
 | Verdict | Studies |
 |---|---|
@@ -15,7 +15,7 @@ One record per tested study, grouped by strategy family, for publishing. The res
 | 🔎 Open lead, not validated | 3 |
 | 🟠 Real but underpowered | 2 |
 | ⏸️ Parked | 2 |
-| ❌ Rejected | 89 |
+| ❌ Rejected | 90 |
 | ⚪ Not tested | 1 |
 
 Visibility: `public` = safe to publish as written; `review` = your call (a surviving edge, or tied to the real-money account); `private` = your own system or journal, never published.
@@ -131,6 +131,7 @@ Visibility: `public` = safe to publish as written; `review` = your call (a survi
 | [S143](#s143) | edgeful — Wednesday NQ IB: "low forms first → high breaks first 78.57%" (X post) | orb-momentum | vendor | ❌ Rejected | public |
 | [S144](#s144) | Herman Trading — CCI mean-reversion on COMEX gold, London 02:00–08:00 NY, "$10,000 → $46,519" (X post) | intraday-mean-reversion | social | ❌ Rejected | public |
 | [S145](#s145) | Wasserstein k-means market regimes (arXiv:2110.11848) traded as a calm/turbulent timer | cross-asset | paper | ❌ Rejected | public |
+| [S146](#s146) | IBS < 0.1 (close at the day's low) as an add-on to daily_reversal (Build Alpha '24 short-term setups' chart) | dip-buying | social | ❌ Rejected | public |
 
 ## Opening range & intraday momentum
 
@@ -1264,6 +1265,30 @@ _Refs: scripts `scripts/download_ibkr_options_chain_probe.py`, `scripts/eda_etf_
 _Refs: scripts `scripts/eda_zscore_scalein_qqq.py`, `scripts/eda_zscore_scalein_options.py`; PRs #240_
 
 > A post on X described buying QQQ in thirds after a 5-day z-score dip and selling on the first close above the 5-day EMA. It passed our full out-of-sample test on four ETFs, and on QQQ from 2021 it beat buy-and-hold on a risk-adjusted basis with a much smaller drawdown (−9.9% vs −35.6%). Expressing it through options gave up most of the profit; shares were the better vehicle.
+
+### S146
+
+**IBS < 0.1 (close at the day's low) as an add-on to daily_reversal (Build Alpha '24 short-term setups' chart)** — ❌ Rejected · `public`
+
+- **Source:** social — Build Alpha on X (chart: what happens after 24 popular short-term setups, SPY 2000-2026)
+- **Tested:** 2026-10-07 → closed 2026-10-07 · US500, US100, US30, SPY, QQQ, DIA · CFD, ETF · 1d, multi-day hold (exit at the open after the first close above SMA(5))
+- **Data:** IBKR cash-index 1d 2011-06→2025-07 (holdout from 2025-07-18 reserved); SPY/QQQ/DIA daily as a venue check
+- **Mechanism:** `daily-short-term-reversal`
+- **Headline:** About 52% of IBS<0.1 days are days the live RSI(2)<15 rule misses. Those extra trades make +28bp net on US500 (Sharpe 0.73 [0.20, 1.35], 100th percentile of a matched random-entry null), +42bp on US100, ~+3bp on US30. But adding them lowers the live book's FTMO P(pass) from 84.8% to 82.0%.
+- **Why:** It is the same dip-buy bet the book already holds (+0.86 correlation on shared days), so it takes slots from better-paying legs. DSR 0.33 over 48 variants, and it has faded since 2023 (rolling-12m Sharpe −0.27).
+- **Lesson:** The chart is an event study: 3 of 24 setups cleared a 95% CI, about what chance gives. A variant of an edge you already trade is judged on whether it raises the book's pass odds, not on standalone edge.
+
+| Variant | Verdict | Result |
+|---|---|---|
+| IBS<0.1 extra trades only (headline, US500) | REJECT | n=196, +28.2bp/trade, Sharpe 0.73; lowers book P(pass) 84.8% → 82.0%. |
+| RSI(2)<15 OR IBS<0.1 combined (US500) | REJECT | 15.8 → 25.8 trades/yr; Sharpe 0.59 → 0.74; US30 0.10 → 0.07. |
+| IBS<x standalone, x 0.05-0.25 | REJECT | US500 Sharpe 0.68-0.94, US100 0.94-1.20; same edge as RSI(2), not tested as a replacement trigger. |
+| IBS>0.9 short (close at the high) | REJECT | Loses on all three: −10.9 / −18.6 / −29.1bp per trade. |
+| ETF venue check (real opens) | PASS | Extra trades SPY +30.9, QQQ +43.6, DIA +11.7bp/trade. |
+
+_Refs: scripts `scripts/eda_ibs_overlap_daily_reversal.py`; PRs #259; ledger: Build Alpha "What happens after 24 popular short-term setups" — IBS < 0.1 as an add-on to `daily_reversal` — 2026-10-07_
+
+> A popular chart showed that buying SPY after it closes near its daily low beats the average week. We checked whether that signal adds anything to our live RSI(2) dip-buy. It fires on many new days and those trades do make money, but it is the same bet, and adding it slightly lowered our modelled chance of passing a prop-firm challenge. Selling strength (closing at the high) lost money on every index.
 
 
 ## Calendar, session & event effects
