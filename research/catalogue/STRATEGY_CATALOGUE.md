@@ -4,7 +4,7 @@
 
 One record per tested study, grouped by strategy family, for publishing. The research record behind each one is `STRATEGY_LEDGER.md` and `src/trading_hub/optimize/mechanisms.py` in the trading_hub repo.
 
-**108 studies, 193 named variants.**
+**109 studies, 199 named variants.**
 
 | Verdict | Studies |
 |---|---|
@@ -15,7 +15,7 @@ One record per tested study, grouped by strategy family, for publishing. The res
 | 🔎 Open lead, not validated | 3 |
 | 🟠 Real but underpowered | 2 |
 | ⏸️ Parked | 2 |
-| ❌ Rejected | 90 |
+| ❌ Rejected | 91 |
 | ⚪ Not tested | 1 |
 
 Visibility: `public` = safe to publish as written; `review` = your call (a surviving edge, or tied to the real-money account); `private` = your own system or journal, never published.
@@ -132,6 +132,7 @@ Visibility: `public` = safe to publish as written; `review` = your call (a survi
 | [S144](#s144) | Herman Trading — CCI mean-reversion on COMEX gold, London 02:00–08:00 NY, "$10,000 → $46,519" (X post) | intraday-mean-reversion | social | ❌ Rejected | public |
 | [S145](#s145) | Wasserstein k-means market regimes (arXiv:2110.11848) traded as a calm/turbulent timer | cross-asset | paper | ❌ Rejected | public |
 | [S146](#s146) | IBS < 0.1 (close at the day's low) as an add-on to daily_reversal (Build Alpha '24 short-term setups' chart) | dip-buying | social | ❌ Rejected | public |
+| [S147](#s147) | PropQuantX — automated AmasPFT 'Siphon' ICT strategy: 1h sweep + 6m/7m FVG/IFVG on NQ (X post) | ict-smc | social | ❌ Rejected | public |
 
 ## Opening range & intraday momentum
 
@@ -828,6 +829,31 @@ _Refs: scripts `scripts/backtest_wf_wickless_candle.py`_
 _Refs: scripts `scripts/eda_pdhl_sweep_fade.py`; PRs #245; ledger: PropQuantX "fade failed sweeps of yesterday's high/low" — 2026-10-03_
 
 > "They hunt your stops, so trade the stop hunt": fading failed sweeps of yesterday's high or low reached the other side of the range no more often than a coin flip over 12 years of Nasdaq futures. It only looked good because its backtest started in 2020.
+
+### S147
+
+**PropQuantX — automated AmasPFT 'Siphon' ICT strategy: 1h sweep + 6m/7m FVG/IFVG on NQ (X post)** — ❌ Rejected · `public`
+
+- **Source:** social — X @propquantx (automating @AmasPFT) (https://x.com/propquantx/status/2105291431254557110)
+- **Tested:** 2026-10-07 → closed 2026-10-07 · NQ, US100 · futures, CFD · 6m/7m execution bars, 1h levels, 1m resolution, entries 09:30–16:00 NY, flat 16:55
+- **Data:** NQ 1m Globex 2010-06→2021-09 (2,821 sessions); FTMO US100 CFD 1m 2024-05→2025-11; NQ 1m 2026-03→2026-09 (post's own window)
+- **Mechanism:** `intraday-mean-reversion`
+- **Headline:** Claimed +$34.6k gross on NQ 2021–Feb 2026 (512 trades, PF 1.31) and +$15.4k on a 6-month holdout. No rules were published; over 11 years of NQ our readings average +0.004R gross per trade (net −0.039R, t=−1.61) across 2,797 trades, and the same bracket at the same minute on random days scores the same (56th percentile).
+- **Why:** The sweep-plus-gap entry carries no timing information: trades that hit stop or target won 30.3% vs a 33.3% coin-flip rate at 2R, only 3 of 15 timeframe × target settings were positive, and all three ~4-year thirds lost. The long side's small gain is the 2010–21 bull market; shorts lost.
+- **Lesson:** A vendor result built on unpublished rules and a 6-month holdout can't be checked; screen pre-declared readings over a long history and compare with the same trade at the same minute on random days.
+
+| Variant | Verdict | Result |
+|---|---|---|
+| Prior 1h candle sweep, 6m, FVG or IFVG (chart top panel) | REJECT | 2,797 trades, gross +0.004R, net −0.039R, t=−1.61; placebo 56th pct. |
+| Prior 1h candle sweep, 7m, IFVG only (chart bottom panel) | REJECT | 2,337 trades, net −0.052R, t=−2.03; placebo 34th pct. |
+| 1h swing high/low sweep, 6m, FVG or IFVG | REJECT | 1,860 trades, net +0.006R, t=+0.22. |
+| Timeframe 5–10m × target 1.5/2/3R grid | REJECT | 3 of 15 cells positive, median Sharpe −0.31. |
+| FTMO US100 CFD (2024–25) | REJECT | Net +0.012R, t=+0.19; challenge pass rate 0.2%. |
+| Post's own Mar–Sep 2026 window | REJECT | Top-panel reading −$1,590 (claim +$15,370); 6 months can't separate either from zero. |
+
+_Refs: scripts `scripts/eda_siphon_ict_nq.py`; PRs #260; ledger: PropQuantX "Siphon" — AmasPFT's ICT strategy automated, "default settings" — 2026-10-07_
+
+> "Liquidity sweep, then the gap flips": entering after price takes out the previous hour's high or low and a fair-value gap forms (or an old one is broken) did no better than the same trade at the same time on random days, over 11 years of Nasdaq futures.
 
 
 ## Intraday fades & mean reversion
