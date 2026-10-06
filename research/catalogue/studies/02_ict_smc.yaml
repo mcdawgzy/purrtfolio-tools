@@ -264,7 +264,7 @@
     other side of the range no more often than a coin flip over 12 years of Nasdaq futures. It only looked good
     because its backtest started in 2020.
 - id: S147
-  slug: siphon-ict-1h-sweep-fvg-ifvg
+  slug: ict-1h-sweep-fvg-ifvg-nq
   title: "PropQuantX — automated AmasPFT 'Siphon' ICT strategy: 1h sweep + 6m/7m FVG/IFVG on NQ (X post)"
   public_title: "Sweep of the 1-hour high/low, then a fair-value-gap or inverted-gap entry on 6–7 minute bars"
   family: ict-smc
