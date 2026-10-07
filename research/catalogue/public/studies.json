@@ -4377,5 +4377,70 @@
         "result": "157 trades, +1.4bp, t=+0.49; challenge pass rate 0.0%."
       }
     ]
+  },
+  {
+    "id": "S150",
+    "slug": "nq-premarket-range-double-break-fade",
+    "title": "Nasdaq pre-market range reversal: after one side breaks, trade back to the other end for 50 points",
+    "family": "intraday-mean-reversion",
+    "family_title": "Intraday fades & mean reversion",
+    "source_type": "social",
+    "source": "A day-trading account on X, pitching it as better than the opening-range breakout",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "NQ",
+      "ES"
+    ],
+    "products": [
+      "futures",
+      "CFD cost model"
+    ],
+    "timeframe": "1m, range 08:12–09:12 New York, entries by 15:00, flat at the 16:00 close",
+    "data": "NQ / ES 1m Globex 2010-06→2021-09 (2,910 days); NQ 5m 2025-05→2026-04 at the post's price level",
+    "tested": "2026-10-07",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "No numbers were published. Our replication on 12 years of NQ lost money before costs in every reading: the main version (fade the break once price closes back inside) made −0.22bp per trade gross, −1.36bp net over 2,667 trades, with 0 of 12 years positive.",
+    "why": "Random entries at the same minute on other days do as well or better, and trading WITH the break on the same stop and target is about as bad, so the break tells you nothing about direction. The \"double break every day\" is half true: one side breaks almost every day (the pre-market hour is narrow), both sides on 63% of days.",
+    "lesson": "A fixed point target (\"50 pts on NQ\") is a 2.8% move at 2010 prices and 0.17% today; scale it to price before testing on a long history, then test the literal number on the post's own recent price level.",
+    "summary": "An X post said marking the 8:12–9:12 pre-market range on Nasdaq futures and fading the first break for 50 points beats the opening-range breakout \"every single day\". Over 12 years of Nasdaq and S&P futures, every version lost money, mostly before costs, and random entries did as well.",
+    "variants": [
+      {
+        "name": "Close back inside → fade, 50-pt-equivalent target, stop past the excursion",
+        "verdict": "REJECT",
+        "result": "2,667 trades, −1.36bp net (−0.22bp gross), Sharpe −2.30 [−2.91, −1.66]; random-day control 28th pct."
+      },
+      {
+        "name": "Second break: stop order at the opposite end, 50-pt target",
+        "verdict": "REJECT",
+        "result": "1,870 trades, −2.04bp; WR 53.5% vs 56.9% coin flip; 2nd pct of the same-side random-day control."
+      },
+      {
+        "name": "Close back inside → fade, target the opposite end",
+        "verdict": "REJECT",
+        "result": "2,648 trades, −0.90bp net."
+      },
+      {
+        "name": "Literal 50 points on 2010–21 prices",
+        "verdict": "REJECT",
+        "result": "Fade −0.93bp, second break −1.05bp."
+      },
+      {
+        "name": "Window shifted −20…+18 min × target 30–75 pts grid",
+        "verdict": "REJECT",
+        "result": "0/25 cells positive."
+      },
+      {
+        "name": "ES",
+        "verdict": "REJECT",
+        "result": "All three readings negative (fade −2.05bp, t=−7.0)."
+      },
+      {
+        "name": "NQ 2025–26 at the post's price level, literal 50 pts",
+        "verdict": "REJECT",
+        "result": "Fade +0.43bp (t=+0.24, 188 trades), opposite-end +2.29bp (t=+1.03), second break −5.50bp; challenge pass rate 0.0%."
+      }
+    ]
   }
 ]

@@ -4,7 +4,7 @@
 
 One record per tested study, grouped by strategy family, for publishing. The research record behind each one is `STRATEGY_LEDGER.md` and `src/trading_hub/optimize/mechanisms.py` in the trading_hub repo.
 
-**111 studies, 212 named variants.**
+**112 studies, 219 named variants.**
 
 | Verdict | Studies |
 |---|---|
@@ -15,7 +15,7 @@ One record per tested study, grouped by strategy family, for publishing. The res
 | 🔎 Open lead, not validated | 3 |
 | 🟠 Real but underpowered | 2 |
 | ⏸️ Parked | 2 |
-| ❌ Rejected | 93 |
+| ❌ Rejected | 94 |
 | ⚪ Not tested | 1 |
 
 Visibility: `public` = safe to publish as written; `review` = your call (a surviving edge, or tied to the real-money account); `private` = your own system or journal, never published.
@@ -135,6 +135,7 @@ Visibility: `public` = safe to publish as written; `review` = your call (a survi
 | [S147](#s147) | PropQuantX — automated AmasPFT 'Siphon' ICT strategy: 1h sweep + 6m/7m FVG/IFVG on NQ (X post) | ict-smc | social | ❌ Rejected | public |
 | [S148](#s148) | BTCUSDT 20-concept strategy hunt under a sealed last-third holdout (user brief written for a strategy-builder site) | trend-following | user | ❌ Rejected | public |
 | [S149](#s149) | @onlybreakouts — NQ 30m highest-close breakout, ADX filter, exit on close: "keeps performing year after year" (X post) | orb-momentum | social | ❌ Rejected | public |
+| [S150](#s150) | @daytradingrauf — NQ 08:12–09:12 pre-market range "double break", trade to the opposite end, 50-pt target (X post) | intraday-mean-reversion | social | ❌ Rejected | public |
 
 ## Opening range & intraday momentum
 
@@ -1038,6 +1039,32 @@ _Refs: scripts `scripts/discover_intraday.py`, `scripts/intraday_cost_frontier.p
 _Refs: scripts `scripts/eda_herman_gold_cci_london.py`; PRs #257; ledger: Herman Trading "CCI mean-reversion on COMEX gold, London session — $10,000 → $46,519" — 2026-10-06_
 
 > A trader showed a gold bot turning $10,000 into $46,519 in a year by fading CCI extremes in the London session. On the 17 months of gold before that year, no version of the rule made money even before costs.
+
+### S150
+
+**@daytradingrauf — NQ 08:12–09:12 pre-market range "double break", trade to the opposite end, 50-pt target (X post)** — ❌ Rejected · `public`
+
+- **Source:** social — X @daytradingrauf (https://x.com/daytradingrauf/status/2104950751432782285)
+- **Tested:** 2026-10-07 → closed 2026-10-07 · NQ, ES · futures, CFD cost model · 1m, range 08:12–09:12 New York, entries by 15:00, flat at the 16:00 close
+- **Data:** NQ / ES 1m Globex 2010-06→2021-09 (2,910 days); NQ 5m 2025-05→2026-04 at the post's price level
+- **Mechanism:** `intraday-mean-reversion`
+- **Headline:** No numbers were published. Our replication on 12 years of NQ lost money before costs in every reading: the main version (fade the break once price closes back inside) made −0.22bp per trade gross, −1.36bp net over 2,667 trades, with 0 of 12 years positive.
+- **Why:** Random entries at the same minute on other days do as well or better, and trading WITH the break on the same stop and target is about as bad, so the break tells you nothing about direction. The "double break every day" is half true: one side breaks almost every day (the pre-market hour is narrow), both sides on 63% of days.
+- **Lesson:** A fixed point target ("50 pts on NQ") is a 2.8% move at 2010 prices and 0.17% today; scale it to price before testing on a long history, then test the literal number on the post's own recent price level.
+
+| Variant | Verdict | Result |
+|---|---|---|
+| Close back inside → fade, 50-pt-equivalent target, stop past the excursion | REJECT | 2,667 trades, −1.36bp net (−0.22bp gross), Sharpe −2.30 [−2.91, −1.66]; random-day control 28th pct. |
+| Second break: stop order at the opposite end, 50-pt target | REJECT | 1,870 trades, −2.04bp; WR 53.5% vs 56.9% coin flip; 2nd pct of the same-side random-day control. |
+| Close back inside → fade, target the opposite end | REJECT | 2,648 trades, −0.90bp net. |
+| Literal 50 points on 2010–21 prices | REJECT | Fade −0.93bp, second break −1.05bp. |
+| Window shifted −20…+18 min × target 30–75 pts grid | REJECT | 0/25 cells positive. |
+| ES | REJECT | All three readings negative (fade −2.05bp, t=−7.0). |
+| NQ 2025–26 at the post's price level, literal 50 pts | REJECT | Fade +0.43bp (t=+0.24, 188 trades), opposite-end +2.29bp (t=+1.03), second break −5.50bp; challenge pass rate 0.0%. |
+
+_Refs: scripts `scripts/eda_premarket_range_double_break_nq.py`; PRs #264; ledger: @daytradingrauf "pre-market range double break — a lot better than the ORB" — 2026-10-07_
+
+> An X post said marking the 8:12–9:12 pre-market range on Nasdaq futures and fading the first break for 50 points beats the opening-range breakout "every single day". Over 12 years of Nasdaq and S&P futures, every version lost money, mostly before costs, and random entries did as well.
 
 
 ## Daily dip-buying & short-term reversal
