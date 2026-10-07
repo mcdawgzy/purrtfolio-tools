@@ -4647,6 +4647,72 @@ footer { padding-block: 36px 0; color: var(--faint); font-size: 13px; }
         "result": "Fade +0.43bp (t=+0.24, 188 trades), opposite-end +2.29bp (t=+1.03), second break −5.50bp; challenge pass rate 0.0%."
       }
     ]
+  },
+  {
+    "id": "S151",
+    "slug": "nq-h1-volatility-expansion-breakout",
+    "title": "Nasdaq 1-hour volatility-expansion breakouts, long and short, with an hour-of-day filter",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "social",
+    "source": "A prop-firm systematic trader on X, who posted an MT5 backtest equity curve",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "NQ",
+      "ES",
+      "US100"
+    ],
+    "products": [
+      "futures",
+      "CFD"
+    ],
+    "timeframe": "1h bars over the full futures session; three entry rules (expansion bar, Bollinger squeeze release, close ± 1 ATR stop orders); shared 1-ATR stop / 2-ATR target / 8h time stop",
+    "data": "NQ / ES 1m Globex 2010-06→2021-09 (2,910 sessions); NQ 5m 2025-05→2026-04 (the post's regime)",
+    "tested": "2026-10-07",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "Only an equity curve was published (about $100k to $200k, 2018–26) with no rules beyond \"long/short, filter out the toxic hours, trade the expansion\". Three common ways to trade a 1-hour volatility expansion all lose after costs on 11 years of Nasdaq futures (−0.4, −1.9 and −1.0bp per trade; buy & hold Sharpe 1.03).",
+    "why": "Before costs the edge is 0–1bp per trade against about 1.2bp of futures cost (more on a CFD), win rates sit below the coin flip the 1:2 bracket implies, and the same entries on random days do as well. Volatility expansion tells you a big move is likely, not which way.",
+    "lesson": "An hour-of-day filter picked in hindsight is how a backtest curve gets smooth. Fit it on one half of the data and score it on the other, then on a second market: here the \"good hours\" looked significant on the second half (t=2.0), were negative on the S&P and reversed in 2025–26.",
+    "summary": "Three ways to trade a 1-hour volatility expansion on Nasdaq futures, long and short, all lose after costs over 11 years. Filtering out \"bad hours\" looked significant on half the data, then failed on the S&P and reversed in 2025–26.",
+    "variants": [
+      {
+        "name": "Expansion bar (range ≥ 1.5× ATR, strong close), 03:00–15:00 NY, long+short",
+        "verdict": "REJECT",
+        "result": "5,529 trades, gross +0.7bp, net −0.4bp, Sharpe −0.22 [−0.78, 0.34]; random-day control 77th pct."
+      },
+      {
+        "name": "Bollinger squeeze release, long+short",
+        "verdict": "REJECT",
+        "result": "1,364 trades, net −1.9bp, Sharpe −0.73; 3 of 12 years positive."
+      },
+      {
+        "name": "Close ± 1 ATR stop orders, long+short",
+        "verdict": "REJECT",
+        "result": "8,077 trades, net −1.0bp, Sharpe −0.97; 0 of 15 grid cells positive."
+      },
+      {
+        "name": "Hour filter fitted on the first half, scored on the second",
+        "verdict": "REJECT",
+        "result": "Expansion bar +2.2bp (t=2.0) on the second half, but the same hours are −0.2bp on ES and reverse on 2025–26 NQ (kept −1.7bp, dropped +1.4bp)."
+      },
+      {
+        "name": "Expansion bar, long only",
+        "verdict": "REJECT",
+        "result": "+1.45bp, Sharpe 0.62, but 90th pct of a long at the same minute on random days (the upward drift); the CFD cost uses it up."
+      },
+      {
+        "name": "Exit variants (target 1.5/3 ATR, time stop 4/16h, stop 0.75/1.5 ATR)",
+        "verdict": "REJECT",
+        "result": "None of 18 turns any rule net-positive."
+      },
+      {
+        "name": "2025–26 Nasdaq futures (the post's period)",
+        "verdict": "REJECT",
+        "result": "−1.1 / +3.0 (91 trades, t=0.84) / −2.9bp; challenge pass rate 0.0–0.1%."
+      }
+    ]
   }
 ]
 </script>
