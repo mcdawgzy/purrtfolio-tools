@@ -4,7 +4,7 @@
 
 One record per tested study, grouped by strategy family, for publishing. The research record behind each one is `STRATEGY_LEDGER.md` and `src/trading_hub/optimize/mechanisms.py` in the trading_hub repo.
 
-**110 studies, 205 named variants.**
+**111 studies, 212 named variants.**
 
 | Verdict | Studies |
 |---|---|
@@ -15,7 +15,7 @@ One record per tested study, grouped by strategy family, for publishing. The res
 | 🔎 Open lead, not validated | 3 |
 | 🟠 Real but underpowered | 2 |
 | ⏸️ Parked | 2 |
-| ❌ Rejected | 92 |
+| ❌ Rejected | 93 |
 | ⚪ Not tested | 1 |
 
 Visibility: `public` = safe to publish as written; `review` = your call (a surviving edge, or tied to the real-money account); `private` = your own system or journal, never published.
@@ -134,6 +134,7 @@ Visibility: `public` = safe to publish as written; `review` = your call (a survi
 | [S146](#s146) | IBS < 0.1 (close at the day's low) as an add-on to daily_reversal (Build Alpha '24 short-term setups' chart) | dip-buying | social | ❌ Rejected | public |
 | [S147](#s147) | PropQuantX — automated AmasPFT 'Siphon' ICT strategy: 1h sweep + 6m/7m FVG/IFVG on NQ (X post) | ict-smc | social | ❌ Rejected | public |
 | [S148](#s148) | BTCUSDT 20-concept strategy hunt under a sealed last-third holdout (user brief written for a strategy-builder site) | trend-following | user | ❌ Rejected | public |
+| [S149](#s149) | @onlybreakouts — NQ 30m highest-close breakout, ADX filter, exit on close: "keeps performing year after year" (X post) | orb-momentum | social | ❌ Rejected | public |
 
 ## Opening range & intraday momentum
 
@@ -652,6 +653,32 @@ _Refs: scripts `scripts/eda_atr_coil_breakout.py`; PRs #244; ledger: "Open + 2.5
 _Refs: scripts `scripts/eda_edgeful_wed_ib_low_first.py`; PRs #256; ledger: edgeful "Wednesday NQ IB — low forms first → high breaks first 78.57%" — 2026-10-05_
 
 > A vendor said that on Wednesdays, when Nasdaq's first-hour low forms before its high, the high breaks first 78.57% of the time. It does — but a coin-flip price path from the same spot does so 79.7% of the time.
+
+### S149
+
+**@onlybreakouts — NQ 30m highest-close breakout, ADX filter, exit on close: "keeps performing year after year" (X post)** — ❌ Rejected · `public`
+
+- **Source:** social — X @onlybreakouts (post + TradeStation code screenshot) (https://x.com/onlybreakouts/status/2104775700347605362)
+- **Tested:** 2026-10-07 → closed 2026-10-07 · NQ, ES, US100 · futures, CFD · 30m bars (24h session), buy stop at the highest close of 34 bars, entries 08:00–15:00 Chicago, $1,000 stop, exit at the session close
+- **Data:** NQ / ES 1m Globex 2010-06→2021-09 (2,910 sessions); FTMO US100 CFD 1m 2024-05→2025-11
+- **Mechanism:** `intraday-momentum`
+- **Headline:** No performance numbers were published, only "keeps performing year after year". The rule as coded makes +2.9bp per trade on 11 years of NQ (1,561 trades, Sharpe 0.48, interval includes 0, vs buy & hold 1.03), but simply being long at the same minute on random days with the same filter state makes +3.3bp (40th percentile).
+- **Why:** The profit is the 2010–21 intraday upward drift, not the breakout: every short version loses, the first half of the sample is negative, and ES (+2.9bp) also sits inside its own random-day control (79th percentile). The dollar results grow every year because Nasdaq went from 1,800 to 14,700 while the stop stayed at a fixed $1,000.
+- **Lesson:** Read "$ per contract, every year" results in basis points: a rising price level and a fixed-dollar stop make any long rule look better each year. For long-only index rules, compare with a long at the same minute on random days that pass the same filters.
+
+| Variant | Verdict | Result |
+|---|---|---|
+| As coded: ADX(50) < 17.5, long | REJECT | 1,561 trades, +2.9bp, Sharpe 0.48 [−0.05, 1.03]; random-day control 40th pct; first half −0.2bp. |
+| As written in the post: ADX above 17.5, long | REJECT | 723 trades, −1.9bp on NQ; ES −5.4bp, t=−2.3. |
+| No ADX filter, long | REJECT | 2,163 trades, +1.2bp, Sharpe 0.24; random-day control 42nd pct. |
+| Short (mirror) and both directions | REJECT | Every short reading loses (−3.9 to −4.7bp). |
+| Lookback 24–44 × ADX threshold 15–20 grid | REJECT | 15/15 cells positive (median Sharpe +0.49), all riding the same long drift. |
+| ES ("works across multiple indexes") | REJECT | +2.9bp, t=+2.2, but 79th pct of its own random-day control. |
+| FTMO US100 CFD (2024–25) | REJECT | 157 trades, +1.4bp, t=+0.49; challenge pass rate 0.0%. |
+
+_Refs: scripts `scripts/eda_onlybreakouts_nq_adx_breakout.py`; PRs #262; ledger: @onlybreakouts "NQ 30m highest-close breakout, ADX filter, exit on close — keeps performing year after year" — 2026-10-07_
+
+> A breakout of the highest 30-minute close of the last 17 hours, posted as one that "keeps performing year after year", made money on 11 years of Nasdaq futures — but no more than buying at the same time of day on random days. Its growing yearly dollar profits came from Nasdaq's rising price, not from the breakout.
 
 
 ## ICT / smart-money concepts (FVG, sweeps, SMT)

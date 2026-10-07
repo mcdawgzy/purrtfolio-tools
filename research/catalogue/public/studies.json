@@ -4311,5 +4311,71 @@
         "result": "Hour-of-day gross +13bp vs 30bp round-trip cost; day-of-week PF 1.05."
       }
     ]
+  },
+  {
+    "id": "S149",
+    "slug": "nq-30m-highest-close-breakout-adx",
+    "title": "Nasdaq 30-minute breakout of the highest close of 34 bars, with an ADX filter, out at the close",
+    "family": "orb-momentum",
+    "family_title": "Opening range & intraday momentum",
+    "source_type": "social",
+    "source": "A breakout-strategy X account, which posted its TradeStation code",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "NQ",
+      "ES",
+      "US100"
+    ],
+    "products": [
+      "futures",
+      "CFD"
+    ],
+    "timeframe": "30m bars (24h session), buy stop at the highest close of 34 bars, entries 08:00–15:00 Chicago, $1,000 stop, exit at the session close",
+    "data": "NQ / ES 1m Globex 2010-06→2021-09 (2,910 sessions); FTMO US100 CFD 1m 2024-05→2025-11",
+    "tested": "2026-10-07",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "No performance numbers were published, only \"keeps performing year after year\". The rule as coded makes +2.9bp per trade on 11 years of NQ (1,561 trades, Sharpe 0.48, interval includes 0, vs buy & hold 1.03), but simply being long at the same minute on random days with the same filter state makes +3.3bp (40th percentile).",
+    "why": "The profit is the 2010–21 intraday upward drift, not the breakout: every short version loses, the first half of the sample is negative, and ES (+2.9bp) also sits inside its own random-day control (79th percentile). The dollar results grow every year because Nasdaq went from 1,800 to 14,700 while the stop stayed at a fixed $1,000.",
+    "lesson": "Read \"$ per contract, every year\" results in basis points: a rising price level and a fixed-dollar stop make any long rule look better each year. For long-only index rules, compare with a long at the same minute on random days that pass the same filters.",
+    "summary": "A breakout of the highest 30-minute close of the last 17 hours, posted as one that \"keeps performing year after year\", made money on 11 years of Nasdaq futures — but no more than buying at the same time of day on random days. Its growing yearly dollar profits came from Nasdaq's rising price, not from the breakout.",
+    "variants": [
+      {
+        "name": "As coded: ADX(50) < 17.5, long",
+        "verdict": "REJECT",
+        "result": "1,561 trades, +2.9bp, Sharpe 0.48 [−0.05, 1.03]; random-day control 40th pct; first half −0.2bp."
+      },
+      {
+        "name": "As written in the post: ADX above 17.5, long",
+        "verdict": "REJECT",
+        "result": "723 trades, −1.9bp on NQ; ES −5.4bp, t=−2.3."
+      },
+      {
+        "name": "No ADX filter, long",
+        "verdict": "REJECT",
+        "result": "2,163 trades, +1.2bp, Sharpe 0.24; random-day control 42nd pct."
+      },
+      {
+        "name": "Short (mirror) and both directions",
+        "verdict": "REJECT",
+        "result": "Every short reading loses (−3.9 to −4.7bp)."
+      },
+      {
+        "name": "Lookback 24–44 × ADX threshold 15–20 grid",
+        "verdict": "REJECT",
+        "result": "15/15 cells positive (median Sharpe +0.49), all riding the same long drift."
+      },
+      {
+        "name": "ES (\"works across multiple indexes\")",
+        "verdict": "REJECT",
+        "result": "+2.9bp, t=+2.2, but 79th pct of its own random-day control."
+      },
+      {
+        "name": "FTMO US100 CFD (2024–25)",
+        "verdict": "REJECT",
+        "result": "157 trades, +1.4bp, t=+0.49; challenge pass rate 0.0%."
+      }
+    ]
   }
 ]
