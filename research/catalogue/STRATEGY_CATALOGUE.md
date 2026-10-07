@@ -4,7 +4,7 @@
 
 One record per tested study, grouped by strategy family, for publishing. The research record behind each one is `STRATEGY_LEDGER.md` and `src/trading_hub/optimize/mechanisms.py` in the trading_hub repo.
 
-**109 studies, 199 named variants.**
+**110 studies, 205 named variants.**
 
 | Verdict | Studies |
 |---|---|
@@ -15,7 +15,7 @@ One record per tested study, grouped by strategy family, for publishing. The res
 | 🔎 Open lead, not validated | 3 |
 | 🟠 Real but underpowered | 2 |
 | ⏸️ Parked | 2 |
-| ❌ Rejected | 91 |
+| ❌ Rejected | 92 |
 | ⚪ Not tested | 1 |
 
 Visibility: `public` = safe to publish as written; `review` = your call (a surviving edge, or tied to the real-money account); `private` = your own system or journal, never published.
@@ -133,6 +133,7 @@ Visibility: `public` = safe to publish as written; `review` = your call (a survi
 | [S145](#s145) | Wasserstein k-means market regimes (arXiv:2110.11848) traded as a calm/turbulent timer | cross-asset | paper | ❌ Rejected | public |
 | [S146](#s146) | IBS < 0.1 (close at the day's low) as an add-on to daily_reversal (Build Alpha '24 short-term setups' chart) | dip-buying | social | ❌ Rejected | public |
 | [S147](#s147) | PropQuantX — automated AmasPFT 'Siphon' ICT strategy: 1h sweep + 6m/7m FVG/IFVG on NQ (X post) | ict-smc | social | ❌ Rejected | public |
+| [S148](#s148) | BTCUSDT 20-concept strategy hunt under a sealed last-third holdout (user brief written for a strategy-builder site) | trend-following | user | ❌ Rejected | public |
 
 ## Opening range & intraday momentum
 
@@ -1700,6 +1701,31 @@ _Refs: pre-reg `docs/prereg/2026-09-26_paper_library_futures_battery.md`; script
 _Refs: scripts `scripts/eda_xauusd_45m_ema20.py`; PRs #253; ledger: @invester_trade "45-minute chart × 20 EMA" on gold — 2026-10-04_
 
 > "45-minute chart, 20 EMA, 78% win rate" on gold: the high-win-rate version loses money before costs, and the version that makes money is just being long gold in a bull market — it earned less than buy & hold, and over 16 years it trailed buy & hold too.
+
+### S148
+
+**BTCUSDT 20-concept strategy hunt under a sealed last-third holdout (user brief written for a strategy-builder site)** — ❌ Rejected · `public`
+
+- **Source:** user — User-supplied research brief (a tradingkit.com prompt, run without the site)
+- **Tested:** 2026-10-07 → closed 2026-10-07 · BTCUSDT · spot, perpetual · one signal timeframe per strategy (1h/4h/1d/1w); fixed exits only; fills walked on 30m bars
+- **Data:** Binance BTCUSDT 30m 2017-08→2023-07 (train); 2023-07→2026-06 sealed holdout, unspent
+- **Mechanism:** `unclassified`
+- **Headline:** 0 of 672 configurations across 20 concepts passed the brief's rules (≥100 trades, drawdown < 20%, profit factor > 1.1, beat buy & hold) on 2017–2023, so nothing reached the hidden third. Buy & hold made +609% with an 84% drawdown; the best config under 20% drawdown made +291%.
+- **Why:** Beating +609% at 1x without ever losing 20% needs ~39%/yr for six years at a Calmar near 2. Many concepts had a real edge (profit factor 1.4–2.5) but every one that out-earned buy & hold drew down ≥34.6%, and adding shorts made every family worse after costs.
+- **Lesson:** On an asset that rose 7x, "beat buy & hold with drawdown < 20%" is a Calmar requirement, not an edge test; check the return-vs-drawdown frontier before building more variants.
+
+| Variant | Verdict | Result |
+|---|---|---|
+| NR7 range-contraction breakout, day hold | REJECT | 202 trades, +291%, DD 14.8%, PF 1.87, Sharpe 1.19 — below buy & hold's return; best risk-adjusted config, frozen, holdout unrun. |
+| Williams volatility breakout (long, two-sided, adaptive k) | REJECT | Best +621%, but DD 34.6%; two-sided and adaptive versions worse. |
+| Time-series momentum (daily, weekly) | REJECT | Up to +1,469%, but DD 64–70%. |
+| Donchian breakout (long, long/short) | REJECT | Up to +1,304%, but 53 trades and DD 39–47%. |
+| Dip-buys, capitulation, pullbacks, EMA cross, squeeze, near-ATH, turn-of-month | REJECT | All below buy & hold, most with DD 31–71% or under 100 trades. |
+| Hour-of-day and day-of-week | REJECT | Hour-of-day gross +13bp vs 30bp round-trip cost; day-of-week PF 1.05. |
+
+_Refs: scripts `scripts/btcusdt_holdout_hunt.py`; PRs #261; ledger: BTCUSDT 20-concept hunt under a sealed last-third holdout — 2026-10-07_
+
+> Twenty well-known Bitcoin strategies, with fees and slippage included, were asked to make more than buy & hold while never losing 20%. None did. The best low-drawdown rule made +291% while buy & hold made +609%, and everything that beat buy & hold lost at least a third of the account along the way.
 
 
 ## Volume, breadth & order flow
