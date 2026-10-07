@@ -4,7 +4,7 @@
 
 One record per tested study, grouped by strategy family, for publishing. The research record behind each one is `STRATEGY_LEDGER.md` and `src/trading_hub/optimize/mechanisms.py` in the trading_hub repo.
 
-**112 studies, 219 named variants.**
+**113 studies, 226 named variants.**
 
 | Verdict | Studies |
 |---|---|
@@ -15,7 +15,7 @@ One record per tested study, grouped by strategy family, for publishing. The res
 | 🔎 Open lead, not validated | 3 |
 | 🟠 Real but underpowered | 2 |
 | ⏸️ Parked | 2 |
-| ❌ Rejected | 94 |
+| ❌ Rejected | 95 |
 | ⚪ Not tested | 1 |
 
 Visibility: `public` = safe to publish as written; `review` = your call (a surviving edge, or tied to the real-money account); `private` = your own system or journal, never published.
@@ -136,6 +136,7 @@ Visibility: `public` = safe to publish as written; `review` = your call (a survi
 | [S148](#s148) | BTCUSDT 20-concept strategy hunt under a sealed last-third holdout (user brief written for a strategy-builder site) | trend-following | user | ❌ Rejected | public |
 | [S149](#s149) | @onlybreakouts — NQ 30m highest-close breakout, ADX filter, exit on close: "keeps performing year after year" (X post) | orb-momentum | social | ❌ Rejected | public |
 | [S150](#s150) | @daytradingrauf — NQ 08:12–09:12 pre-market range "double break", trade to the opposite end, 50-pt target (X post) | intraday-mean-reversion | social | ❌ Rejected | public |
+| [S151](#s151) | @SystemTheoryHQ — "Indices Volatility Breakout": NDX H1, long/short, filter out the toxic hours, trade the expansion (X post) | orb-momentum | social | ❌ Rejected | public |
 
 ## Opening range & intraday momentum
 
@@ -680,6 +681,32 @@ _Refs: scripts `scripts/eda_edgeful_wed_ib_low_first.py`; PRs #256; ledger: edge
 _Refs: scripts `scripts/eda_onlybreakouts_nq_adx_breakout.py`; PRs #262; ledger: @onlybreakouts "NQ 30m highest-close breakout, ADX filter, exit on close — keeps performing year after year" — 2026-10-07_
 
 > A breakout of the highest 30-minute close of the last 17 hours, posted as one that "keeps performing year after year", made money on 11 years of Nasdaq futures — but no more than buying at the same time of day on random days. Its growing yearly dollar profits came from Nasdaq's rising price, not from the breakout.
+
+### S151
+
+**@SystemTheoryHQ — "Indices Volatility Breakout": NDX H1, long/short, filter out the toxic hours, trade the expansion (X post)** — ❌ Rejected · `public`
+
+- **Source:** social — X @SystemTheoryHQ (post + MT5 Strategy Tester screenshot) (https://x.com/SystemTheoryHQ/status/2105308900987695560)
+- **Tested:** 2026-10-07 → closed 2026-10-07 · NQ, ES, US100 · futures, CFD · 1h bars over the full futures session; three entry rules (expansion bar, Bollinger squeeze release, close ± 1 ATR stop orders); shared 1-ATR stop / 2-ATR target / 8h time stop
+- **Data:** NQ / ES 1m Globex 2010-06→2021-09 (2,910 sessions); NQ 5m 2025-05→2026-04 (the post's regime)
+- **Mechanism:** `intraday-momentum`
+- **Headline:** Only an equity curve was published (about $100k to $200k, 2018–26) with no rules beyond "long/short, filter out the toxic hours, trade the expansion". Three common ways to trade a 1-hour volatility expansion all lose after costs on 11 years of Nasdaq futures (−0.4, −1.9 and −1.0bp per trade; buy & hold Sharpe 1.03).
+- **Why:** Before costs the edge is 0–1bp per trade against about 1.2bp of futures cost (more on a CFD), win rates sit below the coin flip the 1:2 bracket implies, and the same entries on random days do as well. Volatility expansion tells you a big move is likely, not which way.
+- **Lesson:** An hour-of-day filter picked in hindsight is how a backtest curve gets smooth. Fit it on one half of the data and score it on the other, then on a second market: here the "good hours" looked significant on the second half (t=2.0), were negative on the S&P and reversed in 2025–26.
+
+| Variant | Verdict | Result |
+|---|---|---|
+| Expansion bar (range ≥ 1.5× ATR, strong close), 03:00–15:00 NY, long+short | REJECT | 5,529 trades, gross +0.7bp, net −0.4bp, Sharpe −0.22 [−0.78, 0.34]; random-day control 77th pct. |
+| Bollinger squeeze release, long+short | REJECT | 1,364 trades, net −1.9bp, Sharpe −0.73; 3 of 12 years positive. |
+| Close ± 1 ATR stop orders, long+short | REJECT | 8,077 trades, net −1.0bp, Sharpe −0.97; 0 of 15 grid cells positive. |
+| Hour filter fitted on the first half, scored on the second | REJECT | Expansion bar +2.2bp (t=2.0) on the second half, but the same hours are −0.2bp on ES and reverse on 2025–26 NQ (kept −1.7bp, dropped +1.4bp). |
+| Expansion bar, long only | REJECT | +1.45bp, Sharpe 0.62, but 90th pct of a long at the same minute on random days (the upward drift); the CFD cost uses it up. |
+| Exit variants (target 1.5/3 ATR, time stop 4/16h, stop 0.75/1.5 ATR) | REJECT | None of 18 turns any rule net-positive. |
+| 2025–26 Nasdaq futures (the post's period) | REJECT | −1.1 / +3.0 (91 trades, t=0.84) / −2.9bp; challenge pass rate 0.0–0.1%. |
+
+_Refs: scripts `scripts/eda_systemtheory_h1_vol_breakout.py`; PRs #265; ledger: @SystemTheoryHQ "Indices Volatility Breakout — long/short, filter out the toxic hours, trade the expansion" (NDX H1) — 2026-10-07_
+
+> Three ways to trade a 1-hour volatility expansion on Nasdaq futures, long and short, all lose after costs over 11 years. Filtering out "bad hours" looked significant on half the data, then failed on the S&P and reversed in 2025–26.
 
 
 ## ICT / smart-money concepts (FVG, sweeps, SMT)
