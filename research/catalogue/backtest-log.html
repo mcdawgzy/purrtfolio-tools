@@ -4457,6 +4457,65 @@ footer { padding-block: 36px 0; color: var(--faint); font-size: 13px; }
         "result": "Top-panel reading −$1,590 (claim +$15,370); 6 months can't separate either from zero."
       }
     ]
+  },
+  {
+    "id": "S148",
+    "slug": "btcusdt-20-concept-sealed-holdout-hunt",
+    "title": "Twenty classic Bitcoin strategies vs buy & hold, with the last third of the data locked away",
+    "family": "trend-following",
+    "family_title": "Trend following & moving averages",
+    "source_type": "user",
+    "source": "A research brief written for an online strategy-builder",
+    "source_url": null,
+    "paper": null,
+    "instruments": [
+      "BTCUSDT"
+    ],
+    "products": [
+      "spot",
+      "perpetual"
+    ],
+    "timeframe": "one signal timeframe per strategy (1h/4h/1d/1w); fixed exits only; fills walked on 30m bars",
+    "data": "Binance BTCUSDT 30m 2017-08→2023-07 (train); 2023-07→2026-06 sealed holdout, unspent",
+    "tested": "2026-10-07",
+    "verdict": "REJECT",
+    "verdict_label": "❌ Rejected",
+    "headline": "0 of 672 configurations across 20 concepts passed the brief's rules (≥100 trades, drawdown < 20%, profit factor > 1.1, beat buy & hold) on 2017–2023, so nothing reached the hidden third. Buy & hold made +609% with an 84% drawdown; the best config under 20% drawdown made +291%.",
+    "why": "Beating +609% at 1x without ever losing 20% needs ~39%/yr for six years at a Calmar near 2. Many concepts had a real edge (profit factor 1.4–2.5) but every one that out-earned buy & hold drew down ≥34.6%, and adding shorts made every family worse after costs.",
+    "lesson": "On an asset that rose 7x, \"beat buy & hold with drawdown < 20%\" is a Calmar requirement, not an edge test; check the return-vs-drawdown frontier before building more variants.",
+    "summary": "Twenty well-known Bitcoin strategies, with fees and slippage included, were asked to make more than buy & hold while never losing 20%. None did. The best low-drawdown rule made +291% while buy & hold made +609%, and everything that beat buy & hold lost at least a third of the account along the way.",
+    "variants": [
+      {
+        "name": "NR7 range-contraction breakout, day hold",
+        "verdict": "REJECT",
+        "result": "202 trades, +291%, DD 14.8%, PF 1.87, Sharpe 1.19 — below buy & hold's return; best risk-adjusted config, frozen, holdout unrun."
+      },
+      {
+        "name": "Williams volatility breakout (long, two-sided, adaptive k)",
+        "verdict": "REJECT",
+        "result": "Best +621%, but DD 34.6%; two-sided and adaptive versions worse."
+      },
+      {
+        "name": "Time-series momentum (daily, weekly)",
+        "verdict": "REJECT",
+        "result": "Up to +1,469%, but DD 64–70%."
+      },
+      {
+        "name": "Donchian breakout (long, long/short)",
+        "verdict": "REJECT",
+        "result": "Up to +1,304%, but 53 trades and DD 39–47%."
+      },
+      {
+        "name": "Dip-buys, capitulation, pullbacks, EMA cross, squeeze, near-ATH, turn-of-month",
+        "verdict": "REJECT",
+        "result": "All below buy & hold, most with DD 31–71% or under 100 trades."
+      },
+      {
+        "name": "Hour-of-day and day-of-week",
+        "verdict": "REJECT",
+        "result": "Hour-of-day gross +13bp vs 30bp round-trip cost; day-of-week PF 1.05."
+      }
+    ]
   }
 ]
 </script>
