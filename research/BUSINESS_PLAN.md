@@ -1,5 +1,8 @@
 # Research business plan
 
+> **Retired 2026-10-08** with the rest of the site. The strategy catalogue that
+> lived in `research/catalogue/` was deleted; see git history before that date.
+
 Internal note (not deployed; only `static/` is public). Decided 2026-09-29; simplified
 2026-10-07 to an X-first model.
 

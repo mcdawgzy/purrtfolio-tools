@@ -329,4 +329,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # Project retired 2026-10-08: every job is a no-op. Pause it in Hermes.
+    print("Status: ok - purrtfolio retired, job skipped")
+    sys.exit(0)
     sys.exit(main())

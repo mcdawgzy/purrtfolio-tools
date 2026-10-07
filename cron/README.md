@@ -35,6 +35,12 @@ this checkout), DB Release Auto-Publish (a no-op while data doesn't change),
 Audit/QA Bot, and the two Cron Doctor jobs. Resume one with
 `hermes cron resume <job_id>`; `hermes cron list` shows the ids.
 
+**Retired 2026-10-08.** The project is shut down. The runners for the jobs that
+were still active (Macro Market Update, DB Release Auto-Publish, Audit/QA Bot,
+QA Fixer) print `Status: ok - purrtfolio retired, job skipped` and exit, so they
+do nothing even before they are paused. Pause or remove every job, and the two
+Cron Doctor jobs, in Hermes (`hermes cron list`, then `hermes cron pause <job_id>`).
+
 ## Installing the shims (one time)
 
 From the checkout Hermes uses (`C:\Users\cho_i\13f-scanner-web`), after

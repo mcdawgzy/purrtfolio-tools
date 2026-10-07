@@ -1,5 +1,11 @@
 # Purrtfolio Tools
 
+> **Retired 2026-10-08.** The site is unlisted and no longer deployed: the
+> GitHub Pages build and keep-alive workflows are removed, and the cron runners still
+> scheduled in Hermes exit immediately. The strategy catalogue (`research/catalogue/`) is
+> deleted; it is in git history before this commit. The rest of this README
+> describes the project as it ran.
+
 Free institutional-ownership + macro market dashboard. Scanners (run by Hermes
 cron jobs) write SEC / FINRA / CBOE / market data into one SQLite file,
 `purrtfolio.db`; a read-only FastAPI backend serves it to a static, no-build
@@ -28,7 +34,7 @@ purrtfolio-tools/
 │       ├── nav.js        # nav menus + page descriptions
 │       ├── core/         # api, state, dom, format, charts helpers
 │       └── views/        # one module per page (+ calculators/)
-├── docs/                 # GitHub Pages output (CI copies static/ here; don't edit)
+├── docs/                 # (removed) was the GitHub Pages output
 ├── scanners/             # Data ingestion package: python -m scanners.<name> ...
 │   ├── common.py         # DB paths, connect(), shared tables (tickers, sectors)
 │   ├── thirteen_f/           # 13F filings (ingest, compare, export, enrichment)

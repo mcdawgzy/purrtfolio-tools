@@ -17,6 +17,9 @@ SCRIPT = os.path.join(WORKDIR, SCRIPT_NAME)
 PYTHON = sys.executable
 
 if __name__ == "__main__":
+    # Project retired 2026-10-08: every job is a no-op. Pause it in Hermes.
+    print("Status: ok - purrtfolio retired, job skipped")
+    sys.exit(0)
     extra = sys.argv[1:]
     cmd = [PYTHON, SCRIPT, "--post-discord", *extra]
     result = subprocess.run(cmd, cwd=WORKDIR, env={**os.environ})

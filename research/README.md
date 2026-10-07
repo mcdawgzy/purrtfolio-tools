@@ -1,17 +1,14 @@
 # Research content
 
+> **Retired 2026-10-08** with the rest of the site. The strategy catalogue that
+> lived in `research/catalogue/` was deleted; see git history before that date.
+
 Everything used to publish strategy research on the website and X. The backtests
 themselves live in the separate `trading_hub` repo; nothing here runs a backtest.
 Only `static/` is deployed, so files in `research/` are never public on their own.
 
 ```
 research/
-├── catalogue/                     # every tested study, one record each
-│   ├── studies/*.yaml             # the source (edit these)
-│   ├── catalogue.py               # schema + renderers
-│   ├── build_catalogue.py         # -> STRATEGY_CATALOGUE.md, public/studies.json, backtest-log.html
-│   ├── backtest_log_template.html # the filterable Backtest Log page
-│   └── test_catalogue.py
 └── studies/<slug>/                # one folder per published study
     ├── data/                      # numbers exported from trading_hub
     ├── assets/                    # X images (poster, diagram, chart, lesson)
@@ -39,8 +36,6 @@ The whole publishing pipeline is in `BUSINESS_PLAN.md`.
 
 ```bash
 pip install -r research/requirements.txt
-py -3.14 research/catalogue/build_catalogue.py      # rebuild after editing a study
-py -3.14 -m pytest research/catalogue -q            # checks + anonymisation guard
 py -3.14 research/studies/one-minute-orb/make_poster.py
 py -3.14 research/studies/one-minute-orb/make_cards.py
 py -3.14 research/studies/one-minute-orb/export_direction_curves.py research/studies/one-minute-orb/data/direction_curves.json  # needs trading_hub ticks
@@ -50,11 +45,5 @@ The image scripts need Edge or Chrome (set `BROWSER_EXE` to use another).
 
 ## Rules for public content
 
-- `STRATEGY_CATALOGUE.md` names every source. It is internal; publish the page or
-  `public/studies.json` instead.
 - Social-media posters and vendors are anonymised with enough context to recognise
   the setup ("a prominent Reddit poster"). Published papers keep their citations.
-  `test_catalogue.py` fails if a name, handle or account detail reaches the public feed.
-- Coverage: with a `trading_hub` checkout beside this repo (or `TRADING_HUB_ROOT` set),
-  the tests also fail if any strategy, mechanism, paper or pre-registration tested
-  there has no record here. Without it, those checks are skipped.

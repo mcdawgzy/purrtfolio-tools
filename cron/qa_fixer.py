@@ -77,7 +77,7 @@ Rules:
 - Never touch .github/, docs/ (CI builds it), render.yaml, src/config.py,
   cron/qa_fixer.py, *.db files or secrets.
 - Do not commit, push, or run any git command that changes state; the caller does that.
-- After changing code, run: python -m pytest tests research/catalogue -q
+- After changing code, run: python -m pytest tests -q
   and make sure it passes. If you cannot make it pass, revert your change to that
   file and move the issue to needs_human.
 - Every issue id must appear in exactly one of fixed or needs_human.
@@ -243,7 +243,7 @@ def verify(files: list[str]) -> str | None:
             src = (WORK / f).read_text(encoding="utf-8")
             if run([node, "--input-type=module", "--check"], cwd=WORK, check=False, stdin=src).returncode:
                 return f"JS syntax error in {f}"
-    tests = run([sys.executable, "-m", "pytest", "tests", "research/catalogue", "-q", "-p", "no:cacheprovider"],
+    tests = run([sys.executable, "-m", "pytest", "tests", "-q", "-p", "no:cacheprovider"],
                 cwd=WORK, check=False, timeout=900, env=env)
     if tests.returncode:
         return "tests fail: " + (tests.stdout.strip().splitlines() or ["?"])[-1]
@@ -327,6 +327,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # Project retired 2026-10-08: every job is a no-op. Pause it in Hermes.
+    print("Status: ok - purrtfolio retired, job skipped")
+    sys.exit(0)
     try:
         sys.exit(main())
     except Exception as e:  # surfaced to Hermes as a failed run
